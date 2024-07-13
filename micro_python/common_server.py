@@ -1,9 +1,8 @@
-import _thread
 import gc
+import os
 import ubinascii
 import machine
 from machine import Pin, UART
-from utime import sleep
 import time
 import json
 from common.common import Common
@@ -13,8 +12,8 @@ finish_server = False
 
 class CommonServer(Common):
 
-    def __init__(self, tx_pin: int, rx_pin: int):
-        super().__init__("SERVER", False, False)
+    def __init__(self, name: str, tx_pin: int, rx_pin: int):
+        super().__init__(name, False, False)
         self.uart = UART(0, baudrate=76800, bits=8, tx=Pin(tx_pin), rx=Pin(rx_pin), timeout=2)
         #self.uart = UART(0, baudrate=9600, bits=8, tx=Pin(0), rx=Pin(1), timeout=2)
         #self.uart = UART(0, baudrate=115200, bits=8, tx=Pin(0), rx=Pin(1), timeout=2)
@@ -27,6 +26,22 @@ class CommonServer(Common):
 
     def handle_message(self, message):
         return "unknown command: {}".format(message)
+
+    def handle_help(self):
+        return ""
+
+    def handle_mkdir(self, msg):
+        s = msg.split()
+        if len(s) != 2:
+            return "[ER] USAGE: MKDIR dirname"
+        dirname = s[1]
+
+        try:
+            os.mkdir(dirname)
+        except BaseException as e:
+            return "[ER] {}".format(e)
+
+        return "mkdir completed: {}".format(dirname)
 
     def handle_put(self, msg):
         s = msg.split()
@@ -77,6 +92,9 @@ class CommonServer(Common):
                 elif msg.startswith("PUT"):
                     answer = self.handle_put(raw_msg)
 
+                elif msg.startswith("MKDIR"):
+                    answer = self.handle_mkdir(raw_msg)
+
                 elif msg == "STATUS":
                     gc.collect()
                     self.system_status["os_uptime"] = time.ticks_ms() // 1000
@@ -84,6 +102,9 @@ class CommonServer(Common):
                     self.system_status["mem_alloc"] = gc.mem_alloc()
                     self.system_status["mem_free"] = gc.mem_free()
                     answer = json.dumps(self.system_status)
+
+                elif msg == "HELP":
+                    answer = "COMMON COMMANDS: uptime, status, help, reboot, exit, mkdir, put; {}".format(self.handle_help())
 
                 else:
                     answer = self.handle_message(raw_msg)
@@ -93,5 +114,4 @@ class CommonServer(Common):
                 self.uart.flush()
 
         self.log("Exit")
-
 

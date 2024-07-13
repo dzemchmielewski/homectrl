@@ -8,7 +8,7 @@ from common.common import Common
 class BoardClient(Common):
 
     def __init__(self, port="/dev/ttyS0"):
-        super(BoardClient, self).__init__("BRDCTRL")
+        super(BoardClient, self).__init__("BRDCTRL", debug=False)
         self.ser = serial.Serial(
             port=port,
             baudrate=76800,
@@ -16,23 +16,32 @@ class BoardClient(Common):
             stopbits=serial.STOPBITS_ONE,
             bytesize=serial.EIGHTBITS,
             timeout=2)
+        status = self.interact("status")
+        self.log("Connected to board {}. OS up: {}, server up: {}".format(
+            status["id"],
+            self.format_uptime(status["os_uptime"]),
+            self.format_uptime(status["server_uptime"])))
 
-    def read(self):
-        self.ser.write("read".encode())
+    def interact(self, command, expected_json = True):
+        self.ser.write(command.encode())
         self.ser.flush()
         result = self.ser.readline()
-        # self.log("RAW: {}".format(result))
-        #self.log("<< : {}".format(result.decode().strip()))
-        return json.loads(result.decode())
+        self.debug("RAW: {}".format(result))
+        if len(list(bytes(result))) == 0:
+            raise ConnectionError("Connection to board failed")
+        if expected_json:
+            return json.loads(result.decode())
+        return result.decode()
 
 
 class CommandLineClient(BoardClient):
 
     def __init__(self):
         super().__init__()
+        self.exit = False
 
     def start(self):
-        while True:
+        while not self.exit:
             str_raw = self.input(">> : ")
             expect_read = True
             str = str_raw.strip().upper()
@@ -52,6 +61,12 @@ class CommandLineClient(BoardClient):
             #     except KeyboardInterrupt:
             #         expect_read = False
             #         self.ser.readline()
+
+            elif str == "REBOOT":
+                self.ser.write(str_raw.encode())
+                self.ser.flush()
+                self.exit = True
+                expect_read = False
 
             else:
                 self.ser.write(str_raw.encode())
@@ -87,3 +102,5 @@ if __name__ == "__main__":
         CommandLineClient().start()
     except KeyboardInterrupt:
         print("EXIT")
+
+

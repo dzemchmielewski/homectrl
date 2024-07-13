@@ -64,27 +64,29 @@ class Metering:
 
 class Common:
     def __init__(self, name, debug=False, metering=False):
-        self.name = [name]
+        self.name = name
         self.enableDebug = debug
         self.enableMetering = metering
         self.metering = None
         self.gpio = CommonGPIO()
 
-    def debug(self, message):
+    def debug(self, message, prefix=None):
         if self.enableDebug:
-            print("[{}][DEBUG] {}".format(self.name, message))
+            if prefix is None:
+                prefix = log_entry_prefix()
+            print("[{}][{}][DEBUG] {}".format(prefix, self.name, message))
 
     def log(self, msg, prefix=None):
         if prefix is None:
             prefix = log_entry_prefix()
-        print("{}[{}] {}".format(prefix, "][".join(self.name), msg))
+        print("[{}][{}] {}".format(prefix, self.name, msg))
         if BOARD == "Linux":
             sys.stdout.flush()
 
     def input(self, msg, prefix=None):
         if prefix is None:
             prefix = log_entry_prefix()
-        return input("{}[{}] {}".format(prefix, "][".join(self.name), msg))
+        return input("[{}][{}] {}".format(prefix, self.name, msg))
 
     def metering_start(self):
         if self.enableMetering:

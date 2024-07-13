@@ -23,7 +23,7 @@ class CommonGPIO:
 
 
 def log_entry_prefix():
-    return "[{}]".format(time.ticks_ms())
+    return "{}".format(time.ticks_ms())
 
 
 def time_ms():
