@@ -100,7 +100,7 @@ class CommandLineClient(BoardClient):
 if __name__ == "__main__":
     try:
         CommandLineClient().start()
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, EOFError):
         print("EXIT")
 
 

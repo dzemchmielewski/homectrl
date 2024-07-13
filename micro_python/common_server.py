@@ -43,6 +43,17 @@ class CommonServer(Common):
 
         return "mkdir completed: {}".format(dirname)
 
+    def handle_ls(self, msg):
+        s = msg.split()
+        if len(s) != 2:
+            return "[ER] USAGE: LS dirname"
+        dirname = s[1]
+
+        try:
+            return os.listdir(dirname)
+        except BaseException as e:
+            return "[ER] {}".format(e)
+
     def handle_put(self, msg):
         s = msg.split()
         if len(s) != 3:
@@ -94,6 +105,9 @@ class CommonServer(Common):
 
                 elif msg.startswith("MKDIR"):
                     answer = self.handle_mkdir(raw_msg)
+
+                elif msg.startswith("LS"):
+                    answer = json.dumps(self.handle_ls(raw_msg))
 
                 elif msg == "STATUS":
                     gc.collect()

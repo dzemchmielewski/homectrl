@@ -1,6 +1,7 @@
 import machine
 import utime
-import micro_python.PINSwitchServer
+from micro_python.switch_light_worker import SwitchLightWorker
+from micro_python.worker_server import WorkerServer
 
 
 def _blink(pattern):
@@ -13,6 +14,9 @@ def _blink(pattern):
 
 
 _blink([0.5, 0.3, 0.2, 0.2, 0.1, 0.1, 0.1, 0.05, 0.05])
-micro_python.PINSwitchServer.PINSwitchServer().start()
+
+
+switch_worker = SwitchLightWorker("WORKER switch light")
+WorkerServer("SERVER switch light", switch_worker).start()
 
 # exec(open("main.py").read())
