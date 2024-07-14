@@ -1,8 +1,6 @@
 import _thread
 import json
 
-from machine import UART, Pin
-
 from micro_python.common_server import CommonServer
 import micro_python.switch_light_worker as worker
 
@@ -14,7 +12,7 @@ class WorkerServer(CommonServer):
         self.worker = worker
 
     def handle_help(self):
-        return "PIN switch server commands: dev, todo"
+        return "WORKER SERVER COMMANDS: go, nogo, info, read"
 
     def handle_message(self, msg):
         cmd = msg.strip().upper()
@@ -37,17 +35,11 @@ class WorkerServer(CommonServer):
         elif cmd == "INFO":
             answer = json.dumps(worker.worker_data.__dict__)
 
-        elif cmd == "DEV":
+        elif cmd == "READ":
             try:
-                from machine import UART, Pin
-                from ld2410.ld2410 import LD2410
-                uart = UART(1, baudrate=256000, bits=8, parity=None, stop=1, tx=Pin(4), rx=Pin(5), timeout=1)
-                radar = LD2410("LD2410", uart)
-                answer = radar.get_radar_data()
-            except BaseException as e:
+                answer = json.dumps(worker.worker_data.sensor_data)
+            except Exception as e:
                 answer = str(e)
-        else:
-            answer = "unknown command: {}".format(msg)
 
         return answer
 

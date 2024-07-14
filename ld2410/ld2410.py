@@ -1,8 +1,9 @@
 # This code bases on very good work of Sean Yong:
 # https://github.com/vjsyong/LD2410
 # Thanks Sean!
+import time
 
-from common.common import Common
+from common.common import Common, CommonSerial
 from ld2410.ld2410_consts import *
 from collections import deque
 import struct
@@ -20,8 +21,8 @@ class Queue:
 
 
 class LD2410(Common):
-    def __init__(self, name, serial) -> None:
-        super().__init__(name, debug=False)
+    def __init__(self, name, serial: CommonSerial, debug=False) -> None:
+        super().__init__(name, debug)
         self.eng_mode = False
         self.read_fail_count = 0
         self.ser = serial
@@ -67,6 +68,7 @@ class LD2410(Common):
 
             except Exception as e:
                 self.debug(e)
+                raise e
 
     def send_command(self, command):
         # Enable config mode
@@ -119,19 +121,19 @@ class LD2410(Common):
     # Enable Engineering Mode
     # Adds energy level of each gate to the radar output
     def enable_engineering_mode(self):
-        self.info("Enabling engineering mode")
+        self.log("Enabling engineering mode")
         self.eng_mode = True
         self.send_command(CMD_ENG_MODE_ENABLE)
 
     # Disable Engineering Mode
     def disable_engineering_mode(self):
-        self.info("Disabling engineering mode")
+        self.log("Disabling engineering mode")
         self.eng_mode = False
         self.send_command(CMD_ENG_MODE_DISABLE)
 
     # Configure Gate Movement and Static Sensitivities
     def edit_gate_sensitivity(self, gate, moving_sens, static_sens):
-        self.info("Editing gate sensitivity")
+        self.log("Editing gate sensitivity")
         self.validate_range(gate, GATE_MIN, GATE_MAX + 1)
         self.validate_range(moving_sens, SENS_MIN, SENS_MAX + 1)
 
@@ -150,7 +152,7 @@ class LD2410(Common):
 
     # Read Firmware Version
     def read_firmware_version(self):
-        self.info("Reading firmware version")
+        self.log("Reading firmware version")
         ret = self.send_command(CMD_FIRMWARE_READ)
 
         # Need to flip from little endian to big endian
@@ -184,18 +186,14 @@ class LD2410(Common):
         if reconnect:
             self.restart_module(PARAM_DEFAULT_BAUD)
 
-    # TODO: restart module
-    # def restart_module(self, new_baud=None):
-    #     self.log("Restarting module")
-    #     if new_baud:
-    #         self.baudrate = new_baud
-    #
-    #     self.send_command(CMD_RESTART)
-    #     self.ser.close()
-    #     self.ser = self.ser = serial.Serial(self.port, BAUD_LOOKUP[self.baudrate], timeout=self.timeout)
-    #     self.eng_mode = False
-    #
-    #     time.sleep(1)
+    def restart_module(self):
+        self.log("Restarting module")
+        self.send_command(CMD_RESTART)
+
+        self.ser.close()
+        self.ser = self.ser.reinit()
+        self.eng_mode = False
+        time.sleep(1)
 
     # Enable Bluetooth
     def bt_enable(self):
@@ -234,12 +232,12 @@ class LD2410(Common):
                 self.read_fail_count += 1
                 self.debug("Serial failed to read data. Trying again")
                 self.read_fail_count += 1
-                if self.read_fail_count > 32:
+                if self.read_fail_count > 320:
                     self.log(
                         "Serial failed to read data many times in a row. Please check if the baud rate is correct. Hint: Check the firmware version, if it looks weird, it's probably wrong")
+
                 b = b""
 
-            self.debug("Adding: {}".format(b))
             buffer.add(b)
 
         # Different packet lengths depending on whether engineering mode is on
@@ -277,6 +275,10 @@ class LD2410(Common):
 
         #TODO!!! there is no reset_input_buffer method
         # self.ser.reset_input_buffer()
+        # self.ser.deinit()
+        # self.ser.init()
+        self.ser.reinit()
+
 
         # Keep trying until a successful read
         ret = self.get_data_frame()

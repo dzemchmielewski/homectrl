@@ -16,13 +16,13 @@ elif BOARD == "esp8266" or BOARD == "esp32":
 
 elif BOARD == 'rp2':
     # Raspberry Pico
-    from common.platform.rp2pico import CommonGPIO, log_entry_prefix, time_ms
+    from common.platform.rp2pico import CommonGPIO, log_entry_prefix, time_ms, CommonSerial
     loaded = True
 
 elif BOARD == "Linux":
     # Linux:
     # from datetime import datetime
-    from common.platform.linux import log_entry_prefix, time_ms
+    from common.platform.linux import log_entry_prefix, time_ms, CommonSerial
 
     # Linux without GPIO:
     if MACHINE == "x86_64":

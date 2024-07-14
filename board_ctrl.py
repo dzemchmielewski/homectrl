@@ -1,20 +1,16 @@
 import os
 from time import sleep
 import json
-import serial
-from common.common import Common
+from common.common import Common, CommonSerial
 
 
 class BoardClient(Common):
 
     def __init__(self, port="/dev/ttyS0"):
         super(BoardClient, self).__init__("BRDCTRL", debug=False)
-        self.ser = serial.Serial(
+        self.ser = CommonSerial(
             port=port,
             baudrate=76800,
-            parity=serial.PARITY_NONE,
-            stopbits=serial.STOPBITS_ONE,
-            bytesize=serial.EIGHTBITS,
             timeout=2)
         status = self.interact("status")
         self.log("Connected to board {}. OS up: {}, server up: {}".format(

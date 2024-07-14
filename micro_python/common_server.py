@@ -2,10 +2,9 @@ import gc
 import os
 import ubinascii
 import machine
-from machine import Pin, UART
 import time
 import json
-from common.common import Common
+from common.common import Common, CommonSerial
 
 finish_server = False
 
@@ -14,13 +13,12 @@ class CommonServer(Common):
 
     def __init__(self, name: str, tx_pin: int, rx_pin: int):
         super().__init__(name, False, False)
-        self.uart = UART(0, baudrate=76800, bits=8, tx=Pin(tx_pin), rx=Pin(rx_pin), timeout=2)
-        #self.uart = UART(0, baudrate=9600, bits=8, tx=Pin(0), rx=Pin(1), timeout=2)
-        #self.uart = UART(0, baudrate=115200, bits=8, tx=Pin(0), rx=Pin(1), timeout=2)
+        self.uart = CommonSerial(id=0, baudrate=76800, bits=8, tx=tx_pin, rx=rx_pin, timeout=2)
         self.id = ubinascii.hexlify(machine.unique_id()).decode()
         self.start_time = time.ticks_ms()
         self.system_status = {
             "id": self.id,
+            "name": self.name,
             "freq": machine.freq()/1_000_000,
         }
 
