@@ -1,6 +1,7 @@
 import time
-from common.common import Common, CommonSerial
+from common.common import Common, CommonSerial, time_ms
 from ld2410.ld2410 import LD2410
+from modules.darkness_sensor import DarknessSensor
 
 
 class WorkerData:
@@ -20,13 +21,19 @@ class SwitchLightWorker(Common):
     def __init__(self, name, debug=True):
         super().__init__(name, debug)
         self.log("INIT")
-        self.motion_pin = 3
         self.light_pin = 2
+
+        # LD2410 setup:
+        self.motion_pin = 3
         self.gpio.setup_in(self.motion_pin)
         self.gpio.setup_out(self.light_pin)
         self.gpio.output(self.light_pin, self.gpio.input(self.motion_pin))
         uart = CommonSerial(1, baudrate=256000, bits=8, parity=None, stop=1, tx=4, rx=5, timeout=1)
         self.radar = LD2410("LD2410", uart, debug=False)
+
+        #Photoresistor:
+        self.darkness = DarknessSensor("DARKNESS", 6, debug=debug)
+
 
     def format_data(self, detection, input):
         if input[0][0] == 0:
@@ -65,7 +72,7 @@ class SwitchLightWorker(Common):
                     time.sleep(1)
                     value = self.gpio.input(self.motion_pin)
 
-            #Finally, if the motion pin has switched:
+            #Finally, if the motion pin switch is confirmed
             if value != prev:
                 # switch the light:
                 self.gpio.output(self.motion_pin, value)
@@ -74,6 +81,7 @@ class SwitchLightWorker(Common):
 
             worker_data.sensor_data["detection"] = value
             worker_data.sensor_data["radar"] = self.radar.get_radar_data()
+            worker_data.sensor_data["darkness"] = self.darkness.is_darkness()
             self.log(self.format_data(value, worker_data.sensor_data["radar"]))
 
             time.sleep(worker_data.loop_sleep)
