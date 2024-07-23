@@ -1,19 +1,21 @@
 import gc
 import os
 import json
+import common.common
+from common.common import Common, time_ms, start_thread
+from common.communication import Communication
+
+if common.common.is_esp32():
+    import esp32
 
 machine_loaded = False
 try:
     import machine
+    import ubinascii
     machine_loaded = True
 except ImportError as e:
     print("Cannot load 'machine' module: {}", e)
 
-import common.common
-from common.common import Common, time_ms, start_thread
-from common.communication import Communication
-if common.common.is_esp32():
-    import esp32
 
 finish_server = False
 
@@ -27,6 +29,9 @@ class CommonServer(Common):
         self.system_status = {
             "name": self.name,
         }
+        if machine_loaded:
+            self.system_status["id"] = ubinascii.hexlify(machine.unique_id()).decode()
+            self.system_status["freq"] = machine.freq()/1_000_000
 
     def handle_message(self, message):
         return "[ERROR] unknown command: {}".format(message)
@@ -55,6 +60,22 @@ class CommonServer(Common):
 
         try:
             return os.listdir(dirname)
+        except BaseException as e:
+            return "[ERROR] {}".format(e)
+
+    def handle_rm(self, msg):
+        s = msg.split()
+        if len(s) != 2:
+            return "[ERROR] USAGE: RM filename/dirname"
+        file = s[1]
+
+        try:
+            st = os.stat(file)
+            if st[0] & 0x4000:  #is directory
+                os.rmdir(file)
+            else:
+                os.remove(file)
+            return "rm completed: {}".format(file)
         except BaseException as e:
             return "[ERROR] {}".format(e)
 
@@ -126,6 +147,9 @@ class CommonServer(Common):
                 elif msg.startswith("LS"):
                     answer = json.dumps(self.handle_ls(raw_msg))
 
+                elif msg.startswith("RM"):
+                    answer = json.dumps(self.handle_rm(raw_msg))
+
                 elif msg == "STATUS":
                     gc.collect()
                     self.system_status["os_uptime"] = time_ms() // 1000
@@ -137,7 +161,8 @@ class CommonServer(Common):
                     answer = json.dumps(self.system_status)
 
                 elif msg == "HELP":
-                    answer = "COMMON COMMANDS: help, status, uptime, mkdir, put, ls, exit (bye, quit), server_exit, reboot; {}".format(self.handle_help())
+                    answer = "COMMON COMMANDS: help, status, uptime, mkdir, put, ls, rm, exit (bye, quit), server_exit, reboot; {}".format(
+                        self.handle_help())
 
                 else:
                     answer = self.handle_message(raw_msg)
@@ -148,19 +173,3 @@ class CommonServer(Common):
 
         self.conn.close()
         self.log("Exit")
-
-
-if __name__ == '__main__':
-
-    from common.dummy_worker import DummyWorker
-    from common.communication import SerialCommunication, CommonSerial
-
-    try:
-        worker = DummyWorker("DUMMY_WORKER")
-        # connection = SocketCommunication("SOCKET", "", 8123, is_server=True)
-        connection = SerialCommunication("SERIAL", CommonSerial(0, 76800, tx=0, rx=1, timeout=2), debug=True)
-        WorkerServer("WORKER_SERVER", communication=connection, worker=worker).start()
-    except KeyboardInterrupt:
-        pass
-
-# exec(open("common/server.py").read())

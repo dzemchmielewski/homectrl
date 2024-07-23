@@ -77,7 +77,7 @@ class WorkerServer(CommonServer):
 
         elif cmd == "READ":
             try:
-                answer = json.dumps(worker_data.some_data)
+                answer = json.dumps(worker_data.data)
             except Exception as e:
                 answer = str(e)
 
