@@ -1,6 +1,9 @@
 from datetime import datetime
 import time
+from threading import Thread
+
 import serial
+
 
 def log_entry_prefix():
     return "{:%Y-%m-%d %H:%M:%S.%f}".format(datetime.now())
@@ -8,6 +11,10 @@ def log_entry_prefix():
 
 def time_ms():
     return int(round(time.time() * 1000))
+
+
+def start_thread(target):
+    Thread(target=target).start()
 
 
 class CommonSerial(serial.Serial):
@@ -31,3 +38,5 @@ class CommonSerial(serial.Serial):
         self.reset_input_buffer()
         # return CommonSerial(self.port, self.baudrate, self.bytesize, self.parity, self.stopbits, self.timeout)
 
+    def __str__(self):
+        return "Serial: {} ({})".format(self.serial.port, self.serial.baudrate)

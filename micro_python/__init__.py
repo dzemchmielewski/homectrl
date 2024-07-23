@@ -1,1 +1,0 @@
-name = "micro_python"

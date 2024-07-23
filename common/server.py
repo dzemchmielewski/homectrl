@@ -1,0 +1,166 @@
+import gc
+import os
+import json
+
+machine_loaded = False
+try:
+    import machine
+    machine_loaded = True
+except ImportError as e:
+    print("Cannot load 'machine' module: {}", e)
+
+import common.common
+from common.common import Common, time_ms, start_thread
+from common.communication import Communication
+if common.common.is_esp32():
+    import esp32
+
+finish_server = False
+
+
+class CommonServer(Common):
+
+    def __init__(self, name: str, connection: Communication):
+        super().__init__(name, False, False)
+        self.conn = connection
+        self.start_time = time_ms()
+        self.system_status = {
+            "name": self.name,
+        }
+
+    def handle_message(self, message):
+        return "[ERROR] unknown command: {}".format(message)
+
+    def handle_help(self):
+        return ""
+
+    def handle_mkdir(self, msg):
+        s = msg.split()
+        if len(s) != 2:
+            return "[ERROR] USAGE: MKDIR dirname"
+        dirname = s[1]
+
+        try:
+            os.mkdir(dirname)
+        except BaseException as e:
+            return "[ERROR] {}".format(e)
+
+        return "mkdir completed: {}".format(dirname)
+
+    def handle_ls(self, msg):
+        s = msg.split()
+        if len(s) != 2:
+            return "[ERROR] USAGE: LS dirname"
+        dirname = s[1]
+
+        try:
+            return os.listdir(dirname)
+        except BaseException as e:
+            return "[ERROR] {}".format(e)
+
+    def handle_put(self, msg):
+        s = msg.split()
+        if len(s) != 3:
+            return "[ERROR] USAGE: PUT filename size"
+        filename = s[1]
+
+        if not s[2].isdigit():
+            return "[ERROR] cannot convert to integer: {}".format(s[1])
+        bytes = int(s[2])
+
+        self.conn.send("Ready for {} bytes transmission to the {} file".format(bytes, filename))
+
+        with open(filename, "wb") as f:
+            b = None
+            while b is None:
+                b = self.conn.receive_bytes(bytes)
+                f.write(b)
+        return "PUT completed: {}".format(filename)
+
+    def start(self):
+        self.log("START: {}".format(self.conn))
+        restart = False
+        global finish_server
+
+        while not finish_server and not restart:
+            raw_msg = self.conn.receive()
+            if raw_msg:
+                self.log("IN : {}".format(raw_msg))
+                msg = raw_msg.strip().upper()
+                answer = None
+
+                if msg == "UPTIME":
+                    answer = "OS up: {}, server up: {}".format(
+                        self.format_uptime(time_ms() // 1000),
+                        self.format_uptime((time_ms() - self.start_time) // 1_000))
+
+                elif msg == "EXIT" or msg == "BYE" or msg == "QUIT":
+                    out = "goodbye"
+                    self.log("OUT: {}".format(out))
+                    self.conn.send(out)
+                    self.conn.close()
+
+                elif msg == "SERVER_EXIT":
+                    out = "goodbye & adieu"
+                    self.log("OUT: {}".format(out))
+                    self.conn.send(out)
+                    self.conn.close()
+                    finish_server = True
+
+                elif msg == "REBOOT":
+                    if machine_loaded:
+                        out = "goodbye & see you in next life"
+                        self.log("OUT: {}".format(out))
+                        self.conn.send(out)
+                        self.conn.close()
+                        machine.reset()
+                    else:
+                        answer = "[ERROR] Cannot reboot"
+
+                elif msg.startswith("PUT"):
+                    answer = self.handle_put(raw_msg)
+
+                elif msg.startswith("MKDIR"):
+                    answer = self.handle_mkdir(raw_msg)
+
+                elif msg.startswith("LS"):
+                    answer = json.dumps(self.handle_ls(raw_msg))
+
+                elif msg == "STATUS":
+                    gc.collect()
+                    self.system_status["os_uptime"] = time_ms() // 1000
+                    self.system_status["server_uptime"] = (time_ms() - self.start_time) // 1_000
+                    self.system_status["mem_alloc"] = gc.mem_alloc()
+                    self.system_status["mem_free"] = gc.mem_free()
+                    if common.common.is_esp32():
+                        self.system_status["mcu_temp"] = esp32.mcu_temperature()
+                    answer = json.dumps(self.system_status)
+
+                elif msg == "HELP":
+                    answer = "COMMON COMMANDS: help, status, uptime, mkdir, put, ls, exit (bye, quit), server_exit, reboot; {}".format(self.handle_help())
+
+                else:
+                    answer = self.handle_message(raw_msg)
+
+                if answer is not None:
+                    self.log("OUT: {}".format(answer))
+                    self.conn.send(answer)
+
+        self.conn.close()
+        self.log("Exit")
+
+
+if __name__ == '__main__':
+
+    from common.dummy_worker import DummyWorker
+    from common.communication import SerialCommunication, CommonSerial
+
+    try:
+        worker = DummyWorker("DUMMY_WORKER")
+        # connection = SocketCommunication("SOCKET", "", 8123, is_server=True)
+        connection = SerialCommunication("SERIAL", CommonSerial(0, 76800, tx=0, rx=1, timeout=2), debug=True)
+        WorkerServer("WORKER_SERVER", communication=connection, worker=worker).start()
+    except KeyboardInterrupt:
+        pass
+
+# exec(open("common/server.py").read())

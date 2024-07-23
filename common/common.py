@@ -6,23 +6,23 @@ BOARD = UNAME.sysname
 MACHINE = UNAME.machine
 loaded = False
 
-if BOARD == "WiPy" or BOARD == "LoPy" or BOARD == "FiPy":
-    # Todo...
-    pass
+# if BOARD == "WiPy" or BOARD == "LoPy" or BOARD == "FiPy":
+#     # Todo...
+#     pass
+#
+# elif BOARD == "esp8266" or BOARD == "esp32":
+#     # Todo...
+#     pass
 
-elif BOARD == "esp8266" or BOARD == "esp32":
-    # Todo...
-    pass
-
-elif BOARD == 'rp2':
+if BOARD == 'rp2' or BOARD == "esp8266" or BOARD == "esp32":
     # Raspberry Pico
-    from common.platform.rp2pico import CommonGPIO, log_entry_prefix, time_ms, CommonSerial
+    from common.platform.rp2pico import CommonGPIO, log_entry_prefix, time_ms, CommonSerial, start_thread
     loaded = True
 
 elif BOARD == "Linux":
     # Linux:
     # from datetime import datetime
-    from common.platform.linux import log_entry_prefix, time_ms, CommonSerial
+    from common.platform.linux import log_entry_prefix, time_ms, CommonSerial, start_thread
 
     # Linux without GPIO:
     if MACHINE == "x86_64":
@@ -36,6 +36,10 @@ elif BOARD == "Linux":
 
 else:
     raise RuntimeError("Unsupported platform")
+
+
+def is_esp32():
+    return BOARD == "esp32"
 
 
 class Metering:
