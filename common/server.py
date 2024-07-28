@@ -102,6 +102,7 @@ class CommonServer(Common):
         self.log("START: {}".format(self.conn))
         restart = False
         global finish_server
+        finish_server = False
 
         while not finish_server and not restart:
             raw_msg = self.conn.receive()

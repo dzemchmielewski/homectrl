@@ -45,6 +45,10 @@ class WorkerServer(CommonServer):
     def __init__(self, name, communication: Communication, worker: Worker = None):
         super().__init__(name, communication)
         self.worker = worker
+        if self.worker is not None:
+            worker_data = self.worker.get_data()
+            if not hasattr(worker_data, 'launch_on_start') or worker_data.launch_on_start:
+                start_thread(self.worker.start)
 
     def handle_help(self):
         return "WORKER SERVER COMMANDS: go, nogo, info, read"

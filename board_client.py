@@ -40,10 +40,11 @@ class CommandLineClient(Common):
                 self.handle_put(str_raw)
 
             else:
-                response = self.interact(str_raw)
-                self.log("<< : {}".format(response))
-                if response.upper().startswith("GOODBYE"):
-                    self.exit = True
+                if cmd != "":
+                    response = self.interact(str_raw)
+                    self.log("<< : {}".format(response))
+                    if response.upper().startswith("GOODBYE"):
+                        self.exit = True
 
             # elif str == "MONITOR":
             #     self.handle_monitor()
@@ -89,7 +90,7 @@ if __name__ == "__main__":
     try:
 
         # conn = SocketCommunication("SOCKET", "localhost", 8123, is_server=False, debug=True)
-        conn = SocketCommunication("SOCKET", "192.168.0.120", 8123, is_server=False, debug=False)
+        conn = SocketCommunication("SOCKET", "192.168.0.121", 8123, is_server=False, debug=False)
         # conn = SerialCommunication("SERIAL", CommonSerial(port="/dev/ttyS0", baudrate=76800))
         CommandLineClient(conn).start()
 

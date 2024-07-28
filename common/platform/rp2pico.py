@@ -5,14 +5,20 @@ import time
 
 class CommonGPIO:
 
+    LOW = 0
+    HIGH = 1
+
+    PULL_UP = machine.Pin.PULL_UP
+    PULL_DOWN = machine.Pin.PULL_DOWN
+
     def __init__(self):
         self.pins = {}
 
-    def setup_out(self, pin):
-        self.pins[pin] = machine.Pin(pin, machine.Pin.OUT)
+    def setup_out(self, pin: int, pull: int = -1):
+        self.pins[pin] = machine.Pin(pin, machine.Pin.OUT, pull)
 
-    def setup_in(self, pin):
-        self.pins[pin] = machine.Pin(pin, machine.Pin.IN)
+    def setup_in(self, pin: int, pull: int = -1):
+        self.pins[pin] = machine.Pin(pin, machine.Pin.IN, pull)
 
     def output(self, pin, signal):
         self.pins[pin].value(signal)
