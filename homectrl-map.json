@@ -1,0 +1,21 @@
+{
+  "board": {
+    "kitchen": {
+      "host": "192.168.0.121",
+      "port": 8123,
+      "debug": false
+    },
+    "radio": {
+      "host": "192.168.0.21",
+      "port": 9999,
+      "debug": false
+    }
+  },
+
+  "collector": {
+    "host": "localhost",
+    "port": 9000,
+    "debug": false
+  }
+
+}

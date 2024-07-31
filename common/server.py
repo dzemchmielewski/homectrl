@@ -14,7 +14,7 @@ try:
     import ubinascii
     machine_loaded = True
 except ImportError as e:
-    print("Cannot load 'machine' module: {}", e)
+    pass
 
 
 finish_server = False
@@ -98,6 +98,11 @@ class CommonServer(Common):
                 f.write(b)
         return "PUT completed: {}".format(filename)
 
+    def goodbye(self, out: str = "goodbye"):
+        self.log("OUT: {}".format(out))
+        self.conn.send(out)
+        self.conn.close()
+
     def start(self):
         self.log("START: {}".format(self.conn))
         restart = False
@@ -105,7 +110,15 @@ class CommonServer(Common):
         finish_server = False
 
         while not finish_server and not restart:
-            raw_msg = self.conn.receive()
+            try:
+                raw_msg = self.conn.receive()
+            except OSError as e:
+                # This may be read timeout exception
+                # Close connection:
+                self.log("Error: {}. Sending goodbye and closing connection".format(e))
+                raw_msg = None
+                self.goodbye("goodbye timeout")
+
             if raw_msg:
                 self.log("IN : {}".format(raw_msg))
                 msg = raw_msg.strip().upper()
@@ -117,24 +130,15 @@ class CommonServer(Common):
                         self.format_uptime((time_ms() - self.start_time) // 1_000))
 
                 elif msg == "EXIT" or msg == "BYE" or msg == "QUIT":
-                    out = "goodbye"
-                    self.log("OUT: {}".format(out))
-                    self.conn.send(out)
-                    self.conn.close()
+                    self.goodbye("goodbye")
 
                 elif msg == "SERVER_EXIT":
-                    out = "goodbye & adieu"
-                    self.log("OUT: {}".format(out))
-                    self.conn.send(out)
-                    self.conn.close()
+                    self.goodbye("goodbye & adieu")
                     finish_server = True
 
                 elif msg == "REBOOT":
                     if machine_loaded:
-                        out = "goodbye & see you in next life"
-                        self.log("OUT: {}".format(out))
-                        self.conn.send(out)
-                        self.conn.close()
+                        self.goodbye("goodbye & see you in next life")
                         machine.reset()
                     else:
                         answer = "[ERROR] Cannot reboot"
@@ -155,8 +159,9 @@ class CommonServer(Common):
                     gc.collect()
                     self.system_status["os_uptime"] = time_ms() // 1000
                     self.system_status["server_uptime"] = (time_ms() - self.start_time) // 1_000
-                    self.system_status["mem_alloc"] = gc.mem_alloc()
-                    self.system_status["mem_free"] = gc.mem_free()
+                    if hasattr(gc, "mem_alloc") and callable(getattr(gc, "mem_alloc")):
+                        self.system_status["mem_alloc"] = gc.mem_alloc()
+                        self.system_status["mem_free"] = gc.mem_free()
                     if common.common.is_esp32():
                         self.system_status["mcu_temp"] = esp32.mcu_temperature()
                     answer = json.dumps(self.system_status)

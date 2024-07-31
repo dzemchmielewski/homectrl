@@ -70,17 +70,21 @@ class SerialCommunication(Communication):
 
 class SocketCommunication(Communication):
 
-    def __init__(self, name: str, host: str, port: int, is_server: bool, debug=False):
+    def __init__(self, name: str, host: str, port: int, is_server: bool = False, read_timeout: int = 3*60, debug=False):
         super().__init__(name, debug)
         self.host = host
         self.port = port
         self.is_server = is_server
         self.socket = None
         self.comm_channel = None
-        self.socket = None
+        self.read_timeout = read_timeout
 
     def __str__(self):
         return "COM Socket: {}:{}".format("0.0.0.0" if self.host is None or self.host == '' else self.host, self.port)
+
+    def __del__(self):
+        print("Deleting socket")
+        self.close(on_unload=True)
 
     def send(self, message):
         if self.comm_channel is None:
@@ -119,16 +123,20 @@ class SocketCommunication(Communication):
         self.debug("Received bytes completed; total={}".format(len(data)))
         return data
 
-    def close(self) -> None:
+    def close(self, on_unload = False) -> None:
         if self.comm_channel is not None:
-            self.debug("Closing connection")
-            self.comm_channel.close()
-            self.comm_channel = None
+            if not on_unload:
+                self.debug("Closing connection")
+            if self.comm_channel is not None:
+                self.comm_channel.close()
+                self.comm_channel = None
         else:
-            self.debug("Closing socket")
+            if not on_unload:
+                self.debug("Closing socket")
             # self.socket.shutdown(socket.SHUT_RDWR)
-            self.socket.close()
-            self.socket = None
+            if self.socket is not None:
+                self.socket.close()
+                self.socket = None
 
     def _init(self) -> bool:
         if self.is_server:
@@ -149,6 +157,7 @@ class SocketCommunication(Communication):
         self.debug("Connection from: {}".format(addr))
 
         self.comm_channel = c
+        self.comm_channel.settimeout(self.read_timeout)
         # read Hello from client:
         hello = self.receive()
 
@@ -172,6 +181,7 @@ class SocketCommunication(Communication):
         while not successfully_connected and attempts < 5:
             try:
                 self.socket.connect((self.host, self.port))
+
                 successfully_connected = True
             except OSError:
                 time.sleep(0.3)

@@ -11,6 +11,8 @@ class CommandLineClient(Common):
         self.conn = connection
         self.exit = False
 
+        self.log("Connecting to server {}...".format(connection))
+
         status = self.interact("status", expected_json=True)
         self.log("Connected to server {}. OS up: {}, server up: {}".format(
             status["name"],
