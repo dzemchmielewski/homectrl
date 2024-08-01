@@ -4,10 +4,10 @@ from common.common import Common, CommonSerial, time_ms
 from common.communication import Communication, SerialCommunication, SocketCommunication
 
 
-class CommandLineClient(Common):
+class Client(Common):
 
-    def __init__(self, connection):
-        super().__init__("CMD_BRD_CLNT", connection, True)
+    def __init__(self, connection: Communication, name="CLIENT", debug=False):
+        super().__init__(name, debug=debug)
         self.conn = connection
         self.exit = False
 
@@ -27,6 +27,15 @@ class CommandLineClient(Common):
         if expected_json:
             return json.loads(result)
         return result
+
+    def close(self):
+        return self.interact("quit")
+
+
+class CommandLineClient(Client):
+
+    def __init__(self, connection, debug=False):
+        super().__init__(connection, debug=debug, name="CMDLN_CLIENT")
 
     def start(self):
         self.log("start")

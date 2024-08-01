@@ -8,8 +8,8 @@ from timeit import default_timer as timer
 import storage
 from common.common import Common
 from common.communication import Communication, SocketCommunication
-
 from common.server import CommonServer
+from homectrl import Configuration
 
 
 class Collector(Common):
@@ -60,8 +60,9 @@ class CollectorLead:
         self.thread = None
 
     def start(self):
-        self.thread = Thread(target=self.collector.start)
-        self.thread.start()
+        if self.thread is None or not self.thread.is_alive():
+            self.thread = Thread(target=self.collector.start)
+            self.thread.start()
 
     def stop(self):
         if self.thread.is_alive():
@@ -81,32 +82,34 @@ class CollectorLead:
         }
 
 
-class DateEncoder(json.JSONEncoder):
+class HomeCtrlJsonEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, datetime.datetime):
             return obj.isoformat()
+        elif isinstance(obj, decimal.Decimal):
+            return float(obj)
         return json.JSONEncoder.default(self, obj)
 
 
 class CollectorServer(CommonServer):
 
     def __init__(self):
-        super().__init__("COLLECTORS",
-                         SocketCommunication("conn", "localhost", 9000, is_server=True))
-
-        self.collectors = {
-            "kitchen": CollectorLead(SocketCommunication("conn", "192.168.0.121", 8123, read_timeout=30))
-        }
-
-        for collector in self.collectors.values():
-            collector.start()
+        conf = Configuration.MAP["collector"]
+        super().__init__("CLLCTR-SRVR",
+                         SocketCommunication("conn", conf["host"], conf["port"], is_server=True, debug=conf["debug"]))
+        self.collectors = {}
+        for k,v in Configuration.MAP["board"].items():
+            if v["collect"]:
+                self.collectors[k] = CollectorLead(SocketCommunication("conn-" + k, v["host"], v["port"], read_timeout=30))
+        for coll in self.collectors.values():
+            coll.start()
 
     def exit(self):
-        for collector in self.collectors.values():
-            collector.stop()
+        for coll in self.collectors.values():
+            coll.stop()
 
     def handle_help(self):
-        return "COLLECTORS COMMANDS: list"
+        return "COLLECTOR COMMANDS: list, go, nogo"
 
     def handle_message(self, msg):
         cmd = msg.strip().upper()
@@ -115,7 +118,15 @@ class CollectorServer(CommonServer):
             result = {}
             for name, collector in self.collectors.items():
                 result[name] = collector.status()
-            answer = json.dumps(result, cls=DateEncoder)
+            answer = json.dumps(result, cls=HomeCtrlJsonEncoder)
+
+        elif cmd.startswith("GO") or cmd.startswith("NOGO"):
+            collector = msg.split()[1]
+            if collector not in self.collectors.keys():
+                answer = json.dumps({"error": "No such collector: {}".format(collector)})
+            else:
+                self.collectors[collector].start() if cmd.startswith("GO") else self.collectors[collector].stop()
+                answer = json.dumps(self.collectors[collector].status(), cls=HomeCtrlJsonEncoder)
 
         else:
             answer = "[ERROR] unknown command: {}".format(msg)

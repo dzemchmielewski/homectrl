@@ -1,10 +1,10 @@
+import os
 from datetime import datetime
 from peewee import SqliteDatabase, Model, CharField, DateTimeField, DecimalField, BooleanField, IntegerField, TextField
 
-DATABASE = "homectrl.db"
 
+DATABASE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "homectrl.db")
 database = SqliteDatabase(DATABASE)
-
 
 class BaseModel(Model):
     class Meta:
@@ -70,7 +70,6 @@ def save(data: dict):
     name = data.get("name")
     if (timestamp := data.get("timestamp")) is None:
         timestamp = datetime.now()
-    print("Saving data: {}".format(data))
 
     for key, value in data.items():
         if key == "temperature":
