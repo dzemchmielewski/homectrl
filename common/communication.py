@@ -83,7 +83,7 @@ class SocketCommunication(Communication):
         return "COM Socket: {}:{}".format("0.0.0.0" if self.host is None or self.host == '' else self.host, self.port)
 
     def __del__(self):
-        print("Deleting socket")
+        # print("Deleting socket")
         self.close(on_unload=True)
 
     def send(self, message):
@@ -127,9 +127,8 @@ class SocketCommunication(Communication):
         if self.comm_channel is not None:
             if not on_unload:
                 self.debug("Closing connection")
-            if self.comm_channel is not None:
-                self.comm_channel.close()
-                self.comm_channel = None
+            self.comm_channel.close()
+            self.comm_channel = None
         else:
             if not on_unload:
                 self.debug("Closing socket")
@@ -178,17 +177,19 @@ class SocketCommunication(Communication):
         successfully_connected = False
         attempts = 0
 
+        last_error = None
         while not successfully_connected and attempts < 5:
             try:
                 self.socket.connect((self.host, self.port))
 
                 successfully_connected = True
-            except OSError:
+            except OSError as e:
                 time.sleep(0.3)
                 attempts += 1
+                last_error = e
 
         if not successfully_connected:
-            raise OSError("After {} attempts".format(attempts))
+            raise OSError("Connection not established after {} attempts. Last error: {}".format(attempts, last_error))
 
         self.comm_channel = self.socket
 

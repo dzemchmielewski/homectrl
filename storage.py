@@ -1,10 +1,9 @@
-import os
 from datetime import datetime
 from peewee import SqliteDatabase, Model, CharField, DateTimeField, DecimalField, BooleanField, IntegerField, TextField
+from homectrl import Configuration
 
+database = SqliteDatabase(Configuration.DATABASE)
 
-DATABASE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "homectrl.db")
-database = SqliteDatabase(DATABASE)
 
 class BaseModel(Model):
     class Meta:

@@ -39,6 +39,9 @@ class CommonServer(Common):
     def handle_help(self):
         return ""
 
+    def on_exit(self):
+        pass
+
     def handle_mkdir(self, msg):
         s = msg.split()
         if len(s) != 2:
@@ -177,5 +180,6 @@ class CommonServer(Common):
                     self.log("OUT: {}".format(answer))
                     self.conn.send(answer)
 
+        self.on_exit()
         self.conn.close()
         self.log("Exit")

@@ -29,13 +29,14 @@ class Client(Common):
         return result
 
     def close(self):
-        return self.interact("quit")
+        self.interact("quit")
+        self.conn.close()
 
 
 class CommandLineClient(Client):
 
-    def __init__(self, connection, debug=False):
-        super().__init__(connection, debug=debug, name="CMDLN_CLIENT")
+    def __init__(self, connection, name="CMD_CLIENT", debug=False):
+        super().__init__(connection, name=name, debug=debug)
 
     def start(self):
         self.log("start")
