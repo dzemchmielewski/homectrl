@@ -1,5 +1,4 @@
 import decimal
-import json
 import datetime
 from threading import Thread
 from time import sleep
@@ -9,7 +8,7 @@ import storage
 from common.common import Common
 from common.communication import Communication, SocketCommunication
 from common.server import CommonServer
-from homectrl import Configuration
+from homectrl import Configuration, json_serial, json_deserial
 
 
 class Collector(Common):
@@ -54,7 +53,7 @@ class Collector(Common):
             raise OSError("Connection to board failed")
         if result.startswith("[ERROR]"):
             return {"error": result}
-        return json.loads(result, parse_float=lambda x: round(decimal.Decimal(x), 10))
+        return json_deserial(result)
 
 
 class CollectorLead(Common):
@@ -111,15 +110,6 @@ class CollectorLead(Common):
         }
 
 
-class HomeCtrlJsonEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, datetime.datetime):
-            return obj.isoformat()
-        elif isinstance(obj, decimal.Decimal):
-            return float(obj)
-        return json.JSONEncoder.default(self, obj)
-
-
 class CollectorServer(CommonServer):
 
     def __init__(self):
@@ -164,7 +154,7 @@ class CollectorServer(CommonServer):
         else:
             answer = {"error": "Unknown command: {}".format(msg)}
 
-        return json.dumps(answer, cls=HomeCtrlJsonEncoder)
+        return json_serial(answer)
 
 
 if __name__ == "__main__":

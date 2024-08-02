@@ -15,15 +15,18 @@ class HomeCtrlBaseModel(BaseModel):
     create_at = DateTimeField()
 
     @classmethod
-    def get_last(cls):
-        return cls.select().order_by(cls.create_at.desc()).limit(1).get_or_none()
+    def get_last(cls, name=None):
+        if not name:
+            return cls.select().order_by(cls.create_at.desc()).limit(1).get_or_none()
+        else:
+            return cls.select().where(cls.name == name.upper()).order_by(cls.create_at.desc()).limit(1).get_or_none()
 
 
 class HomeCtrlValueBaseModel(HomeCtrlBaseModel):
 
     @classmethod
     def save_new_value(cls, name, create_at, value):
-        previous = cls.get_last()
+        previous = cls.get_last(name)
         if previous is None or previous.value != value:
             return cls.create(name=name, create_at=create_at, value=value)
         return None
@@ -61,6 +64,9 @@ class Movement(HomeCtrlValueBaseModel):
     # TODO: override 'save_new_value' method
 
 
+COLLECTIONS = [Temperature, Humidity, Daylight, Lights, Entry, Movement, Error]
+
+
 def error(name: str, error: str, timestamp: datetime = datetime.now()):
     Error.create(name=name, timestamp=timestamp, value=error)
 
@@ -91,7 +97,7 @@ def save(data: dict):
 
 def create_tables():
     with database:
-        database.create_tables([Temperature, Humidity, Daylight, Lights, Entry, Movement, Error])
+        database.create_tables(COLLECTIONS)
 
 
 if __name__ == "__main__":

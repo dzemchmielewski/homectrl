@@ -1,4 +1,6 @@
 import argparse
+import datetime
+import decimal
 import json
 import os
 from time import sleep
@@ -6,6 +8,7 @@ from time import sleep
 from client import CommandLineClient, Client
 from common.common import Common
 from common.communication import SocketCommunication
+import storage
 
 
 class Configuration:
@@ -27,6 +30,23 @@ class Configuration:
     def get_communication(server_id, name="socket"):
         config = Configuration.get_config(server_id)
         return SocketCommunication(name, config["host"], config["port"], is_server=False, read_timeout=30, debug=config["debug"])
+
+
+class HomeCtrlJsonEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime.datetime):
+            return obj.isoformat()
+        elif isinstance(obj, decimal.Decimal):
+            return float(obj)
+        return json.JSONEncoder.default(self, obj)
+
+
+def json_serial(obj):
+    return json.dumps(obj, cls=HomeCtrlJsonEncoder)
+
+
+def json_deserial(json_str):
+    json.loads(json_str, parse_float=lambda x: round(decimal.Decimal(x), 10))
 
 
 class _HelpAction(argparse._HelpAction):
@@ -88,7 +108,12 @@ class HomeCtrl(Common):
         super().__init__("HOMECTRL")
 
     def list_db(self):
-        self.log("DB LIST goes here")
+        for c in storage.COLLECTIONS:
+            for key, value in Configuration.MAP["board"].items():
+                if value["collect"]:
+                    t = c.get_last(key)
+                    if t is not None:
+                        self.log("{} \t-> {}".format(type(t).__name__, json_serial(t.__dict__['__data__'])))
 
     def go(self, args):
         if args.command == "connect":
