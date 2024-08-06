@@ -79,6 +79,8 @@ class Common:
             if prefix is None:
                 prefix = log_entry_prefix()
             print("[{}][{}][DEBUG] {}".format(prefix, self.name, message))
+        if BOARD == "Linux":
+            sys.stdout.flush()
 
     def log(self, msg, prefix=None):
         if prefix is None:

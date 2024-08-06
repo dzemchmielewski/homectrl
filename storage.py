@@ -21,6 +21,12 @@ class HomeCtrlBaseModel(BaseModel):
         else:
             return cls.select().where(cls.name == name.upper()).order_by(cls.create_at.desc()).limit(1).get_or_none()
 
+    @classmethod
+    def get_lasts(cls, name: str, from_date:datetime = None, to_date: datetime = datetime.now()):
+        return (cls.select()
+                .where((cls.name == name.upper()) & (cls.create_at >= from_date) & (cls.create_at <= to_date))
+                .order_by(cls.create_at.asc()))
+
 
 class HomeCtrlValueBaseModel(HomeCtrlBaseModel):
 

@@ -42,9 +42,10 @@ class Collector(Common):
             # Exit:
             try:
                 self.conn.send("exit")
-                self.conn.close()
             except BaseException as e:
                 self.log("[ERROR] while closing connection: {}".format(e))
+            finally:
+                self.conn.close()
 
     def read(self) -> dict:
         self.conn.send("read")
@@ -119,7 +120,7 @@ class CollectorServer(CommonServer):
         self.collectors = {}
         for k, v in Configuration.MAP["board"].items():
             if v["collect"]:
-                self.collectors[k] = CollectorLead(SocketCommunication(k, v["host"], v["port"], read_timeout=30))
+                self.collectors[k] = CollectorLead(SocketCommunication(k, v["host"], v["port"], read_timeout=30, debug=v["debug"]))
         for coll in self.collectors.values():
             coll.start()
 
