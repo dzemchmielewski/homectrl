@@ -24,6 +24,14 @@ def file_exists(filename):
         return False
 
 
+def set_time():
+    import ntptime
+    import utime
+    ntptime.settime()
+    (year, month, mday, hour, minute, second, weekday, yearday) = utime.localtime(utime.time() + 2 * 60 * 60)
+    machine.RTC().datetime((year, month, mday, 0, hour, minute, second, 0))
+
+
 def wifi_setup():
     credentials = "credentials.py"
     if file_exists(credentials):
@@ -44,6 +52,7 @@ def wifi_setup():
         print("Connecting to '{}'...".format(wifi_ssid))
         station.connect(wifi_ssid, wifi_password)
         utime.sleep(10)
+    set_time()
     print("Connected! IP address: {}".format(station.ifconfig()[0]))
 
 wifi_setup()
