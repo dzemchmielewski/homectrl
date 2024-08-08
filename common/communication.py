@@ -175,6 +175,7 @@ class SocketCommunication(Communication):
         self.debug("Initialize client connection")
         self.socket = socket.socket()
         self.socket.settimeout(self.read_timeout)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         successfully_connected = False
         attempts = 0
 
