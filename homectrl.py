@@ -8,7 +8,6 @@ from time import sleep
 from client import CommandLineClient, Client
 from common.common import Common
 from common.communication import SocketCommunication
-import storage
 
 
 class Configuration:
@@ -30,6 +29,9 @@ class Configuration:
     def get_communication(server_id, name="socket"):
         config = Configuration.get_config(server_id)
         return SocketCommunication(name, config["host"], config["port"], is_server=False, read_timeout=30, debug=config["debug"])
+
+
+import storage
 
 
 class HomeCtrlJsonEncoder(json.JSONEncoder):
