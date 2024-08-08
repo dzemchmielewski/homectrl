@@ -50,7 +50,7 @@ class Humidity(HomeCtrlValueBaseModel):
     value = DecimalField(decimal_places=2)
 
 
-class Daylight(HomeCtrlValueBaseModel):
+class Darkness(HomeCtrlValueBaseModel):
     value = BooleanField()
 
 
@@ -70,7 +70,7 @@ class Movement(HomeCtrlValueBaseModel):
     # TODO: override 'save_new_value' method
 
 
-COLLECTIONS = [Temperature, Humidity, Daylight, Lights, Entry, Movement, Error]
+COLLECTIONS = [Temperature, Humidity, Darkness, Lights, Entry, Movement, Error]
 
 
 def error(name: str, error: str, timestamp: datetime = datetime.now()):
@@ -87,6 +87,8 @@ def save(data: dict):
             Temperature.save_new_value(name=name, create_at=timestamp, value=value)
         elif key == "humidity":
             Humidity.save_new_value(name=name, create_at=timestamp, value=value)
+        elif key == "darkness":
+            Darkness.save_new_value(name=name, create_at=timestamp, value=value)
         elif key == "lights":
             Lights.save_new_value(name=name, create_at=timestamp, value=value)
         elif key == "entry":
@@ -107,6 +109,7 @@ def create_tables():
 
 
 if __name__ == "__main__":
+
     import logging
     logger = logging.getLogger('peewee')
     logger.addHandler(logging.StreamHandler())
@@ -128,6 +131,4 @@ if __name__ == "__main__":
     b = Temperature.get_last()
     print("AAAAAAAAAA: {}".format(b))
 
-    Temperature.save_new_value(b.name, b.create_at, b.value)
-    Lights.save_new_value("test", datetime.now(), 1)
     print("OK")

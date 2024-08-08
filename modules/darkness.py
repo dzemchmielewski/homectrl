@@ -41,7 +41,7 @@ class DarknessSensor(Common):
 
 if __name__ == '__main__':
     try:
-        sensor = DarknessSensor("DARKNESS", 6)
+        sensor = DarknessSensor("DARKNESS", 9)
         prev = None
 
         while True:
@@ -49,8 +49,8 @@ if __name__ == '__main__':
             if value != prev:
                 print("CHANGE to {}".format(value))
                 prev = value
-            time.sleep(1)
+            time.sleep(0.2)
     except KeyboardInterrupt:
         pass
 
-# exec(open("modules/darkness_sensor.py").read())
+# exec(open("/modules/darkness_sensor.py").read())
