@@ -101,6 +101,7 @@ def parse_args():
 
     db = subparsers.add_parser("db", help="Open database command-line tool")
     db.add_argument("db_action", choices=["cmd", "last"], default="cmd", nargs="?")
+    db.add_argument("--sql", help="SQL query")
     db.set_defaults(command="db")
 
     args = parser.parse_args()
@@ -158,7 +159,10 @@ class HomeCtrl(Common):
 
         elif args.command == "db":
             if args.db_action == "cmd":
-                os.system("/usr/bin/sqlite3 {}".format(Configuration.DATABASE))
+                if args.sql:
+                    os.system("echo \"{}\" | /usr/bin/sqlite3 {}".format(args.sql, Configuration.DATABASE))
+                else:
+                    os.system("/usr/bin/sqlite3 {}".format(Configuration.DATABASE))
             elif args.db_action == "last":
                 self.list_db()
 
