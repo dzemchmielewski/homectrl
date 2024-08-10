@@ -3,7 +3,7 @@
     "kitchen": {
       "host": "192.168.0.121",
       "port": 8123,
-      "debug": false,
+      "debug": true,
       "collect": true
     },
     "radio": {
@@ -11,11 +11,17 @@
       "port": 9999,
       "debug": false,
       "collect": false
+    },
+    "dev": {
+      "host": "192.168.0.120",
+      "port": 8123,
+      "debug": false,
+      "collect": false
     }
   },
   "collector": {
     "host": "localhost",
     "port": 9000,
-    "debug": false
+    "debug": true
   }
 }

@@ -126,7 +126,8 @@ class HomeCtrl(Common):
     def go(self, args):
         if args.command == "connect":
             if args.server_id != Configuration.COLLECTOR:
-                if not args.direct:
+                direct = args.direct or not Configuration.get_config(args.server_id)["collect"]
+                if not direct:
                     collector = Client(Configuration.get_communication(Configuration.COLLECTOR), "COLLECTOR")
                     self.log("Turning OFF collector: '{}'".format(args.server_id))
                     result = collector.interact("nogo {}".format(args.server_id), expected_json=True)
@@ -138,7 +139,7 @@ class HomeCtrl(Common):
                 CommandLineClient(Configuration.get_communication(args.server_id), args.server_id).start()
                 sleep(1)
 
-                if not args.direct:
+                if not direct:
                     self.log("Turning ON collector: {}".format(args.server_id))
                     result = collector.interact("go {}".format(args.server_id), expected_json=True)
                     self.log("Collector '{}' alive status: {}".format(args.server_id, result["collector_is_alive"]))

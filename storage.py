@@ -64,10 +64,11 @@ class Entry(HomeCtrlValueBaseModel):
 
 class Movement(HomeCtrlValueBaseModel):
     value = BooleanField()
-    type = IntegerField()
-    energy = DecimalField(decimal_places=2)
-    distance = DecimalField(decimal_places=2)
+    type = IntegerField(null=True)
+    energy = DecimalField(decimal_places=2, null=True)
+    distance = DecimalField(decimal_places=2, null=True)
     # TODO: override 'save_new_value' method
+    # to watch also for type, energy and distance
 
 
 COLLECTIONS = [Temperature, Humidity, Darkness, Lights, Entry, Movement, Error]
@@ -95,12 +96,12 @@ def save(data: dict):
             Entry.save_new_value(name=name, create_at=timestamp, value=value)
         elif key == "movement":
             if isinstance(value, dict):
-                Movement.create(name=name, create_at=timestamp,
+                Movement.save_new_value(name=name, create_at=timestamp,
                                 value=value.get("value"), type=value.get("type"),
                                 energy=value.get("energy"), distance=value.get("distance"))
                 pass
             else:
-                Movement.create(name=name, create_at=timestamp, value=value)
+                Movement.save_new_value(name=name, create_at=timestamp, value=value)
 
 
 def create_tables():
