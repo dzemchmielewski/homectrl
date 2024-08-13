@@ -1,6 +1,9 @@
 import gc
 import os
 import json
+
+import time
+
 import common.common
 from common.common import Common, time_ms, start_thread
 from common.communication import Communication
@@ -142,6 +145,7 @@ class CommonServer(Common):
                 elif msg == "REBOOT":
                     if machine_loaded:
                         self.goodbye("goodbye & see you in next life")
+                        time.sleep(1)
                         machine.reset()
                     else:
                         answer = "[ERROR] Cannot reboot"

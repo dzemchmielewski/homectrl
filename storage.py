@@ -19,12 +19,12 @@ class HomeCtrlBaseModel(BaseModel):
         if not name:
             return cls.select().order_by(cls.create_at.desc()).limit(1).get_or_none()
         else:
-            return cls.select().where(cls.name == name.upper()).order_by(cls.create_at.desc()).limit(1).get_or_none()
+            return cls.select().where(cls.name == name).order_by(cls.create_at.desc()).limit(1).get_or_none()
 
     @classmethod
     def get_lasts(cls, name: str, from_date:datetime = None, to_date: datetime = datetime.now()):
         return (cls.select()
-                .where((cls.name == name.upper()) & (cls.create_at >= from_date) & (cls.create_at <= to_date))
+                .where((cls.name == name) & (cls.create_at >= from_date) & (cls.create_at <= to_date))
                 .order_by(cls.create_at.asc()))
 
 
@@ -36,10 +36,6 @@ class HomeCtrlValueBaseModel(HomeCtrlBaseModel):
         if previous is None or previous.value != value:
             return cls.create(name=name, create_at=create_at, value=value)
         return None
-
-
-class Error(HomeCtrlBaseModel):
-    value = TextField()
 
 
 class Temperature(HomeCtrlValueBaseModel):
@@ -54,8 +50,17 @@ class Darkness(HomeCtrlValueBaseModel):
     value = BooleanField()
 
 
-class Lights(HomeCtrlValueBaseModel):
+class Light(HomeCtrlValueBaseModel):
     value = BooleanField()
+
+
+class Live(HomeCtrlValueBaseModel):
+    value = BooleanField()
+
+
+# Not used yet:
+class Error(HomeCtrlBaseModel):
+    value = TextField()
 
 
 class Entry(HomeCtrlValueBaseModel):
@@ -71,7 +76,7 @@ class Movement(HomeCtrlValueBaseModel):
     # to watch also for type, energy and distance
 
 
-COLLECTIONS = [Temperature, Humidity, Darkness, Lights, Entry, Movement, Error]
+COLLECTIONS = [Temperature, Humidity, Darkness, Light, Live, Entry, Movement, Error]
 
 
 def error(name: str, error: str, timestamp: datetime = datetime.now()):
@@ -80,8 +85,11 @@ def error(name: str, error: str, timestamp: datetime = datetime.now()):
 
 def save(data: dict):
     name = data.get("name")
+
     if (timestamp := data.get("timestamp")) is None:
         timestamp = datetime.now()
+
+    Live.save_new_value(name=name, create_at=timestamp, value=data.get("live") is None or data.get("live"))
 
     for key, value in data.items():
         if key == "temperature":
@@ -90,11 +98,11 @@ def save(data: dict):
             Humidity.save_new_value(name=name, create_at=timestamp, value=value)
         elif key == "darkness":
             Darkness.save_new_value(name=name, create_at=timestamp, value=value)
-        elif key == "lights":
-            Lights.save_new_value(name=name, create_at=timestamp, value=value)
+        elif key == "light":
+            Light.save_new_value(name=name, create_at=timestamp, value=value)
         elif key == "entry":
             Entry.save_new_value(name=name, create_at=timestamp, value=value)
-        elif key == "movement":
+        elif key == "presence":
             if isinstance(value, dict):
                 Movement.save_new_value(name=name, create_at=timestamp,
                                 value=value.get("value"), type=value.get("type"),

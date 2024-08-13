@@ -261,8 +261,12 @@ class LD2410(Common):
                 "Data seems to be in engineering mode format. However, driver isn't set to use parse engineering mode. Setting it now")
             self.eng_mode = True
         elif ret_candidate[REF_PACKET_CRC_IDX:] != bytes.fromhex(REF_PACKET_CRC):
-            self.log(f'Checksum not correct received this packet {ret_candidate.hex(" ")}')
+            self.log(f'Ignoring packet. Checksum not correct received this packet {ret_candidate.hex(" ")}')
             # raise Exception("Checksum of received data is wrong. Data may be corrupted")
+
+            # dzem: Let's return None, instead of potentially corrupted data.
+            # None will force the get_radar_data to read once again.
+            return None
 
         if ret_candidate:
             self.read_fail_count = 0

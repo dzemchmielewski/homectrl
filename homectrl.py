@@ -84,12 +84,13 @@ def parse_args():
     to_connect = list(Configuration.MAP["board"].keys())
     to_connect.append(Configuration.COLLECTOR)
     connect.add_argument("server_id", choices=to_connect, help="Available servers")
-    connect.add_argument("--direct", action="store_true", help="Direct connection to server (pass collector handling)")
+    # connect.add_argument("--direct", action="store_true", help="Direct connection to server (pass collector handling)")
     connect.set_defaults(command="connect")
 
     webrepl = subparsers.add_parser("webrepl", help="Connect to specified WEBREPL server")
     to_connect = list(Configuration.MAP["board"].keys())
     webrepl.add_argument("server_id", choices=to_connect, help="Available boards")
+    webrepl.add_argument("--file", "-f",  help="Transfer file to the board")
     webrepl.set_defaults(command="webrepl")
 
     ping = subparsers.add_parser("ping", help="Ping to specified host")
@@ -127,24 +128,8 @@ class HomeCtrl(Common):
     def go(self, args):
         if args.command == "connect":
             if args.server_id != Configuration.COLLECTOR:
-                direct = args.direct or not Configuration.get_config(args.server_id)["collect"]
-                if not direct:
-                    collector = Client(Configuration.get_communication(Configuration.COLLECTOR), "COLLECTOR")
-                    self.log("Turning OFF collector: '{}'".format(args.server_id))
-                    result = collector.interact("nogo {}".format(args.server_id), expected_json=True)
-                    self.log("Collector '{}' alive status: {}".format(args.server_id, result["collector_is_alive"]))
-                    collector.close()
-                    sleep(1)
-
                 self.log("Connecting to: {}".format(args.server_id))
                 CommandLineClient(Configuration.get_communication(args.server_id), args.server_id).start()
-                sleep(1)
-
-                if not direct:
-                    self.log("Turning ON collector: {}".format(args.server_id))
-                    result = collector.interact("go {}".format(args.server_id), expected_json=True)
-                    self.log("Collector '{}' alive status: {}".format(args.server_id, result["collector_is_alive"]))
-                    collector.close()
             else:
                 CommandLineClient(Configuration.get_communication(Configuration.COLLECTOR), "COLLECTOR").start()
 
@@ -152,7 +137,14 @@ class HomeCtrl(Common):
             os.system("ping {}".format(Configuration.get_config(args.server_id)["host"]))
 
         elif args.command == "webrepl":
-            os.system("python ~/SANDBOX/webrepl/webrepl_cli.py -p dzemHrome {}".format(Configuration.get_config(args.server_id)["host"]))
+            password = "dzemHrome"
+            host = Configuration.get_config(args.server_id)["host"]
+            if args.file:
+                cmd = "webrepl -p {password} {file} {host}:/{file}".format(host=host, password=password, file=args.file)
+            else:
+                cmd = "webrepl -p {password} {host}".format(host=host, password=password)
+            self.log(cmd)
+            os.system(cmd)
 
         elif args.command == "dev":
             pass

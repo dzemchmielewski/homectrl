@@ -10,6 +10,8 @@ class WorkerData:
         self.is_alive = False
         self.go_exit = False
         self.loop_sleep = 1
+        self.mqtt_connected = False
+        self.error = None
         self.data = {
         }
 
@@ -49,6 +51,11 @@ class WorkerServer(CommonServer):
             worker_data = self.worker.get_data()
             if not hasattr(worker_data, 'launch_on_start') or worker_data.launch_on_start:
                 start_thread(self.worker.start)
+
+    def on_exit(self):
+        worker_data = self.worker.get_data()
+        if worker_data.is_alive:
+            worker_data.go_exit = True
 
     def handle_help(self):
         return "WORKER SERVER COMMANDS: go, nogo, info, read"
