@@ -18,14 +18,15 @@ class MQTTSubscriber(Common):
 
     def on_message(self, client, userdata, msg):
         self.debug("[{}][{}]".format(msg.topic, msg.payload.decode()))
-        data = json_deserial(msg.payload.decode())
-        if (error := data.get("error")) is not None:
-            self.log(error)
-        else:
-            data["timestamp"] = datetime.datetime.now()
 
+        data = json_deserial(msg.payload.decode())
         if data.get("name") is None:
             data["name"] = msg.topic.split('/')[1]
+
+        if (error := data.get("error")) is not None:
+            self.log("[{}] {}".format(data["name"], error))
+        else:
+            data["timestamp"] = datetime.datetime.now()
 
         self.last_value = data
         storage.save(data)

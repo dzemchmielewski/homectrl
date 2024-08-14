@@ -268,6 +268,11 @@ class LD2410(Common):
             # None will force the get_radar_data to read once again.
             return None
 
+        # dzem: testing shows that it may happen return bytes are shorter then required;
+        if len(ret_candidate) < read_len:
+            self.log(f'Ignoring packet. Packet size is too short: {len(ret_candidate)}')
+            return None
+
         if ret_candidate:
             self.read_fail_count = 0
 
