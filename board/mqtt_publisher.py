@@ -1,7 +1,7 @@
 import json
 
-import time
-from umqtt.robust import MQTTClient
+# from umqtt.robust import MQTTClient
+from board.robust2 import MQTTClient
 
 from common.common import Common, time_ms
 
@@ -31,34 +31,36 @@ class MQTTPublisher(Common):
             self.connected = False
             self.log("Error while connecting: {}".format(e))
 
-    def publish(self, msg: dict):
+    def publish(self, msg, topic=None, retain=True):
         if not self.connected:
             self.connect()
         try:
-            self.mqtt.publish(self.topic, json.dumps(msg))
+            if not topic:
+                topic = self.topic
+
+            if isinstance(msg, dict):
+                msg = json.dumps(msg)
+            if not isinstance(msg, str):
+                raise ValueError(f"Unsupported message type: {type(msg)}")
+
+            self.mqtt.publish(topic, msg, retain)
             self.last_message_time = time_ms()
         except OSError as e:
             self.connected = False
-            self.log("Error while publishing: {}".format(e))
+            self.log("Error while publishing topic {}: {}".format(topic, e))
 
     def publish_error(self, msg: str):
         self.publish({
             "live": False,
             "error": msg
-        })
-        self.last_message_time = time_ms()
+        }, self.live_topic)
 
     def ping(self):
-        try:
-            if self.last_message_time and time_ms() - self.last_message_time > self.PING_EVERY_MS:
-                self.mqtt.publish(self.live_topic, self.I_AM_ALIVE)
-                self.last_message_time = time_ms()
-        except OSError as e:
-            self.connected = False
-            self.log("Error while pinging: {}".format(e))
+        if self.last_message_time is None or time_ms() - self.last_message_time > self.PING_EVERY_MS:
+            self.publish(self.I_AM_ALIVE, self.live_topic, False)
 
     def close(self):
-        self.mqtt.publish(self.live_topic, json.dumps({"live": False, "error": "goodbye"}))
+        self.mqtt.publish(self.live_topic, json.dumps({"live": False, "error": "goodbye"}), True)
         self.mqtt.disconnect()
         self.connected = False
 
