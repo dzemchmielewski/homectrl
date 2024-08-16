@@ -54,6 +54,10 @@ class Light(HomeCtrlValueBaseModel):
     value = BooleanField()
 
 
+class Presence(HomeCtrlValueBaseModel):
+    value = BooleanField()
+
+
 class Live(HomeCtrlValueBaseModel):
     value = BooleanField()
 
@@ -67,16 +71,25 @@ class Entry(HomeCtrlValueBaseModel):
     value = BooleanField()
 
 
-class Movement(HomeCtrlValueBaseModel):
-    value = BooleanField()
-    type = IntegerField(null=True)
-    energy = DecimalField(decimal_places=2, null=True)
-    distance = DecimalField(decimal_places=2, null=True)
-    # TODO: override 'save_new_value' method
-    # to watch also for type, energy and distance
+class Radio(HomeCtrlBaseModel):
+    station_name = TextField()
+    station_code = TextField()
+    volume = IntegerField()
+    muted = BooleanField()
+    playinfo = TextField()
 
 
-COLLECTIONS = [Temperature, Humidity, Darkness, Light, Live, Entry, Movement, Error]
+class Radar(HomeCtrlBaseModel):
+    presence = BooleanField()
+    target_state = IntegerField()
+    move_distance = IntegerField()
+    move_energy = IntegerField()
+    static_distance = IntegerField()
+    static_energy = IntegerField()
+    distance = IntegerField()
+
+
+COLLECTIONS = [Temperature, Humidity, Darkness, Light, Live, Entry, Radar, Error, Presence, Radio]
 
 
 def error(name: str, error: str, timestamp: datetime = datetime.now()):
@@ -103,14 +116,17 @@ def save(data: dict):
         elif key == "entry":
             Entry.save_new_value(name=name, create_at=timestamp, value=value)
         elif key == "presence":
-            if isinstance(value, dict):
-                Movement.save_new_value(name=name, create_at=timestamp,
-                                value=value.get("value"), type=value.get("type"),
-                                energy=value.get("energy"), distance=value.get("distance"))
-                pass
-            else:
-                Movement.save_new_value(name=name, create_at=timestamp, value=value)
-
+            Presence.save_new_value(name=name, create_at=timestamp, value=value)
+        elif key == "radar":
+            Radar(name=name, create_at=timestamp,
+                  presence=value["presence"], target_state=value["target_state"],
+                  move_distance=value["move"]["distance"], move_energy=value["move"]["energy"],
+                  static_distance=value["static"]["distance"], static_energy=value["static"]["energy"],
+                  distance=value["distance"]).save()
+        elif key == "radio":
+            Radio(name=name, create_at=timestamp,
+                  station_name=value["station"]["name"], station_code=value["station"]["code"],
+                  volume=value["volume"]["volume"], muted=value["volume"]["is_muted"], playinfo=value["playinfo"]).save()
 
 def create_tables():
     with database:
