@@ -78,7 +78,8 @@ class KitchenWorker(Worker):
                 worker_data.data["presence"] = self.human_presence.get_signal()
 
                 worker_data.data["radar"] = {
-                    "target_state": self.resolve_target_state(data[0][0]),
+                    "presence": worker_data.data["presence"],
+                    "target_state": data[0][0],
                     "move": {
                         "distance": data[0][1],
                         "energy": data[0][2]
@@ -110,7 +111,10 @@ class KitchenWorker(Worker):
                     self.mqtt.publish(worker_data.data)
                     worker_data.mqtt_connected = self.mqtt.connected
 
-                self.mqtt.ping()
+                else:
+                    # Testing for now. Instead of ping send radar data every second:
+                    # self.mqtt.ping()
+                    self.mqtt.publish(worker_data.data["radar"], "homectrl/kitchen/radar", False)
                 time.sleep(worker_data.loop_sleep)
 
             except BaseException as e:
