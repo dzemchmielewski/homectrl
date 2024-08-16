@@ -17,7 +17,7 @@ class MQTTSubscriber(Common):
         self.last_value = None
 
     def on_message(self, client, userdata, msg):
-        self.debug("[{}][{}]".format(msg.topic, msg.payload.decode()))
+        self.debug("[{}]{}".format(msg.topic, msg.payload.decode()))
 
         data = json_deserial(msg.payload.decode())
         if data.get("name") is None:
@@ -31,13 +31,18 @@ class MQTTSubscriber(Common):
         self.last_value = data
         storage.save(data)
 
+    def on_connect(self, client, userdata, flags, reason_code):
+        self.log(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}")
+        client.subscribe("homectrl/#")
+
     def run(self):
         conf = Configuration.MAP["mqtt"]
         client = mqtt_client.Client("collector")
+        client.on_connect = self.on_connect
+        client.on_message = self.on_message
         client.username_pw_set(conf["username"], conf["password"])
         client.connect(conf["host"], conf["port"])
-        client.on_message = self.on_message
-        client.subscribe("homectrl/#")
+
         client.loop_start()
         while not self.exit:
             sleep(2)
