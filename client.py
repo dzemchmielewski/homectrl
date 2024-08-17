@@ -77,6 +77,10 @@ class CommandLineClient(Client):
             return False
 
         file = s[1]
+        if not os.path.isfile(file) or not os.access(file, os.R_OK):
+            self.log("[ERROR]: file not found or not readable")
+            return False
+
         answer = self.interact("PUT {} {}".format(file, os.stat(file).st_size))
 
         # 'ready' response:
