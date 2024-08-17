@@ -12,9 +12,9 @@ class MQTTPublisher(Common):
     PING_EVERY_MS = 35 * 1_000
     I_AM_ALIVE = json.dumps({"live": True})
 
-    def __init__(self, name):
+    def __init__(self, name, topic_root="homectrl"):
         super().__init__(name)
-        self.topic = "homectrl/{}".format(name)
+        self.topic = topic_root + "/{}".format(name)
         self.live_topic = self.topic + "/live"
         self.mqtt = MQTTClient(self.topic, "192.168.0.20", user="mqtt", password="emkutete", keepalive=self.KEEPALIVE_SEC)
         self.mqtt.set_last_will(self.live_topic, json.dumps({"live": False, "error": "last will"}))
