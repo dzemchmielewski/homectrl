@@ -1,165 +1,105 @@
-import decimal
-import datetime
 from threading import Thread
 from time import sleep
-from timeit import default_timer as timer
-
-import storage
+import datetime
+from paho.mqtt import client as mqtt_client
 from common.common import Common
-from common.communication import Communication, SocketCommunication
+from common.communication import SocketCommunication
 from common.server import CommonServer
 from homectrl import Configuration, json_serial, json_deserial
+import storage
 
 
-class Collector(Common):
+class MQTTSubscriber(Common):
 
-    def __init__(self, connection: Communication, loop_sleep=60):
-        super().__init__(connection.name)
-        self.conn = connection
-        self.loop_sleep = loop_sleep
-        self.last_value = None
-        self.exit = True
-
-    def start(self):
+    def __init__(self, debug=False):
+        super().__init__("MQTT subscriber", debug)
         self.exit = False
-        try:
-            while not self.exit:
-                data = self.read()
-                if (error := data.get("error")) is not None:
-                    self.log(error)
-                else:
-                    data["timestamp"] = datetime.datetime.now()
-                    self.last_value = data
-                    storage.save(data)
+        self.last_value = None
 
-                start_sleep = timer()
-                while not self.exit and timer() - start_sleep < self.loop_sleep:
-                    sleep(1)
+    def on_message(self, client, userdata, msg):
+        self.debug("[{}]{}".format(msg.topic, msg.payload.decode()))
 
-        except BaseException as e:
-            self.log("[ERROR] while reading board: {}".format(e))
-        finally:
-            # Exit:
-            try:
-                self.conn.send("exit")
-            except BaseException as e:
-                self.log("[ERROR] while closing connection: {}".format(e))
-            finally:
-                self.conn.close()
+        data = json_deserial(msg.payload.decode())
+        if data.get("name") is None:
+            data["name"] = msg.topic.split('/')[1]
 
-    def read(self) -> dict:
-        self.conn.send("read")
-        result = self.conn.receive()
-        if len(result) == 0:
-            raise OSError("Connection to board failed")
-        if result.startswith("[ERROR]"):
-            return {"error": result}
-        return json_deserial(result)
+        if (error := data.get("error")) is not None:
+            self.log("[{}] {}".format(data["name"], error))
+        else:
+            data["timestamp"] = datetime.datetime.now()
 
+        self.last_value = data
+        storage.save(data)
 
-class CollectorLead(Common):
+    def on_connect(self, client, userdata, flags, reason_code):
+        self.log(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}")
+        client.subscribe("homectrl/#")
 
-    def __init__(self, connection: Communication):
-        super().__init__(connection.name)
-        self.log("Starting collector lead")
-        self.collector = Collector(connection)
-        self.collector_thread = None
-        self.pasture_exit = False
-        self.pasture_thread = Thread(target=self.pasture)
-        self.pasture_thread.start()
+    def run(self):
+        conf = Configuration.MAP["mqtt"]
+        client = mqtt_client.Client("collector")
+        client.on_connect = self.on_connect
+        client.on_message = self.on_message
+        client.username_pw_set(conf["username"], conf["password"])
+        client.connect(conf["host"], conf["port"])
 
-    def start(self):
-        if not self.is_collector_alive():
-            self.log("Starting collector thread")
-            self.collector_thread = Thread(target=self.collector.start)
-            self.collector_thread.start()
-
-    def stop(self):
-        if self.collector_thread.is_alive():
-            self.log("Stopping collector thread")
-            self.collector.exit = True
-            self.collector_thread.join()
-
-    def pasture(self):
-        while not self.pasture_exit:
-            if not self.is_collector_alive() and not self.collector.exit:
-                self.log("Trying to resume collector")
-                self.start()
-
-            start_sleep = timer()
-            while not self.pasture_exit and timer() - start_sleep < 15:
-                sleep(1)
-
-    def stop_pasture(self):
-        if self.pasture_thread.is_alive():
-            self.pasture_exit = True
-            self.pasture_thread.join()
-
-    def is_collector_alive(self) -> bool:
-        return self.collector_thread is not None and self.collector_thread.is_alive()
-
-    def last_value(self) -> dict:
-        return self.collector.last_value
-
-    def status(self) -> dict:
-        return {
-            "collector_is_alive": self.is_collector_alive(),
-            "collector_exit": self.collector.exit,
-            "pasture_is_alive": self.pasture_thread.is_alive(),
-            "pasture_exit": self.pasture_exit,
-            "last_value": self.last_value(),
-        }
+        client.loop_start()
+        while not self.exit:
+            sleep(2)
+        client.loop_stop(force=True)
+        client.disconnect()
 
 
-class CollectorServer(CommonServer):
+class MQTTCollectorServer(CommonServer):
 
     def __init__(self):
         conf = Configuration.MAP["collector"]
-        super().__init__("COLLECTOR",
+        super().__init__("MQTT_COLLECTOR",
                          SocketCommunication("conn", conf["host"], conf["port"], is_server=True, debug=conf["debug"]))
-        self.collectors = {}
-        for k, v in Configuration.MAP["board"].items():
-            if v["collect"]:
-                self.collectors[k] = CollectorLead(SocketCommunication(k, v["host"], v["port"], read_timeout=30, debug=v["debug"]))
-        for coll in self.collectors.values():
-            coll.start()
+        self.subscriber = MQTTSubscriber(conf["debug"])
+        self.subscriber_thread = Thread(target=self.subscriber.run)
+        self.subscriber_thread.start()
 
     def on_exit(self):
-        for coll in self.collectors.values():
-            coll.stop()
-            coll.stop_pasture()
+        self.subscriber.exit = True
+        self.subscriber_thread.join()
 
     def handle_help(self):
-        return "COLLECTOR COMMANDS: list, go, nogo"
+        return "COLLECTOR COMMANDS: info, go, nogo"
 
     def handle_message(self, msg):
         cmd = msg.strip().upper()
 
-        if cmd == "LIST" or cmd == "INFO":
-            result = {}
-            for name, collector in self.collectors.items():
-                result[name] = collector.status()
-            answer = result
+        if cmd == "INFO":
+            answer = {
+                "is_alive": self.subscriber_thread.is_alive(),
+                "last_value": self.subscriber.last_value
+            }
 
-        elif cmd.startswith("GO") or cmd.startswith("NOGO"):
-            if len(msg.split()) != 2:
-                answer = {"error": "Invalid arguments"}
+        elif cmd.startswith("GO"):
+            if not self.subscriber_thread.is_alive():
+                self.subscriber_thread = Thread(target=self.subscriber.run)
+                self.subscriber_thread.start()
+                answer = {"status": "ok"}
             else:
-                collector = msg.split()[1]
-                if collector not in self.collectors.keys():
-                    answer = {"error": "No such collector: {}"}
-                else:
-                    self.collectors[collector].start() if cmd.startswith("GO") else self.collectors[collector].stop()
-                    answer = self.collectors[collector].status()
+                answer = {"status": "error", "message": "Collector thread is already working"}
+
+        elif cmd.startswith("NOGO"):
+            if self.subscriber_thread.is_alive():
+                self.subscriber.exit = True
+                self.subscriber_thread.join()
+                answer = {"status": "ok"}
+            else:
+                answer = {"status": "error", "message": "Collector thread is not alive"}
 
         else:
-            answer = {"error": "Unknown command: {}".format(msg)}
+            answer = {"status": "error", "message": "Unknown command: {}".format(msg)}
 
         return json_serial(answer)
 
 
 if __name__ == "__main__":
-    collector = CollectorServer()
+    collector = MQTTCollectorServer()
     try:
         collector.start()
     except (KeyboardInterrupt, EOFError):

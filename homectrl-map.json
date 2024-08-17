@@ -3,7 +3,7 @@
     "kitchen": {
       "host": "192.168.0.121",
       "port": 8123,
-      "debug": true,
+      "debug": false,
       "collect": true
     },
     "radio": {
@@ -20,8 +20,14 @@
     }
   },
   "collector": {
-    "host": "localhost",
+    "host": "192.168.0.20",
     "port": 9000,
-    "debug": true
+    "debug": false
+  },
+  "mqtt": {
+    "host": "192.168.0.20",
+    "port": 1883,
+    "username": "mqtt",
+    "password": "emkutete"
   }
 }
