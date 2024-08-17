@@ -98,23 +98,20 @@ class KitchenWorker(Worker):
 
                 if new_values != self.previous_values:
                     # At least one of the three parameters has changed
-                    # Manage the light and publish message
+                    # Manage the light
 
                     # TODO: should we also take a target_state into consideration?
                     light = worker_data.data["darkness"] and worker_data.data["presence"]
 
                     worker_data.data["light"] = light
                     self.light_switch.set_signal(light)
-
                     self.previous_values = new_values
 
-                    self.mqtt.publish(worker_data.data)
-                    worker_data.mqtt_connected = self.mqtt.connected
+                # Testing for now. Instead of ping send data every second:
+                # self.mqtt.ping()
+                self.mqtt.publish(worker_data.data)
+                worker_data.mqtt_connected = self.mqtt.connected
 
-                else:
-                    # Testing for now. Instead of ping send radar data every second:
-                    # self.mqtt.ping()
-                    self.mqtt.publish(worker_data.data["radar"], "homectrl/kitchen/radar", False)
                 time.sleep(worker_data.loop_sleep)
 
             except BaseException as e:

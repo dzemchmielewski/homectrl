@@ -45,10 +45,48 @@ class LD2410(Common):
     @staticmethod
     def int_to_4b(num):
         hex_string = bytearray.fromhex(struct.pack('>I', num).hex())
-        hex_string.reverse()
+
+        # bytearray.reverse is not available in micropython
+        # hex_string.reverse()
+        # so, here workaround:
+        rev = bytearray()
+        for byte in reversed(hex_string):
+            rev.append(byte)
+        hex_string = rev
+
         return bytes(hex_string).hex()
 
     # Base functions
+
+    def read_until(self, str, return_reads = False):
+        result = bytearray()
+        buffer = Queue(max_size=4)
+        # Keep cycling the buffer until frame starts
+        while buffer.byte_str() != bytes.fromhex(str):
+            success_read = True
+            try:
+                b = self.ser.read(1)
+                if b is None:
+                    success_read = False
+            except:
+                success_read = False
+
+            if not success_read:
+                self.read_fail_count += 1
+                self.debug("Serial failed to read data. Trying again")
+                self.read_fail_count += 1
+                if self.read_fail_count > 320:
+                    self.read_fail_count = 0
+                    self.log(
+                        "Serial failed to read data many times in a row. Please check if the baud rate is correct. Hint: Check the firmware version, if it looks weird, it's probably wrong")
+                    # raise OSError("Serial failed to read data many times in a row.")
+
+                b = b""
+
+            buffer.add(b)
+            if return_reads:
+                result.append(int.from_bytes(b, 'big'))
+        return result
 
     # Sends a dataframe encoded as bytes enclosed within a format specific header
     # Returns the acknowledged data received from the radar
@@ -70,6 +108,31 @@ class LD2410(Common):
                 self.debug(e)
                 raise e
 
+    # Sends a dataframe encoded as bytes enclosed within a format specific header
+    # Returns the acknowledged data received from the radar
+    def send_frame2(self, command, ack_command):
+        while True:
+            try:
+                # Wrap up the command
+                command_bytes = self.frame_wrapper(command)
+                self.debug(f"Sending data:  {command_bytes.hex(' ')}")
+                self.ser.write(command_bytes)
+
+                self.read_until(CMD_HEADER)
+                head = bytes.fromhex(CMD_HEADER)
+                ack_word = None
+                while ack_word != bytes.fromhex(ack_command):
+                    answer = head + self.read_until(CMD_MFR, True)
+                    ack_word = answer[6:8]
+
+                self.debug(f"Received data: {answer.hex(' ')}")
+
+                return answer  # Returns the response given by the radar module
+
+            except Exception as e:
+                self.debug(e)
+                raise e
+
     def send_command(self, command):
         # Enable config mode
         self.send_frame(CMD_CONFIG_ENABLE)
@@ -77,6 +140,16 @@ class LD2410(Common):
         ret_bytes = self.send_frame(command)
         # Disable config mode
         self.send_frame(CMD_CONFIG_DISABLE)
+
+        return ret_bytes
+
+    def send_command2(self, command, ack_command):
+        # Enable config mode
+        self.send_frame2(CMD_CONFIG_ENABLE, CMD_CONFIG_ENABLE_ACK)
+        # Send command
+        ret_bytes = self.send_frame2(command, ack_command)
+        # Disable config mode
+        self.send_frame2(CMD_CONFIG_DISABLE, CMD_CONFIG_DISABLE_ACK)
 
         return ret_bytes
 
@@ -104,7 +177,7 @@ class LD2410(Common):
     def read_detection_params(self):
         # Send command to retrieve parameters
         self.log("Reading detection parameters")
-        ret = self.send_command(CMD_PARAM_READ)
+        ret = self.send_command2(CMD_PARAM_READ, CMD_PARAM_READ_ACK)
 
         # Process response
         # Threshold Params
@@ -153,7 +226,7 @@ class LD2410(Common):
     # Read Firmware Version
     def read_firmware_version(self):
         self.log("Reading firmware version")
-        ret = self.send_command(CMD_FIRMWARE_READ)
+        ret = self.send_command2(CMD_FIRMWARE_READ, CMD_FIRMWARE_READ_ACK)
 
         # Need to flip from little endian to big endian
         fw_major = bytes(reversed(ret[REF_FW_MAJOR_HEAD:REF_FW_MAJOR_TAIL]))
@@ -217,28 +290,9 @@ class LD2410(Common):
     # Get Radar Frame
     def get_data_frame(self):
         self.debug("Getting raw dataframe")
+
         # Keep cycling the buffer until frame starts
-        buffer = Queue(max_size=4)
-        while buffer.byte_str() != bytes.fromhex(REF_READ_HEADER):
-            success_read = True
-            try:
-                b = self.ser.read(1)
-                if b is None:
-                    success_read = False
-            except:
-                success_read = False
-
-            if not success_read:
-                self.read_fail_count += 1
-                self.debug("Serial failed to read data. Trying again")
-                self.read_fail_count += 1
-                if self.read_fail_count > 320:
-                    self.log(
-                        "Serial failed to read data many times in a row. Please check if the baud rate is correct. Hint: Check the firmware version, if it looks weird, it's probably wrong")
-
-                b = b""
-
-            buffer.add(b)
+        self.read_until(REF_READ_HEADER,False)
 
         # Different packet lengths depending on whether engineering mode is on
         if self.eng_mode:
