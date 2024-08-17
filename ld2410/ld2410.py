@@ -303,7 +303,6 @@ class LD2410(Common):
         try:
             ret_candidate = self.ser.read(read_len)
         except:
-
             self.debug("Serial failed to read data. Skipping this read")
             return None
 
@@ -336,14 +335,12 @@ class LD2410(Common):
     def get_radar_data(self):
         self.debug("Getting raw dataframe")
 
-        #TODO!!! there is no reset_input_buffer method
-        # self.ser.reset_input_buffer()
-        # self.ser.deinit()
-        # self.ser.init()
-        self.ser.reinit()
+        # Read the serial port until the end of the buffer -
+        # - it is usually something between 340 -360 bytes
+        # This way we are making sure the radar data will
+        # be most up to date
+        self.ser.read(1_000)
 
-
-        # Keep trying until a successful read
         ret = self.get_data_frame()
         while not ret:
             ret = self.get_data_frame()
