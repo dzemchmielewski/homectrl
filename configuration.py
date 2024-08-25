@@ -1,5 +1,7 @@
-import json
 import os
+import datetime
+import decimal
+import json
 
 from common.communication import SocketCommunication
 
@@ -22,3 +24,30 @@ class Configuration:
     def get_communication(server_id, name="socket"):
         config = Configuration.get_config(server_id)
         return SocketCommunication(name, config["host"], config["port"], is_server=False, read_timeout=30, debug=config["debug"])
+
+    @staticmethod
+    def get_database_config():
+        return Configuration.MAP["database"]
+
+    @staticmethod
+    def get_mqtt_config():
+        return Configuration.MAP["mqtt"]
+
+
+class HomeCtrlJsonEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime.datetime):
+            return obj.isoformat()
+        elif isinstance(obj, decimal.Decimal):
+            return float(obj)
+        return json.JSONEncoder.default(self, obj)
+
+
+def json_serial(obj):
+    return json.dumps(obj, cls=HomeCtrlJsonEncoder)
+
+
+def json_deserial(json_str):
+    return json.loads(json_str, parse_float=lambda x: round(decimal.Decimal(x), 10))
+
+

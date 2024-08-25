@@ -1,5 +1,5 @@
 [Unit]
-Description=Dzem HomeCtrl Service
+Description=DZEM HomeCtrl REST API Service
 After=multi-user.target
 
 [Service]
@@ -7,11 +7,11 @@ Type=simple
 User=dzem
 Environment="XDG_RUNTIME_DIR=/run/user/1000"
 WorkingDirectory=/home/dzem/HOMECTRL/
-ExecStart=/usr/bin/python /home/dzem/HOMECTRL/collector.py
+ExecStart=/usr/bin/python /home/dzem/HOMECTRL/restapi.py
 KillSignal=SIGINT
 Restart=always
-StandardOutput=append:/home/dzem/HOMECTRL/logs/collector.log
-StandardError=append:/home/dzem/HOMECTRL/logs/collector.log
+StandardOutput=append:/home/dzem/HOMECTRL/logs/restapi.log
+StandardError=append:/home/dzem/HOMECTRL/logs/restapi.log
 
 [Install]
 WantedBy=multi-user.target

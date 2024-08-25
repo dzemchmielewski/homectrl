@@ -1,29 +1,10 @@
 import argparse
-import datetime
-import decimal
-import json
 import os
 import storage
 from client import CommandLineClient, Client
 from common.common import Common
 from configuration import Configuration
-
-
-class HomeCtrlJsonEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, datetime.datetime):
-            return obj.isoformat()
-        elif isinstance(obj, decimal.Decimal):
-            return float(obj)
-        return json.JSONEncoder.default(self, obj)
-
-
-def json_serial(obj):
-    return json.dumps(obj, cls=HomeCtrlJsonEncoder)
-
-
-def json_deserial(json_str):
-    return json.loads(json_str, parse_float=lambda x: round(decimal.Decimal(x), 10))
+from monitor import Monitor
 
 
 class _HelpAction(argparse._HelpAction):
@@ -80,6 +61,11 @@ def parse_args():
     db.add_argument("--sql", help="SQL query")
     db.set_defaults(command="db")
 
+    mqtt = subparsers.add_parser("mqtt", help="Monitor Mosquitto queue")
+    mqtt.add_argument("mqtt_action", choices=["monitor"], default="monitor", nargs="?")
+    mqtt.add_argument("--topic", "-t", help="Topic name. Default: '/homectrl/#")
+    mqtt.set_defaults(command="mqtt")
+
     args = parser.parse_args()
 
     # print("DEBUG: {}".format(vars(args)))
@@ -93,12 +79,10 @@ class HomeCtrl(Common):
         super().__init__("HOMECTRL")
 
     def list_db(self):
-        for c in storage.COLLECTIONS:
-            for key, value in Configuration.MAP["board"].items():
-                if value["collect"]:
-                    t = c.get_last(key)
-                    if t is not None:
-                        self.log("{} \t-> {}".format(type(t).__name__, json_serial(t.__dict__['__data__'])))
+        for c in storage.entities():
+            t = c.get_last()
+            if t is not None:
+                self.log("{} \t-> {}".format(type(t).__name__, json_serial(t.__dict__['__data__'])))
 
     def go(self, args):
         if args.command == "connect":
@@ -126,12 +110,18 @@ class HomeCtrl(Common):
 
         elif args.command == "db":
             if args.db_action == "cmd":
+                cmd = "PGPASSWORD=homectrl_dba psql -U homectrl homectrl"
                 if args.sql:
-                    os.system("echo \"{}\" | /usr/bin/sqlite3 {}".format(args.sql, Configuration.DATABASE))
+                    os.system("echo \"{}\" | {}".format(args.sql, cmd))
                 else:
-                    os.system("/usr/bin/sqlite3 {}".format(Configuration.DATABASE))
+                    os.system(cmd)
             elif args.db_action == "last":
                 self.list_db()
+
+        elif args.command == "mqtt":
+            if args.mqtt_action == "monitor":
+                topic = args.topic if args.topic else "homectrl/#"
+                Monitor(topic).start()
 
 
 if __name__ == "__main__":

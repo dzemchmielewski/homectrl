@@ -5,7 +5,7 @@ from paho.mqtt import client as mqtt_client
 from common.common import Common
 from common.communication import SocketCommunication
 from common.server import CommonServer
-from homectrl import Configuration, json_serial, json_deserial
+from configuration import Configuration, json_serial, json_deserial
 import storage
 
 
@@ -17,19 +17,22 @@ class MQTTSubscriber(Common):
         self.last_value = None
 
     def on_message(self, client, userdata, msg):
-        self.debug("[{}]{}".format(msg.topic, msg.payload.decode()))
+        try:
+            self.debug("[{}]{}".format(msg.topic, msg.payload.decode()))
 
-        data = json_deserial(msg.payload.decode())
-        if data.get("name") is None:
-            data["name"] = msg.topic.split('/')[1]
+            data = json_deserial(msg.payload.decode())
+            if data.get("name") is None:
+                data["name"] = msg.topic.split('/')[1]
 
-        if (error := data.get("error")) is not None:
-            self.log("[{}] {}".format(data["name"], error))
-        else:
-            data["timestamp"] = datetime.datetime.now()
+            if (error := data.get("error")) is not None:
+                self.log("[{}] {}".format(data["name"], error))
+            else:
+                data["timestamp"] = datetime.datetime.now()
 
-        self.last_value = data
-        storage.save(data)
+            self.last_value = data
+            storage.save(data)
+        except BaseException as e:
+            self.log("Exception caught! {}", e)
 
     def on_connect(self, client, userdata, flags, reason_code):
         self.log(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}")

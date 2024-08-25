@@ -17,8 +17,7 @@ class KitchenWorker(Worker):
     def __init__(self, debug=True):
         super().__init__("kitchen", debug)
         self.log("INIT")
-        self.dht_sensor = DHTSensor("dht", 7)
-        self.last_dht_read = None
+        self.dht_sensor = DHTSensor("dht", 5)
         self.darkness_sensor = DarknessSensor("darkness", 9)
         self.human_presence = PinIO("human", 10)
         self.light_switch = PinIO("light", 0)
@@ -37,12 +36,22 @@ class KitchenWorker(Worker):
         worker_data.is_alive = False
         worker_data.go_exit = True
 
+    @staticmethod
+    def the_time_str() -> str:
+        t = time.localtime()
+        return "{}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}.{:06d}".format(t[0], t[1], t[2], t[3], t[4], t[5], 0)
+
     def start(self):
         self.log("START")
 
         worker_data = self.get_data()
         worker_data.is_alive = True
         worker_data.data["name"] = self.name
+        worker_data.data["temperature"] = None
+        worker_data.data["humidity"] = None
+        worker_data.data["darkness"] = None
+        worker_data.data["presence"] = None
+        worker_data.data["light"] = None
 
         try:
             self.mqtt = MQTTPublisher(self.name)
@@ -52,6 +61,7 @@ class KitchenWorker(Worker):
 
         is_light_on: bool = False
         floating_time = None
+        previous_sensor_read_time = None
         # TODO: previous values - send data, only
         #  when those values changed
         # previous_values = {
@@ -63,13 +73,18 @@ class KitchenWorker(Worker):
         while not worker_data.go_exit:
 
             try:
-                # # DHT sensor:
-                # if self.last_dht_read is None or time_ms() - self.last_dht_read > 60:
-                #     temp, hum = self.dht_sensor.get()
-                #     worker_data.data["temperature"] = temp
-                #     worker_data.data["humidity"] = hum
-                #     worker_data.data["dht_time"] = time.localtime()
-                #     self.last_dht_read = time_ms()
+
+                publish = False
+
+                # DHT sensor:
+                if previous_sensor_read_time is None or time_ms() - previous_sensor_read_time > (60 * 1_000):
+                    readings = (self.dht_sensor.get())
+                    if readings != (worker_data.data["temperature"], worker_data.data["humidity"]):
+                        publish = True #?????
+                        worker_data.data["temperature"] = readings[0]
+                        worker_data.data["humidity"] = readings[1]
+                    worker_data.data["read_dht_sensor"] = self.the_time_str()
+                    previous_sensor_read_time = time_ms()
 
                 # Human radar data:
                 data = self.radar.get_radar_data()
@@ -93,8 +108,8 @@ class KitchenWorker(Worker):
                     floating_time = None
 
                 else:
-                    # The last case - the light is on but can be turned off
-                    # but not immediately
+                    # The last case - the light is on and can be turned off
+                    # however, not immediately
                     if not floating_time:
                         floating_time = time_ms()
 
@@ -106,27 +121,34 @@ class KitchenWorker(Worker):
                 # Finally make the physical light turn (or not):
                 self.light_switch.set_signal(is_light_on)
 
-                # Send current state to MQTT:
-                # self.mqtt.ping()
-                worker_data.data["darkness"] = darkness
-                worker_data.data["presence"] = presence
-                worker_data.data["radar"] = {
-                    "presence": worker_data.data["presence"],
-                    "target_state": data[0][0],
-                    "move": {
-                        "distance": data[0][1],
-                        "energy": data[0][2]
-                    },
-                    "static": {
-                        "distance": data[0][3],
-                        "energy": data[0][4]
-                    },
-                    "distance": data[0][5]
-                }
-                worker_data.data["light"] = is_light_on
-                worker_data.data["time"] = time.localtime()
+                # Send current state to MQTT, only when at least one
+                # of (darkness, presence, is_light_on) has been changed:
+                readings = (darkness, presence, is_light_on)
+                if readings != (worker_data.data["darkness"], worker_data.data["presence"], worker_data.data["light"]):
+                    publish = True
+                    worker_data.data["darkness"] = readings[0]
+                    worker_data.data["presence"] = readings[1]
+                    worker_data.data["light"] = readings[2]
+                    worker_data.data["radar"] = {
+                        "presence": worker_data.data["presence"],
+                        "target_state": data[0][0],
+                        "move": {
+                            "distance": data[0][1],
+                            "energy": data[0][2]
+                        },
+                        "static": {
+                            "distance": data[0][3],
+                            "energy": data[0][4]
+                        },
+                        "distance": data[0][5]
+                    }
+                worker_data.data["read_light_sensors"] = self.the_time_str()
 
-                self.mqtt.publish(worker_data.data)
+                if publish:
+                    self.mqtt.publish(worker_data.data)
+                else:
+                    self.mqtt.ping()
+
                 worker_data.mqtt_connected = self.mqtt.connected
                 time.sleep(worker_data.loop_sleep)
 

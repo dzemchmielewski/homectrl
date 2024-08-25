@@ -4,6 +4,7 @@
 import webrepl
 import network
 import utime
+import time
 import machine
 import os
 
@@ -15,6 +16,13 @@ def _blink(pin, pattern):
         utime.sleep(s)
         led_pin.value(0)
         utime.sleep(s)
+
+
+def blink(reverse = False):
+    pattern = [0.5, 0.3, 0.2, 0.2, 0.1, 0.1, 0.1, 0.05, 0.05]
+    if reverse:
+        pattern.reverse()
+    _blink(8, pattern)
 
 
 def file_exists(filename):
@@ -32,7 +40,7 @@ def set_time():
     machine.RTC().datetime((year, month, mday, 0, hour, minute, second, 0))
 
 
-def wifi_setup():
+def get_credentials() -> (str, str):
     credentials = "credentials.py"
     if file_exists(credentials):
         print("Reading {} file...".format(credentials))
@@ -43,18 +51,38 @@ def wifi_setup():
         wifi_password = input("Password: ").strip()
         with open(credentials, "w") as f:
             f.write("wifi_ssid = \"{}\"\nwifi_password = \"{}\"\n".format(wifi_ssid, wifi_password))
+    return wifi_ssid, wifi_password
 
-    station = network.WLAN(network.STA_IF)
-    station.active(True)
 
-    while not station.isconnected():
-        _blink(8, [0.5, 0.3, 0.2, 0.2, 0.1, 0.1, 0.1, 0.05, 0.05])
-        print("Connecting to '{}'...".format(wifi_ssid))
-        station.connect(wifi_ssid, wifi_password)
-        utime.sleep(10)
+def setup_wifi(ssid, password):
+    network.country("PL")
+    wifi = network.WLAN(network.STA_IF)
+    wifi.active(True)
+    wifi.disconnect()
+
+    while not wifi.isconnected():
+        timeout = 30000
+        blink()
+        wifi.connect(ssid, password)
+        while timeout > 0:
+            if not wifi.isconnected():
+                time.sleep_ms(200)
+                timeout = timeout - 200
+            else:
+                break
+        if timeout <= 0:
+            blink(True)
+    print("Connected! ifconfig: {}".format(wifi.ifconfig()))
+    return wifi
+
+
+wifi_ssid, wifi_password = get_credentials()
+wifi = setup_wifi(wifi_ssid, wifi_password)
+
+try:
     set_time()
-    print("Connected! IP address: {}".format(station.ifconfig()[0]))
+except BaseException:
+    pass
 
-wifi_setup()
 machine.Pin(8, machine.Pin.OUT).value(1)
 webrepl.start()

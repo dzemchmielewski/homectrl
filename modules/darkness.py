@@ -10,6 +10,7 @@ class DarknessSensor(Common):
         self.pin = pin
         self.gpio.setup_in(self.pin)
 
+        # When LED is on it is light enough - pin signal is zero
         self.current_value = self.gpio.input(self.pin)
         self.is_floating = False
         self.floating_time = None
