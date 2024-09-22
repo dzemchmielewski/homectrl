@@ -5,7 +5,7 @@ import uio
 import sys
 from board.worker import Worker
 from board.mqtt_publisher import MQTTPublisher
-from ld2410 import LD2410
+from modules.ld2410 import LD2410
 from modules.darkness import DarknessSensor
 from modules.dht import DHTSensor
 from modules.pin_io import PinIO

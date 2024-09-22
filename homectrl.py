@@ -4,9 +4,9 @@
 import argparse, argcomplete
 import os
 import storage
-from client import CommandLineClient, Client
+from client import CommandLineClient
 from common.common import Common
-from configuration import Configuration
+from configuration import Configuration, json_serial
 from monitor import Monitor
 
 

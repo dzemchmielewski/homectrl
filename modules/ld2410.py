@@ -4,7 +4,7 @@
 import time
 
 from common.common import Common, CommonSerial
-from ld2410.ld2410_consts import *
+from modules.ld2410_consts import *
 from collections import deque
 import struct
 
