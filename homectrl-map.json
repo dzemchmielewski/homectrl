@@ -17,17 +17,58 @@
       "port": 8123,
       "debug": false,
       "collect": false
+    },
+    "pantry": {
+      "host": "192.168.0.122",
+      "port": 8123,
+      "debug": false,
+      "collect": false
+    },
+    "wardrobe": {
+      "host": "192.168.0.123",
+      "port": 8123,
+      "debug": false,
+      "collect": false
     }
   },
   "collector": {
-    "host": "192.168.0.20",
+    "host": "192.168.0.21",
     "port": 9000,
     "debug": false
   },
   "mqtt": {
-    "host": "192.168.0.20",
+    "host": "192.168.0.21",
     "port": 1883,
     "username": "mqtt",
     "password": "emkutete"
+  },
+  "database": {
+    "db": "homectrl",
+    "username": "homectrl",
+    "password": "homectrl_dba",
+    "host": "192.168.0.21",
+    "port": 5432
+  },
+  "_database": {
+    "db": "homectrl",
+    "username": "homectrl",
+    "password": "homectrl_dba",
+    "host": "localhost",
+    "port": 5432
+  },
+  "charts": {
+    "24hours": {
+      "polar": {
+        "Presence": ["kitchen"],
+        "Light": ["pantry", "kitchen"],
+        "Darkness": ["kitchen"]
+      }
+    },
+    "1week": {
+      "default": {
+        "Temperature": ["kitchen", "pantry"]
+      }
+    }
   }
+
 }

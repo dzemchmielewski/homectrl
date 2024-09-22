@@ -1,3 +1,5 @@
+import traceback
+
 from time import sleep
 from paho.mqtt import client as mqtt_client
 from common.common import Common
@@ -19,18 +21,20 @@ class Monitor(Common):
     def on_message(self, client, userdata, msg):
         message = msg.payload.decode()
         self.log("[{}] {}".format(msg.topic, message))
+        # for line in traceback.format_stack():
+        #     print(line.strip())
 
         try:
             data = json_deserial(message)
             if data.get("radar"):
-                self.log("[{}][{}][{}][{}][{}][MOV: {:03}cm, {:03}%][STA: {:03}cm, {:03}%][DST: {:03}cm] [{}]".format(
+                self.log("[RADAR][{}][{}][{}][{}][{}][MOV: {:03}cm, {:03}%][STA: {:03}cm, {:03}%][DST: {:03}cm] [{}]".format(
                     msg.topic,
                     " ON" if data["presence"] else "OFF", self.target_state(data["radar"]["target_state"]),
                     "NIGHT" if data["darkness"] else " DAY ",
                     "light  ON" if data["light"] else "light OFF",
                     data["radar"]["move"]["distance"], data["radar"]["move"]["energy"],
                     data["radar"]["static"]["distance"], data["radar"]["static"]["energy"],
-                    data["radar"]["distance"], data["read_light_sensors"]))
+                    data["radar"]["distance"], data["presence_read_time"]))
         except BaseException as e:
             self.log("ERROR! {}", e)
 
@@ -38,18 +42,23 @@ class Monitor(Common):
         self.log(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}, TOPIC: {self.topic}")
         client.subscribe(self.topic)
 
+    def on_disconnect(self, *args):
+        self.log("DISCONNECTED!")
+
     def start(self):
         conf = Configuration.get_mqtt_config()
         client = mqtt_client.Client("monitor")
         client.on_connect = self.on_connect
         client.on_message = self.on_message
+        client.on_disconnect = self.on_disconnect
         client.username_pw_set(conf["username"], conf["password"])
         client.connect(conf["host"], conf["port"])
 
-        client.loop_start()
+        # client.loop_start()
         try:
-            while True:
-                sleep(1)
+            client.loop_forever()
+            # while True:
+            #     sleep(1)
         except KeyboardInterrupt:
             pass
         finally:

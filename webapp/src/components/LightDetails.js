@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 
-const Lights = () => {
-    const [lights, setLights] = useState([]);
+const LightDetails = () => {
+    const [lightDetails, setLightDetails] = useState([]);
+
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 const response = await fetch(process.env.REACT_APP_HOMECTRL_RESTAPI_URL + '/lights');
                 const data = await response.json();
-                setLights(data.result);
+                //setLightDetails({name: "name", value: true, timestamp: "2024-08-25T02:16:03.355972"});
+                setLightDetails(data.result)
             } catch (error) {
                 console.error('Error fetching data:', error);
             }
@@ -26,19 +28,9 @@ const Lights = () => {
 
     return (
         <div className="list">
-        <h2>Lights</h2>
-            <ul>
-                {lights.map((device, index) => (
-                    <li key={index}>
-                        <strong>{device.name}</strong>: <span
-                        className={"lights_" + (device.value ? 'on' : 'off')}> {device.value ? 'ON' : 'OFF'} </span>
-                        <small>since: {new Date(device.timestamp).toLocaleString()}</small>
-                    </li>
-                ))}
-            </ul>
         </div>
     );
 };
 
-export default Lights;
+export default LightDetails;
 

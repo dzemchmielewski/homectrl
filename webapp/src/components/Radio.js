@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import LightDetails from "./LightDetails";
 
 const Radio = () => {
     const [radio, setRadio] = useState([]);
@@ -25,17 +26,19 @@ const Radio = () => {
     }, []);
 
     return (
-        <div className="list">
-            <h2>Radio</h2>
+
+        <div className="card border-light mb-3" style={{maxWidth: '30rem'}}>
+            <div className="card-header">Radio</div>
             {radio.is_alive &&
-                <div>
-                    <h3>{radio.station_name}</h3>
+                <div className="card-body">
+                    <h5 class="card-title">{radio.station_name}</h5>
                     {radio.playinfo &&
-                        <h4>{radio.playinfo}</h4>
+                        <h6 className="card-subtitle text-muted">{radio.playinfo}</h6>
                     }
                 </div>
             }
         </div>
+
     );
 };
 

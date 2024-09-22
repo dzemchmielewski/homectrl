@@ -1,54 +1,7 @@
 xs/* src/App.css */
 body {
-    font-family: Arial, sans-serif;
-    background-color: #f4f4f4;
-    margin: 0;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
 }
 
-h1 {
-    color: #333;
-}
-
-.list {
-    width: 400px;
-    padding: 20px;
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-}
-
-.list h2 {
-    color: #555;
-    margin-bottom: 15px;
-}
-
-.list ul {
-    list-style-type: none;
-    padding: 0;
-}
-
-.list li {
-    margin: 10px 0;
-    font-size: 18px;
-}
-
-.list .live_on {
-    font-weight: bold;
-    color: green;
-}
-.list .live_off {
-    font-weight: bold;
-    color: red;
-}
-.list .lights_on {
-    font-weight: bold;
-    color: gold;
-}
-.list .lights_off {
-    font-weight: bold;
-    color: slategray;
-}
+/*h1 {*/
+/*    color: bisque;*/
+/*}*/

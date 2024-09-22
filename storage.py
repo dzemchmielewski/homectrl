@@ -1,12 +1,17 @@
-from datetime import datetime
+import datetime
+from enum import Enum
+from typing import Any
+
+from io import BytesIO
 
 import peewee
-from peewee import Model, CharField, DateTimeField, DecimalField, BooleanField, IntegerField, TextField, ForeignKeyField
+from peewee import Model, CharField, DateTimeField, DecimalField, BooleanField, IntegerField, TextField, ForeignKeyField, BlobField
 
 from configuration import Configuration
 
 db = Configuration.get_database_config()
-database = peewee.PostgresqlDatabase(db["db"], user=db["username"], password=db["password"], host=db["host"], port=db["port"], autorollback=True)
+database = peewee.PostgresqlDatabase(db["db"], user=db["username"], password=db["password"], host=db["host"], port=db["port"],
+                                     autorollback=True)
 
 
 def entities():
@@ -16,11 +21,38 @@ def entities():
 def on_start():
     with database:
         database.create_tables(entities())
-        for name in [["kitchen", "Kitchen"], ["radio", "Radio"], ["pantry", "Pantry"], ["wardrobe", "Wardrobe"]]:
+    with database:
+        for name in [["kitchen", "Kitchen"], ["radio", "Radio"], ["pantry", "Pantry"], ["wardrobe", "Wardrobe"], ["dev", "Dev"]]:
             try:
                 Name.create(value=name[0], description=name[1])
             except:
                 pass
+
+
+class EnumField(CharField):
+
+    def __init__(self, enum: type[Enum], *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        if not issubclass(enum, Enum):
+            raise TypeError("enum must be a subclass of Enum")
+        self.enum = enum
+
+    def db_value(self, member: Enum) -> Any:
+        if member is None:
+            return None
+        if not isinstance(member, self.enum):
+            raise TypeError(f"Expected a member of {self.enum.__name__}, got {type(member).__name__}")
+        return super().db_value(member.value)
+
+    def python_value(self, value: Any) -> Any:
+        if value is None and self.null:
+            return None
+        try:
+            return self.enum(value)
+        except KeyError as err:
+            raise peewee.IntegrityError(
+                f"Value '{value}' is not a valid member name of '{self.enum.__name__}'"
+            ) from err
 
 
 class StorageError(BaseException):
@@ -53,9 +85,9 @@ class HomeCtrlBaseModel(BaseModel):
             return cls.select().where(cls.name == name).order_by(cls.create_at.desc()).limit(1).get_or_none()
 
     @classmethod
-    def get_lasts(cls, name: str, from_date:datetime = None, to_date: datetime = datetime.now()):
+    def get_lasts(cls, name: str, from_date: datetime.datetime = None, to_date: datetime.datetime = None):
         return (cls.select()
-                .where((cls.name == name) & (cls.create_at >= from_date) & (cls.create_at <= to_date))
+                .where(cls.name == name, from_date is None or cls.create_at >= from_date, to_date is None or cls.create_at <= to_date)
                 .order_by(cls.create_at.asc()))
 
 
@@ -71,7 +103,8 @@ class HomeCtrlValueBaseModel(HomeCtrlBaseModel):
     @classmethod
     def get_currents(cls):
         with database:
-            subq = (cls.select(peewee.fn.row_number().over(partition_by=cls.name_id, order_by=[cls.create_at.desc()]).alias("row_num"), cls))
+            subq = (
+                cls.select(peewee.fn.row_number().over(partition_by=cls.name_id, order_by=[cls.create_at.desc()]).alias("row_num"), cls))
             query = (peewee.Select(columns=[subq.c.id, subq.c.create_at, subq.c.name_id, subq.c.value])
                      .from_(subq)
                      .where(subq.c.row_num == 1)
@@ -109,6 +142,10 @@ class Pressure(HomeCtrlValueBaseModel):
     value = DecimalField(decimal_places=2)
 
 
+class Voltage(HomeCtrlValueBaseModel):
+    name = ForeignKeyField(Name)
+    value = DecimalField(decimal_places=2)
+
 class Live(HomeCtrlValueBaseModel):
     name = ForeignKeyField(Name)
     value = BooleanField()
@@ -116,7 +153,8 @@ class Live(HomeCtrlValueBaseModel):
     @classmethod
     def get_currentsAAAA(cls):
         with database:
-            subq = (Live.select(peewee.fn.row_number().over(partition_by=Live.name_id, order_by=[Live.create_at.desc()]).alias("row_num"), Live))
+            subq = (Live.select(peewee.fn.row_number().over(partition_by=Live.name_id, order_by=[Live.create_at.desc()]).alias("row_num"),
+                                Live))
             query = (peewee.Select(columns=[subq.c.id, subq.c.create_at, subq.c.name_id, subq.c.value])
                      .from_(subq)
                      .where(subq.c.row_num == 1)
@@ -130,7 +168,7 @@ class Radio(HomeCtrlBaseModel):
     station_code = TextField()
     volume = IntegerField(null=True)
     muted = BooleanField(null=True)
-    playinfo = TextField()
+    playinfo = TextField(null=True)
 
 
 class Radar(HomeCtrlBaseModel):
@@ -150,12 +188,39 @@ class Radar(HomeCtrlBaseModel):
         return None
 
 
+class ChartPeriod(Enum):
+    hours24 = "24 hours"
+    days7 = "7 days"
+    month1 = "1 month"
+
+
+class FigureCache(HomeCtrlBaseModel):
+    model = TextField()
+    period = EnumField(ChartPeriod, max_length=8)
+    name = ForeignKeyField(Name)
+    data = BlobField()
+
+    @classmethod
+    def get_last(cls, model: Any, period: ChartPeriod, name: str):
+        if not isinstance(model, str):
+            model = model.__name__
+        return (FigureCache
+                .select()
+                .where(FigureCache.model == model, FigureCache.period == period, FigureCache.name == name)
+                .get_or_none())
+
+    def getvalue(self):
+        result = BytesIO()
+        result.write(self.data)
+        return result.getvalue()
+
+
 def save(data: dict):
     try:
         name = data.get("name")
 
         if (timestamp := data.get("timestamp")) is None:
-            timestamp = datetime.now()
+            timestamp = datetime.datetime.now()
 
         Live.save_new_value(name=name, create_at=timestamp, value=data.get("live") is None or data.get("live"))
 
@@ -172,6 +237,8 @@ def save(data: dict):
                 Presence.save_new_value(name=name, create_at=timestamp, value=value)
             elif key == "pressure":
                 Pressure.save_new_value(name=name, create_at=timestamp, value=value)
+            elif key == "voltage":
+                Voltage.save_new_value(name=name, create_at=timestamp, value=value)
             elif key == "radar":
                 Radar(name=name, create_at=timestamp,
                       presence=value["presence"], target_state=value["target_state"],
@@ -198,14 +265,14 @@ def subclasses(cls):
 on_start()
 
 if __name__ == "__main__":
-
     import logging
+
     logger = logging.getLogger('peewee')
     logger.addHandler(logging.StreamHandler())
     logger.setLevel(logging.DEBUG)
 
     #Name.create(value="test", description="TEST")
-    #Light(name="test", create_at=datetime.now(), value=True).save()
+    #Light(name="test", create_at=datetime.datetime.now(), value=True).save()
 
     # Darkness.create(name='kitchen', create_at=datetime.now(), value=True)
     # Darkness.create(name='kitchen', create_at=datetime.now(), value=False)
@@ -215,5 +282,16 @@ if __name__ == "__main__":
     # print("Temperature saved")
     # q = Temperature.select().order_by(Temperature.create_at.desc()).limit(1).get()
 
+#    last_24h = datetime.datetime.now() - datetime.timedelta(hours=12)
+#    query = Darkness.select(Presence.create_at, Presence.value).where(Presence.name == "kitchen" and Presence.create_at > last_24h)
 
-    print("OK")
+    # query = Darkness.get_lasts("kitchen", datetime.datetime.now() - datetime.timedelta(hours=24), datetime.datetime.now())
+    # query = Presence.get_lasts("kitchen", datetime.datetime.now() - datetime.timedelta(days=1))
+
+
+    #print(list(query))
+    # for p in query:
+    #     print(p.create_at.isoformat(), 1 if p.value else 0)
+
+
+#    print("OK")

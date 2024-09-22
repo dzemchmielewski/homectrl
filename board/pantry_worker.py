@@ -2,9 +2,7 @@ import sys
 import time
 
 import uio
-from machine import SoftI2C, Pin
-from modules.bmp280 import *
-from modules.ahtx0 import AHT20
+from modules.bmp_aht import BMP_AHT
 
 from board.mqtt_publisher import MQTTPublisher
 from board.worker import Worker
@@ -19,9 +17,7 @@ class PantryWorker(Worker):
         self.log("INIT")
         self.door_sensor = PinIO("door", 3)
 
-        bus = SoftI2C(Pin(0), Pin(1))
-        self.bmp = BMP280(bus, addr=0x77, use_case=BMP280_CASE_HANDHELD_DYN)
-        self.aht = AHT20(bus)
+        self.reader = BMP_AHT.from_pins(0, 1)
 
         self.mqtt = MQTTPublisher(self.name)
 
@@ -68,10 +64,7 @@ class PantryWorker(Worker):
                 # BMP & AHT sensor:
                 if previous_sensor_read_time is None or time_ms() - previous_sensor_read_time > (60 * 1_000):
 
-                    readings = (
-                                round((self.bmp.temperature + self.aht.temperature) / 2, 1),
-                                round(self.bmp.pressure / 100, 1),
-                                round(self.aht.relative_humidity, 1))
+                    readings = (self.reader.temperature, self.reader.pressure, self.reader.humidity)
 
                     if readings != (worker_data.data["temperature"], worker_data.data["pressure"], worker_data.data["humidity"]):
                         publish = True

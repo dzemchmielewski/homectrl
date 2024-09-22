@@ -1,4 +1,7 @@
-import argparse
+#!/usr/bin/env python
+# PYTHON_ARGCOMPLETE_OK
+
+import argparse, argcomplete
 import os
 import storage
 from client import CommandLineClient, Client
@@ -50,7 +53,9 @@ def parse_args():
     webrepl.set_defaults(command="webrepl")
 
     ping = subparsers.add_parser("ping", help="Ping to specified host")
+    ping.add_argument("--count", "-c", type=int, help="Stop after sending count ECHO_REQUEST packets")
     ping.add_argument("server_id", choices=to_connect, help="Available hosts")
+
     ping.set_defaults(command="ping")
 
     collector = subparsers.add_parser("dev", help="DEV mode")
@@ -66,6 +71,7 @@ def parse_args():
     mqtt.add_argument("--topic", "-t", help="Topic name. Default: '/homectrl/#")
     mqtt.set_defaults(command="mqtt")
 
+    argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
     # print("DEBUG: {}".format(vars(args)))
@@ -93,7 +99,10 @@ class HomeCtrl(Common):
                 CommandLineClient(Configuration.get_communication(Configuration.COLLECTOR), "COLLECTOR").start()
 
         elif args.command == "ping":
-            os.system("ping {}".format(Configuration.get_config(args.server_id)["host"]))
+            ping_args = ""
+            if args.count:
+                ping_args = " -c {}".format(args.count)
+            os.system("ping {} {}".format(ping_args, Configuration.get_config(args.server_id)["host"]))
 
         elif args.command == "webrepl":
             password = "dzemHrome"

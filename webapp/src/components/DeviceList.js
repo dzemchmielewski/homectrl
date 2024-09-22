@@ -25,15 +25,28 @@ const DeviceList = () => {
     }, []);
 
     return (
-        <div className="list">
-            <h2>Device Status</h2>
-            <ul>
-                {devices.map((device, index) => (
-                    <li key={index}>
-                        <strong>{device.name}</strong>: <span className={"live_" + (device.is_alive ? 'on' : 'off')}> {device.is_alive ? 'ON' : 'OFF'} </span> <small>since: {new Date(device.timestamp).toLocaleString()}</small>
-                    </li>
-                ))}
-            </ul>
+
+        <div className="card border-light mb-3" style={{ maxWidth: '30rem' }}>
+            <div className="card-header">Device Status</div>
+            <div className="card-body">
+                <span className="card-text">
+                    <ul className="list-group">
+                        {devices.map((device, index) => (
+                            <li key={index} className="list-group-item d-flex justify-content-between align-items-center">
+                                <strong>{device.name}</strong>
+                                <small
+                                    className="text-body-tertiary text-center">{new Date(device.timestamp).toLocaleDateString()}<br/>{new Date(device.timestamp).toLocaleTimeString()}
+                                </small>
+                                <span
+                                    className={"badge rounded-pill " + (device.is_alive ? 'bg-success' : 'bg-danger')}> {device.is_alive ? 'ON' : 'OFF'} </span>
+                            </li>
+                        ))}
+                        {/*<li>*/}
+                        {/*    <button type="button" className="btn btn-secondary" data-bs-container="body" data-bs-toggle="popover" data-bs-placement="top" data-bs-content="Vivamus sagittis lacus vel augue laoreet rutrum faucibus." data-bs-original-title="Popover Title" aria-describedby="popover200733">Top</button>*/}
+                        {/*</li>*/}
+                    </ul>
+                </span>
+            </div>
         </div>
     );
 };

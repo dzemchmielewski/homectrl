@@ -1,3 +1,5 @@
+from collections import deque
+
 import time
 import uio
 import sys
@@ -17,8 +19,9 @@ class KitchenWorker(Worker):
     def __init__(self, debug=True):
         super().__init__("kitchen", debug)
         self.log("INIT")
+        self.darkness_threshold = 2.7
         self.dht_sensor = DHTSensor("dht", 5)
-        self.darkness_sensor = DarknessSensor("darkness", 9)
+        self.darkness_sensor = DarknessSensor.from_analog_pin(2)
         self.human_presence = PinIO("human", 10)
         self.light_switch = PinIO("light", 0)
         self.light_switch.set_signal(False)
@@ -46,12 +49,15 @@ class KitchenWorker(Worker):
 
         worker_data = self.get_data()
         worker_data.is_alive = True
+        worker_data.loop_sleep = 0.3
         worker_data.data["name"] = self.name
         worker_data.data["temperature"] = None
         worker_data.data["humidity"] = None
         worker_data.data["darkness"] = None
+        worker_data.data["voltage"] = None
         worker_data.data["presence"] = None
         worker_data.data["light"] = None
+        queue = deque((), 90)
 
         try:
             self.mqtt = MQTTPublisher(self.name)
@@ -61,14 +67,8 @@ class KitchenWorker(Worker):
 
         is_light_on: bool = False
         floating_time = None
-        previous_sensor_read_time = None
-        # TODO: previous values - send data, only
-        #  when those values changed
-        # previous_values = {
-        #     "darkness": None,
-        #     "presence": None,
-        #     "light": None
-        # }
+        dht_read_time = None
+        darkness_read_time = None
 
         while not worker_data.go_exit:
 
@@ -77,14 +77,14 @@ class KitchenWorker(Worker):
                 publish = False
 
                 # DHT sensor:
-                if previous_sensor_read_time is None or time_ms() - previous_sensor_read_time > (60 * 1_000):
+                if dht_read_time is None or time_ms() - dht_read_time > (60 * 1_000):
                     readings = (self.dht_sensor.get())
                     if readings != (worker_data.data["temperature"], worker_data.data["humidity"]):
-                        publish = True #?????
+                        publish = True
                         worker_data.data["temperature"] = readings[0]
                         worker_data.data["humidity"] = readings[1]
-                    worker_data.data["read_dht_sensor"] = self.the_time_str()
-                    previous_sensor_read_time = time_ms()
+                    worker_data.data["dht_read_time"] = self.the_time_str()
+                    dht_read_time = time_ms()
 
                 # Human radar data:
                 data = self.radar.get_radar_data()
@@ -93,9 +93,23 @@ class KitchenWorker(Worker):
 
                 # Human detection:
                 presence = self.human_presence.get_signal()
+                worker_data.data["presence_read_time"] = self.the_time_str()
 
                 # Darkness sensor:
-                darkness = self.darkness_sensor.is_darkness()
+                if darkness_read_time is None or time_ms() - darkness_read_time > (5 * 1_000):
+                    vol = self.darkness_sensor.read_voltage()
+                    queue.append(vol)
+                    worker_data.data["voltage_momentary"] = vol
+                    lst = list(queue)
+                    voltage = round(sum(lst)/len(lst), 1)
+                    if voltage != worker_data.data["voltage"]:
+                        publish = True
+                        worker_data.data["voltage"] = voltage
+                    worker_data.data["darkness_read_time"] = self.the_time_str()
+                    darkness_read_time = time_ms()
+                else:
+                    voltage = worker_data.data["voltage"]
+                darkness = (voltage >= self.darkness_threshold)
 
                 # Light management:
                 new_light = darkness and presence
@@ -142,7 +156,6 @@ class KitchenWorker(Worker):
                         },
                         "distance": data[0][5]
                     }
-                worker_data.data["read_light_sensors"] = self.the_time_str()
 
                 if publish:
                     self.mqtt.publish(worker_data.data)

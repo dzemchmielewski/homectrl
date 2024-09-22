@@ -41,6 +41,11 @@ class Worker(Common):
         global worker_data
         return worker_data
 
+    @staticmethod
+    def the_time_str() -> str:
+        t = time.localtime()
+        return "{}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}.{:06d}".format(t[0], t[1], t[2], t[3], t[4], t[5], 0)
+
 
 class WorkerServer(CommonServer):
 

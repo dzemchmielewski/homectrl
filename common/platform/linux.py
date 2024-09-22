@@ -39,4 +39,4 @@ class CommonSerial(serial.Serial):
         # return CommonSerial(self.port, self.baudrate, self.bytesize, self.parity, self.stopbits, self.timeout)
 
     def __str__(self):
-        return "Serial: {} ({})".format(self.serial.port, self.serial.baudrate)
+        return "Serial: {} ({})".format(self.port, self.baudrate)

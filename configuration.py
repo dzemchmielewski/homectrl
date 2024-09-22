@@ -33,6 +33,10 @@ class Configuration:
     def get_mqtt_config():
         return Configuration.MAP["mqtt"]
 
+    @staticmethod
+    def get_charts_config():
+        return Configuration.MAP["charts"]
+
 
 class HomeCtrlJsonEncoder(json.JSONEncoder):
     def default(self, obj):
