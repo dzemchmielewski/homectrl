@@ -1,8 +1,11 @@
+import sys
+
 from common.common import Common, time_ms, start_thread
 from common.server import CommonServer
 from common.communication import Communication
 import json
 import time
+import uio
 
 
 class WorkerData:
@@ -45,6 +48,14 @@ class Worker(Common):
     def the_time_str() -> str:
         t = time.localtime()
         return "{}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}.{:06d}".format(t[0], t[1], t[2], t[3], t[4], t[5], 0)
+
+    def handle_exception(self, exception):
+        traceback = uio.StringIO()
+        sys.print_exception(exception, traceback)
+        worker_data = self.get_data()
+        worker_data.error = traceback.getvalue()
+        worker_data.is_alive = False
+        worker_data.go_exit = True
 
 
 class WorkerServer(CommonServer):

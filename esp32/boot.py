@@ -8,21 +8,24 @@ import time
 import machine
 import os
 
+allow_blink = True
 
 def _blink(pin, pattern):
-    led_pin = machine.Pin(pin, machine.Pin.OUT)
-    for s in pattern:
-        led_pin.value(1)
-        utime.sleep(s)
-        led_pin.value(0)
-        utime.sleep(s)
+    if allow_blink:
+        led_pin = machine.Pin(pin, machine.Pin.OUT)
+        for s in pattern:
+            led_pin.value(1)
+            utime.sleep(s)
+            led_pin.value(0)
+            utime.sleep(s)
 
 
 def blink(reverse = False):
-    pattern = [0.5, 0.3, 0.2, 0.2, 0.1, 0.1, 0.1, 0.05, 0.05]
-    if reverse:
-        pattern.reverse()
-    _blink(8, pattern)
+    if allow_blink:
+        pattern = [0.5, 0.3, 0.2, 0.2, 0.1, 0.1, 0.1, 0.05, 0.05]
+        if reverse:
+            pattern.reverse()
+        _blink(8, pattern)
 
 
 def file_exists(filename):
@@ -84,5 +87,6 @@ try:
 except BaseException:
     pass
 
-machine.Pin(8, machine.Pin.OUT).value(1)
+if allow_blink:
+    machine.Pin(8, machine.Pin.OUT).value(1)
 webrepl.start()

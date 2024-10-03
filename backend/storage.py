@@ -1,6 +1,6 @@
 import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Type, Self
 
 from io import BytesIO
 
@@ -14,18 +14,15 @@ database = peewee.PostgresqlDatabase(db["db"], user=db["username"], password=db[
                                      autorollback=True)
 
 
-def entities():
-    return subclasses(BaseModel)
-
-
 def on_start():
     with database:
         database.create_tables(entities())
     with database:
-        for name in [["kitchen", "Kitchen"], ["radio", "Radio"], ["pantry", "Pantry"], ["wardrobe", "Wardrobe"], ["dev", "Dev"]]:
+        for name in [["kitchen", "Kitchen"], ["radio", "Radio"], ["pantry", "Pantry"], ["wardrobe", "Wardrobe"], ["dev", "Dev"], ["bathroom", "Bathroom"]]:
             try:
-                Name.create(value=name[0], description=name[1])
-            except:
+                Name.get_or_create(value=name[0], description=name[1])
+            except BaseException as e:
+                print("Exc: {}".format(e))
                 pass
 
 
@@ -75,7 +72,14 @@ class Name(BaseModel):
 
 
 class HomeCtrlBaseModel(BaseModel):
+    name = ForeignKeyField(Name, on_update='CASCADE')
     create_at = DateTimeField()
+
+    def save_new_value(self) -> Self:
+        previous = self.get_last(self.name.value)
+        if not self.equals(previous):
+            return self.save(force_insert=True)
+        return None
 
     @classmethod
     def get_last(cls, name=None):
@@ -93,12 +97,12 @@ class HomeCtrlBaseModel(BaseModel):
 
 class HomeCtrlValueBaseModel(HomeCtrlBaseModel):
 
-    @classmethod
-    def save_new_value(cls, name, create_at, value):
-        previous = cls.get_last(name)
-        if previous is None or previous.value != value:
-            return cls.create(name=name, create_at=create_at, value=value)
-        return None
+    # @classmethod
+    # def save_new_value(cls, name, create_at, value):
+    #     previous = cls.get_last(name)
+    #     if previous is None or previous.value != value:
+    #         return cls.create(name=name, create_at=create_at, value=value)
+    #     return None
 
     @classmethod
     def get_currents(cls):
@@ -111,43 +115,39 @@ class HomeCtrlValueBaseModel(HomeCtrlBaseModel):
                      .bind(database))
             return list(map(lambda r: cls(**r), query))
 
+    def equals(self, other: Self) -> bool:
+        return other and type(other) is type(self) and self.value == other.value
+
 
 class Temperature(HomeCtrlValueBaseModel):
-    name = ForeignKeyField(Name)
     value = DecimalField(decimal_places=2)
 
 
 class Humidity(HomeCtrlValueBaseModel):
-    name = ForeignKeyField(Name)
     value = DecimalField(decimal_places=2)
 
 
 class Darkness(HomeCtrlValueBaseModel):
-    name = ForeignKeyField(Name, on_update='CASCADE')
     value = BooleanField()
 
 
 class Light(HomeCtrlValueBaseModel):
-    name = ForeignKeyField(Name)
     value = BooleanField()
 
 
 class Presence(HomeCtrlValueBaseModel):
-    name = ForeignKeyField(Name)
     value = BooleanField()
 
 
 class Pressure(HomeCtrlValueBaseModel):
-    name = ForeignKeyField(Name)
     value = DecimalField(decimal_places=2)
 
 
 class Voltage(HomeCtrlValueBaseModel):
-    name = ForeignKeyField(Name)
     value = DecimalField(decimal_places=2)
 
+
 class Live(HomeCtrlValueBaseModel):
-    name = ForeignKeyField(Name)
     value = BooleanField()
 
     @classmethod
@@ -163,16 +163,33 @@ class Live(HomeCtrlValueBaseModel):
 
 
 class Radio(HomeCtrlBaseModel):
-    name = ForeignKeyField(Name)
     station_name = TextField()
     station_code = TextField()
     volume = IntegerField(null=True)
     muted = BooleanField(null=True)
     playinfo = TextField(null=True)
 
+    def equals(self, other: Self) -> bool:
+        return (other and type(other) is type(self)
+                and other.station_name == self.station_name and other.station_code == self.station_code
+                and other.volume == self.volume and other.muted == self.muted
+                and other.playinfo == self.playinfo)
+
+    @classmethod
+    def get_currents(cls):
+        with database:
+            subq = (
+                cls.select(peewee.fn.row_number().over(partition_by=cls.name_id, order_by=[cls.create_at.desc()]).alias("row_num"), cls))
+            query = (peewee.Select(columns=[subq.c.id, subq.c.create_at, subq.c.name_id,
+                                            subq.c.station_name, subq.c.station_code, subq.c.volume,
+                                            subq.c.muted, subq.c.playinfo])
+                     .from_(subq)
+                     .where(subq.c.row_num == 1)
+                     .bind(database))
+            return list(map(lambda r: cls(**r), query))
+
 
 class Radar(HomeCtrlBaseModel):
-    name = ForeignKeyField(Name)
     presence = BooleanField()
     target_state = IntegerField()
     # move_distance = IntegerField()
@@ -181,11 +198,21 @@ class Radar(HomeCtrlBaseModel):
     # static_energy = IntegerField()
     distance = IntegerField()
 
-    def save_new_value(self):
-        previous = self.__class__.get_last(self.name)
-        if previous is None or previous.presence != self.presence or previous.target_state != self.target_state or previous.distance != self.distance:
-            return self.save()
-        return None
+    def equals(self, other: Self) -> bool:
+        return (other and type(other) is type(self)
+                and other.presence == self.presence and other.target_state == self.target_state and other.distance == self.distance)
+
+    @classmethod
+    def get_currents(cls):
+        with database:
+            subq = (
+                cls.select(peewee.fn.row_number().over(partition_by=cls.name_id, order_by=[cls.create_at.desc()]).alias("row_num"), cls))
+            query = (peewee.Select(columns=[subq.c.id, subq.c.create_at, subq.c.name_id,
+                                            subq.c.presence, subq.c.target_state, subq.c.distance])
+                     .from_(subq)
+                     .where(subq.c.row_num == 1)
+                     .bind(database))
+            return list(map(lambda r: cls(**r), query))
 
 
 class ChartPeriod(Enum):
@@ -193,12 +220,17 @@ class ChartPeriod(Enum):
     days7 = "7 days"
     month1 = "1 month"
 
+    @classmethod
+    def from_str(cls, name: str):
+        return cls.__getitem__(name)
 
-class FigureCache(HomeCtrlBaseModel):
+
+class FigureCache(BaseModel):
+    name = ForeignKeyField(Name, on_update='CASCADE')
     model = TextField()
     period = EnumField(ChartPeriod, max_length=8)
-    name = ForeignKeyField(Name)
     data = BlobField()
+    create_at = DateTimeField()
 
     @classmethod
     def get_last(cls, model: Any, period: ChartPeriod, name: str):
@@ -215,42 +247,42 @@ class FigureCache(HomeCtrlBaseModel):
         return result.getvalue()
 
 
-def save(data: dict):
-    try:
-        name = data.get("name")
-
-        if (timestamp := data.get("timestamp")) is None:
-            timestamp = datetime.datetime.now()
-
-        Live.save_new_value(name=name, create_at=timestamp, value=data.get("live") is None or data.get("live"))
-
-        for key, value in data.items():
-            if key == "temperature":
-                Temperature.save_new_value(name=name, create_at=timestamp, value=value)
-            elif key == "humidity":
-                Humidity.save_new_value(name=name, create_at=timestamp, value=value)
-            elif key == "darkness":
-                Darkness.save_new_value(name=name, create_at=timestamp, value=value)
-            elif key == "light":
-                Light.save_new_value(name=name, create_at=timestamp, value=value)
-            elif key == "presence":
-                Presence.save_new_value(name=name, create_at=timestamp, value=value)
-            elif key == "pressure":
-                Pressure.save_new_value(name=name, create_at=timestamp, value=value)
-            elif key == "voltage":
-                Voltage.save_new_value(name=name, create_at=timestamp, value=value)
-            elif key == "radar":
-                Radar(name=name, create_at=timestamp,
-                      presence=value["presence"], target_state=value["target_state"],
-                      # move_distance=value["move"]["distance"], move_energy=value["move"]["energy"],
-                      # static_distance=value["static"]["distance"], static_energy=value["static"]["energy"],
-                      distance=value["distance"]).save_new_value()
-            elif key == "radio":
-                Radio(name=name, create_at=timestamp,
-                      station_name=value["station"]["name"], station_code=value["station"]["code"],
-                      volume=value["volume"]["volume"], muted=value["volume"]["is_muted"], playinfo=value["playinfo"]).save()
-    except BaseException as error:
-        raise StorageError(f"Following error:\"{error}\" occurred while saving data: {data}")
+# def save(data: dict):
+#     try:
+#         name = data.get("name")
+#
+#         if (timestamp := data.get("timestamp")) is None:
+#             timestamp = datetime.datetime.now()
+#
+#         Live.save_new_value(name=name, create_at=timestamp, value=data.get("live") is None or data.get("live"))
+#
+#         for key, value in data.items():
+#             if key == "temperature":
+#                 Temperature.save_new_value(name=name, create_at=timestamp, value=value)
+#             elif key == "humidity":
+#                 Humidity.save_new_value(name=name, create_at=timestamp, value=value)
+#             elif key == "darkness":
+#                 Darkness.save_new_value(name=name, create_at=timestamp, value=value)
+#             elif key == "light":
+#                 Light.save_new_value(name=name, create_at=timestamp, value=value)
+#             elif key == "presence":
+#                 Presence.save_new_value(name=name, create_at=timestamp, value=value)
+#             elif key == "pressure":
+#                 Pressure.save_new_value(name=name, create_at=timestamp, value=value)
+#             elif key == "voltage":
+#                 Voltage.save_new_value(name=name, create_at=timestamp, value=value)
+#             elif key == "radar":
+#                 Radar(name=name, create_at=timestamp,
+#                       presence=value["presence"], target_state=value["target_state"],
+#                       # move_distance=value["move"]["distance"], move_energy=value["move"]["energy"],
+#                       # static_distance=value["static"]["distance"], static_energy=value["static"]["energy"],
+#                       distance=value["distance"]).save_new_value()
+#             elif key == "radio":
+#                 Radio(name=name, create_at=timestamp,
+#                       station_name=value["station"]["name"], station_code=value["station"]["code"],
+#                       volume=value["volume"]["volume"], muted=value["volume"]["is_muted"], playinfo=value["playinfo"]).save()
+#     except BaseException as error:
+#         raise StorageError(f"Following error:\"{error}\" occurred while saving data: {data}")
 
 
 def subclasses(cls):
@@ -260,6 +292,15 @@ def subclasses(cls):
             result.append(subclass)
         result = result + subclasses(subclass)
     return result
+
+
+def device_entities() -> [Type[HomeCtrlBaseModel]]:
+    return subclasses(HomeCtrlBaseModel)
+
+
+def entities():
+    return subclasses(BaseModel)
+
 
 
 on_start()

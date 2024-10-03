@@ -1,13 +1,12 @@
-#!/usr/bin/env python
+#!/usr/bin/env -S bash -c '"$(dirname $(readlink $0 || echo $0))/env/bin/python" "$0" "$@"'
 # PYTHON_ARGCOMPLETE_OK
 
 import argparse, argcomplete
 import os
-import storage
-from client import CommandLineClient
+
+from backend.tools import CommandLineClient, MQTTMonitor, json_serial
 from common.common import Common
-from configuration import Configuration, json_serial
-from monitor import Monitor
+from configuration import Configuration
 
 
 class _HelpAction(argparse._HelpAction):
@@ -81,10 +80,12 @@ def parse_args():
 
 
 class HomeCtrl(Common):
+
     def __init__(self):
         super().__init__("HOMECTRL")
 
     def list_db(self):
+        from backend import storage
         for c in storage.entities():
             t = c.get_last()
             if t is not None:
@@ -130,7 +131,7 @@ class HomeCtrl(Common):
         elif args.command == "mqtt":
             if args.mqtt_action == "monitor":
                 topic = args.topic if args.topic else "homectrl/#"
-                Monitor(topic).start()
+                MQTTMonitor(topic).start()
 
 
 if __name__ == "__main__":

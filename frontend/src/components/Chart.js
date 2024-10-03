@@ -7,7 +7,7 @@ const Chart = forwardRef(({chartData}, ref) => {
         const fetchData = async () => {
             try {
                 if (chartData.model !== undefined) {
-                    const response = await fetch(process.env.REACT_APP_HOMECTRL_RESTAPI_URL + '/chart/' + chartData.model + '/' + chartData.name);
+                    const response = await fetch(process.env.REACT_APP_HOMECTRL_RESTAPI_URL + '/chart/hours24/' + chartData.model + '/' + chartData.name);
                     const imageBlob = await response.blob();
                     const imageObjectURL = URL.createObjectURL(imageBlob);
                     setImg(imageObjectURL);
@@ -34,7 +34,7 @@ const Chart = forwardRef(({chartData}, ref) => {
             <div className="card-header">{chartData.label} {chartData.name} - last 24h</div>
             <div className="card-body">
                 <p className="card-text">
-                    <img src={img} alt="Some graph" class="img-fluid"/>
+                    <img src={img} alt="Some graph" className="img-fluid"/>
                 </p>
             </div>
             <p className="d-flex flex-row align-items-center">

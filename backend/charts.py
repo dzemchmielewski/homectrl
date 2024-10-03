@@ -1,5 +1,4 @@
 #!/usr/bin/which python
-import datetime
 
 import sys
 import time
@@ -12,7 +11,7 @@ import numpy as np
 import io
 
 from common.common import Common
-from storage import *
+from backend.storage import *
 
 plt.style.use('dark_background')
 pd.set_option('display.max_rows', None)
@@ -135,6 +134,7 @@ def chart_1week(query: SelectQuery, headless=True):
 
     return bio
 
+
 class ChartsGenerator(Common):
 
     def __init__(self):
@@ -151,10 +151,10 @@ class ChartsGenerator(Common):
         while not self.exit:
 
             for model_str, names in self.charts["24hours"]["polar"].items():
-                model = getattr(sys.modules['storage'], model_str)
+                model = getattr(sys.modules['backend.storage'], model_str)
                 for name in names:
                     now = datetime.datetime.now()
-                    if (last := FigureCache.get_last(model.__name__, name)) is None or last.create_at + minutes5 < now:
+                    if (last := FigureCache.get_last(model.__name__, ChartPeriod.hours24, name)) is None or last.create_at + minutes5 < now:
                         self.log("Regenerating chart: {} {} ...".format(model.__name__, name))
                         bio = polar_24hours(model.get_lasts(name, now - day1))
                         if last is None:
@@ -165,10 +165,10 @@ class ChartsGenerator(Common):
                         self.log("Regenerating chart: {} {} DONE".format(model.__name__, name))
 
             for model_str, names in self.charts["1week"]["default"].items():
-                model = getattr(sys.modules['storage'], model_str)
+                model = getattr(sys.modules['backend.storage'], model_str)
                 for name in names:
                     now = datetime.datetime.now()
-                    if (last := FigureCache.get_last(model.__name__, name)) is None or last.create_at + minutes15 < now:
+                    if (last := FigureCache.get_last(model.__name__, ChartPeriod.days7, name)) is None or last.create_at + minutes15 < now:
                         self.log("Regenerating chart: {} {} ...".format(model.__name__, name))
                         bio = chart_1week(model.get_lasts(name, now - week1))
                         if last is None:

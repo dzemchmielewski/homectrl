@@ -7,7 +7,7 @@ Type=simple
 User=dzem
 Environment="XDG_RUNTIME_DIR=/run/user/1000"
 WorkingDirectory=/home/dzem/HOMECTRL/
-ExecStart=/usr/bin/nice -n 19 /usr/bin/python /home/dzem/HOMECTRL/charts.py
+ExecStart=/usr/bin/nice -n 19 /usr/bin/python /home/dzem/HOMECTRL/launcher.py charts
 KillSignal=SIGINT
 Restart=always
 StandardOutput=append:/home/dzem/HOMECTRL/logs/charts.log

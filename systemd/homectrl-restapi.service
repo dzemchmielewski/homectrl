@@ -7,7 +7,7 @@ Type=simple
 User=dzem
 Environment="XDG_RUNTIME_DIR=/run/user/1000"
 WorkingDirectory=/home/dzem/HOMECTRL/
-ExecStart=/usr/bin/python /home/dzem/HOMECTRL/restapi.py
+ExecStart=/home/dzem/HOMECTRL/env/bin/python /home/dzem/HOMECTRL/launcher.py restapi
 KillSignal=SIGINT
 Restart=always
 StandardOutput=append:/home/dzem/HOMECTRL/logs/restapi.log

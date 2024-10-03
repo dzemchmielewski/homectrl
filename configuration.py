@@ -1,6 +1,4 @@
 import os
-import datetime
-import decimal
 import json
 
 from common.communication import SocketCommunication
@@ -11,6 +9,8 @@ class Configuration:
     MAP = json.loads(open(os.path.join(PATH,"homectrl-map.json")).read())
     DATABASE = os.path.join(PATH, "homectrl.db")
     COLLECTOR = "collector"
+    TOPIC_DEVICE = "homectrl/device"
+    TOPIC_ONAIR = "homectrl/onair"
 
     @staticmethod
     def get_config(server_id):
@@ -36,22 +36,5 @@ class Configuration:
     @staticmethod
     def get_charts_config():
         return Configuration.MAP["charts"]
-
-
-class HomeCtrlJsonEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, datetime.datetime):
-            return obj.isoformat()
-        elif isinstance(obj, decimal.Decimal):
-            return float(obj)
-        return json.JSONEncoder.default(self, obj)
-
-
-def json_serial(obj):
-    return json.dumps(obj, cls=HomeCtrlJsonEncoder)
-
-
-def json_deserial(json_str):
-    return json.loads(json_str, parse_float=lambda x: round(decimal.Decimal(x), 10))
 
 

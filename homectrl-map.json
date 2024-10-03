@@ -29,6 +29,18 @@
       "port": 8123,
       "debug": false,
       "collect": false
+    },
+    "bathroom": {
+      "host": "192.168.0.124",
+      "port": 8123,
+      "debug": false,
+      "collect": false
+    },
+    "cam": {
+      "host": "192.168.0.125",
+      "port": 8123,
+      "debug": false,
+      "collect": false
     }
   },
   "collector": {
@@ -39,6 +51,12 @@
   "mqtt": {
     "host": "192.168.0.21",
     "port": 1883,
+    "username": "mqtt",
+    "password": "emkutete"
+  },
+  "_mqtt": {
+    "host": "localhost",
+    "port": 8883,
     "username": "mqtt",
     "password": "emkutete"
   },

@@ -1,8 +1,4 @@
-import sys
 import time
-
-import uio
-
 from board.mqtt_publisher import MQTTPublisher
 from board.worker import Worker
 from modules.pin_io import PinIO
@@ -16,14 +12,6 @@ class WardrobeWorker(Worker):
         self.door_sensor = PinIO("door", 3)
         self.light_pin = PinIO("light", 4)
         self.mqtt = MQTTPublisher(self.name)
-
-    def handle_exception(self, exception):
-        traceback = uio.StringIO()
-        sys.print_exception(exception, traceback)
-        worker_data = self.get_data()
-        worker_data.error = traceback.getvalue()
-        worker_data.is_alive = False
-        worker_data.go_exit = True
 
     def start(self):
         self.log("START")

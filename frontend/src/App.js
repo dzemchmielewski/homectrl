@@ -23,24 +23,27 @@ function App() {
             </ol>
 
             <div className="container">
-                <div class="row">
+                <div className="row">
                     <div className="col">
                         <DeviceList />
-                        <EntryBoolean model="presence" label="Presence" setChartData={setChartData} chartRef={chartRef}/>
-                        <EntryBoolean model="light" label="Lights" setChartData={setChartData} chartRef={chartRef}/>
+                        <EntryBoolean facet="presence" label="Presence" setChartData={setChartData} chartRef={chartRef}/>
+                        <EntryBoolean facet="light" label="Lights" setChartData={setChartData} chartRef={chartRef}/>
                     </div>
                     <div className="col">
-                        <EntryBoolean model="darkness" label="Darkness" setChartData={setChartData} chartRef={chartRef}/>
-                        <EntryDecimal model="temperature" label="Temperature" unit="°C" setChartData={setChartData} chartRef={chartRef}/>
-                        <EntryDecimal model="humidity" label="Humidity" unit="%" setChartData={setChartData} chartRef={chartRef}/>
-                        <EntryDecimal model="pressure" label="Pressure" unit={"hPa"} setChartData={setChartData} chartRef={chartRef}/>
+                        <EntryBoolean facet="darkness" label="Darkness" setChartData={setChartData} chartRef={chartRef}/>
+                        <EntryDecimal facet="temperature" label="Temperature" unit="°C" setChartData={setChartData} chartRef={chartRef}/>
+                        <EntryDecimal facet="humidity" label="Humidity" unit="%" setChartData={setChartData} chartRef={chartRef}/>
+                        <EntryDecimal facet="pressure" label="Pressure" unit={"hPa"} setChartData={setChartData} chartRef={chartRef}/>
                     </div>
-                    <div className="col" class="w-100 p-3">
+                </div>
+                <div className="row">
+                    <div className="col w-100 p-3">
                         <Radio/>
                         <Chart chartData={chartData} ref={chartRef}/>
                     </div>
-                </div>
+               </div>
             </div>
+
         </div>
     );
 }

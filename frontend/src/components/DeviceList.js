@@ -4,24 +4,20 @@ const DeviceList = () => {
     const [devices, setDevices] = useState([]);
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const response = await fetch(process.env.REACT_APP_HOMECTRL_RESTAPI_URL + '/live');
-                const data = await response.json();
-                setDevices(data.result);
-            } catch (error) {
-                console.error('Error fetching data:', error);
-            }
+        const socket = new WebSocket(process.env.REACT_APP_HOMECTRL_RESTAPI_URL + '/ws/live');
+        socket.onopen = () => {
+            console.log('WebSocket connection established.');
         };
-
+        socket.onmessage = (event) => {
+            //console.log(event.data)
+            const receivedMessage = JSON.parse(event.data);
+            setDevices(receivedMessage.result);
+        };
         // Initial fetch
-        fetchData();
-
-        // Fetch every 10 seconds
-        const intervalId = setInterval(fetchData, 5 * 1000);
-
-        // Cleanup interval on component unmount
-        return () => clearInterval(intervalId);
+        setDevices([]);
+        return () => {
+            socket.close();
+        };
     }, []);
 
     return (
@@ -35,10 +31,10 @@ const DeviceList = () => {
                             <li key={index} className="list-group-item d-flex justify-content-between align-items-center">
                                 <strong>{device.name}</strong>
                                 <small
-                                    className="text-body-tertiary text-center">{new Date(device.timestamp).toLocaleDateString()}<br/>{new Date(device.timestamp).toLocaleTimeString()}
+                                    className="text-body-tertiary text-center">{new Date(device.create_at).toLocaleDateString()}<br/>{new Date(device.create_at).toLocaleTimeString()}
                                 </small>
                                 <span
-                                    className={"badge rounded-pill " + (device.is_alive ? 'bg-success' : 'bg-danger')}> {device.is_alive ? 'ON' : 'OFF'} </span>
+                                    className={"badge rounded-pill " + (device.value ? 'bg-success' : 'bg-danger')}> {device.value ? 'ON' : 'OFF'} </span>
                             </li>
                         ))}
                         {/*<li>*/}

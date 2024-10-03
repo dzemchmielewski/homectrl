@@ -564,13 +564,14 @@ class MQTTPublisher(Common):
     KEEPALIVE_SEC = 60
     PING_EVERY_MS = 35 * 1_000
     I_AM_ALIVE = json.dumps({"live": True})
+    MQTT_TOPIC = "homectrl/device"
 
-    def __init__(self, name, topic_root="homectrl"):
+    def __init__(self, name):
         super().__init__(name)
-        self.topic = topic_root + "/{}".format(name)
+        self.topic = self.MQTT_TOPIC + "/{}".format(name)
         self.live_topic = self.topic + "/live"
         self.mqtt = MQTTClient(self.topic, "192.168.0.21", user="mqtt", password="emkutete", keepalive=self.KEEPALIVE_SEC)
-        self.mqtt.set_last_will(self.live_topic, json.dumps({"live": False, "error": "last will"}))
+        self.mqtt.set_last_will(self.live_topic, json.dumps({"live": False, "error": "last will"}), True)
         self.connected = False
         self.debug_message = None
         self.last_message_time = None
@@ -582,13 +583,14 @@ class MQTTPublisher(Common):
             self.mqtt.connect()
             self.connected = True
             self.debug_message = "MQTT connected"
+            self.mqtt.publish(self.live_topic, self.I_AM_ALIVE, True)
             self.log("MQTT connected")
         except (OSError, MQTTException) as e:
             self.connected = False
             self.log("Error while connecting: {}".format(e))
             self.debug_message = "Error while connecting: {}".format(e)
 
-    def publish(self, msg, topic=None, retain=True):
+    def publish(self, msg, topic=None, retain=False):
         if not self.connected:
             self.connect()
         try:
@@ -611,11 +613,11 @@ class MQTTPublisher(Common):
         self.publish({
             "live": False,
             "error": msg
-        }, self.live_topic)
+        }, self.live_topic, True)
 
     def ping(self):
         if self.last_message_time is None or time_ms() - self.last_message_time > self.PING_EVERY_MS:
-            self.publish(self.I_AM_ALIVE, self.live_topic, False)
+            self.publish(self.I_AM_ALIVE, self.live_topic, True)
 
     def close(self):
         self.mqtt.publish(self.live_topic, json.dumps({"live": False, "error": "goodbye"}), True)

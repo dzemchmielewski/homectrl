@@ -1,0 +1,18 @@
+[Unit]
+Description=DZEM HomeCtrl Frontend Service
+After=multi-user.target
+
+[Service]
+Type=simple
+User=root
+# Environment="PORT=80"
+WorkingDirectory=/home/dzem/HOMECTRL/frontend/
+ExecStart=/bin/bash /home/dzem/HOMECTRL/frontend/build_and_serve.sh
+KillSignal=SIGINT
+Restart=always
+StandardOutput=append:/home/dzem/HOMECTRL/logs/frontend.log
+StandardError=append:/home/dzem/HOMECTRL/logs/frontend.log
+
+
+[Install]
+WantedBy=multi-user.target
