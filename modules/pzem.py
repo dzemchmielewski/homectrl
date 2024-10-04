@@ -465,7 +465,7 @@ class PZEM:
         )
 
     def to_abbr_str(self):
-        return """V[V]: {}, I[A]: {}, AP[W]: {}, AE[KWh]: {}, PF: {}, F[Hz]: {}""".format(
+        return """V[V]: {}, I[A]: {}, AP[W]: {}, AE[Wh]: {}, PF: {}, F[Hz]: {}""".format(
             self.getVoltage(),
             self.getCurrent(),
             self.getActivePower(),
@@ -760,8 +760,9 @@ if __name__ == "__main__":
         if dev.read():
 
             # print the reading value (public filed)
-            print(dev.toString())
-            print(dev.getCurrent())
+            # print(dev.toString())
+            # print(dev.getCurrent())
+            print(dev.to_abbr_str())
             dev.getThreshold()
 
         # wait for the next reading

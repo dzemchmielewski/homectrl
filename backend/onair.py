@@ -63,6 +63,10 @@ class OnAir(Common):
                 result.append(Radio(name=data["name"], create_at=data["timestamp"],
                                     station_name=value["station"]["name"], station_code=value["station"]["code"],
                                     volume=value["volume"]["volume"], muted=value["volume"]["is_muted"], playinfo=value["playinfo"]))
+            elif key == "electricity":
+                result.append(Electricity(name=data["name"], create_at=data["timestamp"],
+                                          voltage=value["voltage"], current=value["current"], active_power=value["active_power"],
+                                          active_energy=value["active_energy"], power_factor=value["power_factor"]))
         return result
 
     def process_entry(self, entry: HomeCtrlBaseModel, db_save=True):

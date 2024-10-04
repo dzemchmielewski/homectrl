@@ -16,6 +16,17 @@ class BathroomWorker(Worker):
         self.pzem = PZEM(uart=machine.UART(1, baudrate=9600, tx=7, rx=6))
         self.mqtt = MQTTPublisher(self.name)
 
+    def handle_help(self):
+        return "BATHROOM COMMANDS: reset_ae"
+
+    def handle_message(self, msg):
+        cmd = msg.strip().upper()
+        if cmd == "RESET_AE":
+            answer = "TODO: reset Active Energy counter!"
+        else:
+            answer = "[ERROR] unknown command (BathroomWorker): {}".format(msg)
+        return answer
+
     def start(self):
         self.log("START")
 
@@ -26,7 +37,14 @@ class BathroomWorker(Worker):
         worker_data.data["temperature"] = None
         worker_data.data["pressure"] = None
         worker_data.data["humidity"] = None
-        worker_data.data["pzem"] = None
+        worker_data.data["electricity"] = {
+            "voltage": None,
+            "current": None,
+            "active_power": None,
+            "active_energy": None,
+            "power_factor": None
+        }
+        worker_data.data["electricity_summary"] = None
 
         previous_sensor_read_time = None
         previous_pzem_read_time = None
@@ -50,11 +68,20 @@ class BathroomWorker(Worker):
 
                 # PZEM:
                 if previous_pzem_read_time is None or time_ms() - previous_pzem_read_time > (5 * 1_000):
-                    readings = (self.pzem.to_abbr_str(), None)
-                    if readings != (worker_data.data["pzem"], None):
+                    self.pzem.read()
+                    readings = {
+                            "voltage": round(self.pzem.getVoltage(), 0),
+                            "current": self.pzem.getCurrent(),
+                            "active_power": self.pzem.getActivePower(),
+                            "active_energy": self.pzem.getActiveEnergy(),
+                            "power_factor": self.pzem.getPowerFactor()
+                    }
+                    if readings != worker_data.data["electricity"]:
                         publish = True
-                        worker_data.data["pzem"] = readings[0]
-                    worker_data.data["read_pzem"] = self.the_time_str()
+                        worker_data.data["electricity"] = readings
+
+                    worker_data.data["read_electricity"] = self.the_time_str()
+                    worker_data.data["electricity_summary"] = self.pzem.to_abbr_str()
                     previous_pzem_read_time = time_ms()
 
                 if publish:

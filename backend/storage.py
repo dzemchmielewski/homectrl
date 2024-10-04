@@ -215,6 +215,32 @@ class Radar(HomeCtrlBaseModel):
             return list(map(lambda r: cls(**r), query))
 
 
+class Electricity(HomeCtrlBaseModel):
+    voltage = DecimalField(decimal_places=2)
+    current = DecimalField(decimal_places=3)
+    active_power = DecimalField(decimal_places=2)
+    active_energy = IntegerField()
+    power_factor = DecimalField(decimal_places=3)
+
+    def equals(self, other: Self) -> bool:
+        return (other and type(other) is type(self)
+                and other.voltage == self.voltage and other.current == self.current and other.active_power == self.active_power
+                and other.active_energy == self.active_energy and other.power_factor == self.power_factor)
+
+    @classmethod
+    def get_currents(cls):
+        with database:
+            subq = (
+                cls.select(peewee.fn.row_number().over(partition_by=cls.name_id, order_by=[cls.create_at.desc()]).alias("row_num"), cls))
+            query = (peewee.Select(columns=[subq.c.id, subq.c.create_at, subq.c.name_id,
+                                            subq.c.voltage, subq.c.current, subq.c.active_power,
+                                            subq.c.active_energy, subq.c.power_factor])
+                     .from_(subq)
+                     .where(subq.c.row_num == 1)
+                     .bind(database))
+            return list(map(lambda r: cls(**r), query))
+
+
 class ChartPeriod(Enum):
     hours24 = "24 hours"
     days7 = "7 days"

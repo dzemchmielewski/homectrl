@@ -17,6 +17,17 @@ class DevWorker(Worker):
         self.darkness = DarknessSensor.from_analog_pin(4)
         self.mqtt = MQTTPublisher(self.name)
 
+    def handle_help(self):
+        return "DEV WORKER COMMANDS: test"
+
+    def handle_message(self, msg):
+        cmd = msg.strip().upper()
+        if cmd == "TEST":
+            answer = "This is TEST answer"
+        else:
+            answer = "[ERROR] unknown command (DevWorker): {}".format(msg)
+        return answer
+
     def handle_exception(self, exception):
         traceback = uio.StringIO()
         sys.print_exception(exception, traceback)

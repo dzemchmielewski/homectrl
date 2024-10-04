@@ -57,16 +57,22 @@ class Worker(Common):
         worker_data.is_alive = False
         worker_data.go_exit = True
 
+    def handle_help(self):
+        return ""
+
+    def handle_message(self, msg):
+        return "[ERROR] unknown command (DevWorker): {}".format(msg)
+
 
 class WorkerServer(CommonServer):
 
     def __init__(self, name, communication: Communication, worker: Worker = None):
         super().__init__(name, communication)
-        self.worker = worker
-        if self.worker is not None:
-            worker_data = self.worker.get_data()
-            if not hasattr(worker_data, 'launch_on_start') or worker_data.launch_on_start:
-                start_thread(self.worker.start)
+        self.worker = worker if worker else Worker("NoneWorker")
+        self.worker_handle_message = False
+        worker_data = self.worker.get_data()
+        if not hasattr(worker_data, 'launch_on_start') or worker_data.launch_on_start:
+            start_thread(self.worker.start)
 
     def on_exit(self):
         worker_data = self.worker.get_data()
@@ -74,7 +80,7 @@ class WorkerServer(CommonServer):
             worker_data.go_exit = True
 
     def handle_help(self):
-        return "WORKER SERVER COMMANDS: go, nogo, info, read"
+        return "WORKER SERVER COMMANDS: go, nogo, info, read; {}".format(self.worker.handle_help())
 
     def handle_message(self, msg):
         worker_data = self.worker.get_data()
@@ -108,14 +114,8 @@ class WorkerServer(CommonServer):
             except Exception as e:
                 answer = str(e)
 
-        elif cmd == "DEV":
-            try:
-                pass
-            except Exception as e:
-                answer = str(e)
-
         else:
-            answer = "[ERROR] unknown command: {}".format(msg)
+            answer = self.worker.handle_message(msg)
 
         return answer
 
