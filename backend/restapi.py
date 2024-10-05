@@ -21,7 +21,7 @@ class ConnectionManager(Common):
     def __init__(self) -> None:
         super().__init__("RESTAPI", debug=False)
         self.connections = {}
-        self.mqtt = MQTTClient(CallbackAPIVersion.VERSION1, self.name)
+        self.mqtt = MQTTClient(CallbackAPIVersion.VERSION2)
         self.mqtt.on_connect = self.on_connect
         self.mqtt.on_message = self.on_message
         self.mqtt.on_disconnect = self.on_disconnect
@@ -36,10 +36,10 @@ class ConnectionManager(Common):
 
     def on_stop(self):
         self.mqtt.disconnect()
-        self.mqtt.loop_stop(force=True)
+        self.mqtt.loop_stop()
         self.log("ON STOP!!!")
 
-    def on_connect(self, client, userdata, flags, reason_code):
+    def on_connect(self, client, userdata, flags, reason_code, properties):
         self.log(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}")
         client.subscribe(Configuration.TOPIC_ONAIR + "/#")
 
@@ -139,6 +139,10 @@ class HomeCtrlAPI(Routable):
     @websocket("/ws/voltage")
     async def voltage(self, ws: WebSocket):
         await self.ws_facet(ws, "voltage")
+
+    @websocket("/ws/electricity")
+    async def voltage(self, ws: WebSocket):
+        await self.ws_facet(ws, "electricity")
 
     @get("/chart/{period}/{facet}/{device}")
     async def get_basic_chart(self, period: str, facet: str, device: str):

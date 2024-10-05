@@ -151,7 +151,7 @@ class MQTTMonitor(Common):
 
     def start(self):
         conf = Configuration.get_mqtt_config()
-        client = MQTTClient(CallbackAPIVersion.VERSION2, "monitor")
+        client = MQTTClient(CallbackAPIVersion.VERSION2)
         client.on_connect = self.on_connect
         client.on_message = self.on_message
         client.on_disconnect = self.on_disconnect

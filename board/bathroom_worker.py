@@ -67,16 +67,20 @@ class BathroomWorker(Worker):
 
 
                 # PZEM:
-                if previous_pzem_read_time is None or time_ms() - previous_pzem_read_time > (5 * 1_000):
+                if previous_pzem_read_time is None or time_ms() - previous_pzem_read_time > (2 * 1_000):
                     self.pzem.read()
                     readings = {
-                            "voltage": round(self.pzem.getVoltage(), 0),
+                            "voltage": self.pzem.getVoltage(),
                             "current": self.pzem.getCurrent(),
-                            "active_power": self.pzem.getActivePower(),
+                            # Active Power need to be greater than 0.4 - washing machine takes some small
+                            # power periodically what is messing reading history
+                            "active_power": self.pzem.getActivePower() if self.pzem.getActivePower() > 0.4 else 0,
                             "active_energy": self.pzem.getActiveEnergy(),
-                            "power_factor": self.pzem.getPowerFactor()
+                            "power_factor": self.pzem.getPowerFactor() if self.pzem.getActivePower() > 0.4 else 0
                     }
-                    if readings != worker_data.data["electricity"]:
+                    prev = worker_data.data["electricity"]
+                    if ((readings["current"], readings["active_power"], readings["active_energy"], readings["power_factor"])
+                            != (prev["current"], prev["active_power"], prev["active_energy"], prev["power_factor"])):
                         publish = True
                         worker_data.data["electricity"] = readings
 
