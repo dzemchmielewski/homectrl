@@ -5,6 +5,7 @@ import Radio from "./components/Radio";
 import EntryBoolean from "./components/EntryBoolean";
 import EntryDecimal from "./components/EntryDecimal";
 import Chart from "./components/Chart";
+import Electricity from "./components/Electricity";
 
 function App() {
 
@@ -40,6 +41,7 @@ function App() {
                     <div className="col w-100 p-3">
                         <Radio/>
                         <Chart chartData={chartData} ref={chartRef}/>
+                        <Electricity/>
                     </div>
                </div>
             </div>
