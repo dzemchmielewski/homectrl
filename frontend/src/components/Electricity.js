@@ -24,42 +24,54 @@ const Electricity = () => {
         <div className="card border-light mb-3" style={{maxWidth: '30rem'}}>
             <div className="card-header">Electricity</div>
             <div className="card-body">
-                {entries.map((entry, index) => (
-                    <ul className="list-group">
-                        <li
-                            key={index}
-                            className="list-group-item">
-                            <div className=" d-flex justify-content-start align-items-center">
+                <ul className="list-group">
+                    {entries.map((entry, index) => (
+                        <li key={index} className="list-group-item">
+                            <div className="d-flex justify-content-start align-items-center mb-3">
                                 <strong>{entry.name}</strong>
                             </div>
-
-                            <table className="table">
+                            <table className="table table-dark">
                                 <tbody>
-                                <tr className="table-dark">
+                                <tr>
                                     <th className="text-end">V</th>
-                                    <td><span className="text-success">{entry.voltage}</span><span className="text-info">V</span></td>
+                                    <td>
+                                        <span className="text-success">{entry.voltage}</span>
+                                        <span className="text-info">V</span>
+                                    </td>
                                     <th className="text-end">AP</th>
-                                    <td><span className="text-success">{entry.active_power}</span><span className="text-info">W</span></td>
+                                    <td>
+                                        <span className="text-success">{entry.active_power}</span>
+                                        <span className="text-info">W</span>
+                                    </td>
                                     <th className="text-end">I</th>
-                                    <td><span className="text-success">{entry.current}</span><span className="text-info">A</span></td>
+                                    <td>
+                                        <span className="text-success">{entry.current}</span>
+                                        <span className="text-info">A</span>
+                                    </td>
                                 </tr>
-                                <tr className="table-dark">
+                                <tr>
                                     <th className="text-end">AE</th>
-                                    <td><span className="text-success">{entry.active_energy / 1000}</span><span className="text-info">kWh</span></td>
+                                    <td>
+                                        <span className="text-success">{entry.active_energy / 1000}</span>
+                                        <span className="text-info">kWh</span>
+                                    </td>
                                     <th className="text-end">PF</th>
-                                    <td><span className="text-success">{entry.power_factor * 100}</span><span className="text-info">%</span></td>
-                                    <th>&nbsp;</th>
-                                    <td>&nbsp;</td>
+                                    <td>
+                                        <span className="text-success">{entry.power_factor * 100}</span>
+                                        <span className="text-info">%</span>
+                                    </td>
+                                    <th colSpan="2"></th>
                                 </tr>
                                 </tbody>
                             </table>
-
                         </li>
-                    </ul>
-                ))}
+                    ))}
+                </ul>
             </div>
         </div>
     );
+
+
 };
 
 export default Electricity;
