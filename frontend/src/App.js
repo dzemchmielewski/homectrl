@@ -6,6 +6,7 @@ import EntryBoolean from "./components/EntryBoolean";
 import EntryDecimal from "./components/EntryDecimal";
 import Chart from "./components/Chart";
 import Electricity from "./components/Electricity";
+import Laundry from "./components/Laundry";
 
 function App() {
 
@@ -26,7 +27,7 @@ function App() {
             <div className="container">
                 <div className="row">
                     <div className="col">
-                        <DeviceList />
+                        <DeviceList/>
                         <EntryBoolean facet="presence" label="Presence" setChartData={setChartData} chartRef={chartRef}/>
                         <EntryBoolean facet="light" label="Lights" setChartData={setChartData} chartRef={chartRef}/>
                     </div>
@@ -43,7 +44,12 @@ function App() {
                         <Chart chartData={chartData} ref={chartRef}/>
                         <Electricity/>
                     </div>
-               </div>
+                </div>
+                <div className="row">
+                    <div className="col w-100 p-3">
+                        <Laundry/>
+                    </div>
+                </div>
             </div>
 
         </div>

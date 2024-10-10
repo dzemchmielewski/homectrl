@@ -137,12 +137,20 @@ class HomeCtrlAPI(Routable):
     async def voltage(self, ws: WebSocket):
         await self.ws_facet(ws, "electricity")
 
+    @websocket("/ws/activity")
+    async def activity(self, ws: WebSocket):
+        await self.ws_facet(ws, "activity")
+
     @get("/chart/{period}/{facet}/{device}")
     async def get_basic_chart(self, period: str, facet: str, device: str):
         cache = FigureCache.get_last(facet[0].upper() + facet[1:], ChartPeriod.from_str(period), device)
         if not cache:
             return Response(status_code=status.HTTP_404_NOT_FOUND)
         return Response(content=cache.getvalue(), media_type="image/png", status_code=status.HTTP_200_OK)
+
+    @get("/dump")
+    async def dump(self):
+        return self.connection_manager.onair
 
     # @get("/pressure")
     # async def get_presence(self):

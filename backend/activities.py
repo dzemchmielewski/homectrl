@@ -13,7 +13,7 @@ class LaundryActivity(Common):
     OUTPUT_TOPIC = Configuration.TOPIC_ACTIVITY + "/laundry"
 
     def __init__(self, mqtt: MQTTClient):
-        super().__init__("Laundry", debug=True)
+        super().__init__("Laundry", debug=False)
         self.mqtt = mqtt
         self.active_laundry = None
         self.laundry = Laundry.get_last()
