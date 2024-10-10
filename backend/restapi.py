@@ -7,13 +7,12 @@ from classy_fastapi import Routable, get, websocket
 from fastapi import FastAPI, WebSocket, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
-from paho.mqtt.client import Client as MQTTClient, CallbackAPIVersion
 from contextlib import asynccontextmanager
 
 from backend.storage import FigureCache, ChartPeriod
 from common.common import Common
 from configuration import Configuration
-from backend.tools import json_serial, json_deserial
+from backend.tools import json_serial, json_deserial, MQTTClient
 
 
 class ConnectionManager(Common):
@@ -21,16 +20,10 @@ class ConnectionManager(Common):
     def __init__(self) -> None:
         super().__init__("RESTAPI", debug=False)
         self.connections = {}
-        self.mqtt = MQTTClient(CallbackAPIVersion.VERSION2)
-        self.mqtt.on_connect = self.on_connect
-        self.mqtt.on_message = self.on_message
-        self.mqtt.on_disconnect = self.on_disconnect
+        self.mqtt = MQTTClient(on_connect=self.on_connect, on_message=self.on_message, on_disconnect=self.on_disconnect)
         self.onair = {}
 
     def on_start(self):
-        conf = Configuration.get_mqtt_config()
-        self.mqtt.username_pw_set(conf["username"], conf["password"])
-        self.mqtt.connect(conf["host"], conf["port"])
         self.mqtt.loop_start()
         self.log("ON START!!!")
 

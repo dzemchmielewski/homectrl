@@ -1,12 +1,10 @@
 import traceback
 import sys
 import time
-from playhouse.shortcuts import model_to_dict
 from backend.storage import *
 from common.common import Common
 from configuration import Configuration
-from backend.tools import json_serial, json_deserial, singleton
-from paho.mqtt.client import Client as MQTTClient, CallbackAPIVersion
+from backend.tools import json_serial, json_deserial, singleton, MQTTClient
 
 
 @singleton
@@ -17,7 +15,7 @@ class OnAir(Common):
         self.start_at = datetime.datetime.now()
         self.status = {}
         self.exit = False
-        self.mqtt = MQTTClient(CallbackAPIVersion.VERSION2, self.name)
+        self.mqtt = MQTTClient(on_connect=self.on_connect, on_message=self.on_message, on_disconnect=self.on_disconnect)
 
     def on_message(self, client, userdata, msg):
         try:
@@ -91,13 +89,6 @@ class OnAir(Common):
         self.exit = True
 
     def start(self):
-        conf = Configuration.get_mqtt_config()
-        self.mqtt.on_connect = self.on_connect
-        self.mqtt.on_message = self.on_message
-        self.mqtt.on_disconnect = self.on_disconnect
-        self.mqtt.username_pw_set(conf["username"], conf["password"])
-        self.mqtt.connect(conf["host"], conf["port"])
-
         for entity in device_entities():
             self.status[entity] = {}
             for entry in entity.get_currents():

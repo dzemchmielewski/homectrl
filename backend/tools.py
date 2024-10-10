@@ -8,7 +8,7 @@ from time import sleep
 from common.common import Common, CommonSerial, time_ms
 from common.communication import Communication, SerialCommunication, SocketCommunication
 from configuration import Configuration
-from paho.mqtt.client import Client as MQTTClient, CallbackAPIVersion
+from paho.mqtt.client import Client as PahoMQTTClient, CallbackAPIVersion
 
 
 class Client(Common):
@@ -109,6 +109,18 @@ class CommandLineClient(Client):
     #         pass
 
 
+class MQTTClient(PahoMQTTClient):
+    def __init__(self, on_connect=None, on_disconnect=None, on_message=None, on_publish=None):
+        super().__init__(CallbackAPIVersion.VERSION2)
+        conf = Configuration.get_mqtt_config()
+        self.on_connect = on_connect
+        self.on_message = on_message
+        self.on_disconnect = on_disconnect
+        self.on_publish = on_publish
+        self.username_pw_set(conf["username"], conf["password"])
+        self.connect(conf["host"], conf["port"])
+
+
 class MQTTMonitor(Common):
 
     TARGET_STATE = ["  ", " M", " S", "MS"]
@@ -150,14 +162,7 @@ class MQTTMonitor(Common):
         self.log("DISCONNECTED!")
 
     def start(self):
-        conf = Configuration.get_mqtt_config()
-        client = MQTTClient(CallbackAPIVersion.VERSION2)
-        client.on_connect = self.on_connect
-        client.on_message = self.on_message
-        client.on_disconnect = self.on_disconnect
-        client.username_pw_set(conf["username"], conf["password"])
-        client.connect(conf["host"], conf["port"])
-
+        client = MQTTClient(on_connect=self.on_connect, on_message=self.on_message, on_disconnect=self.on_disconnect)
         client.loop_start()
         try:
             # client.loop_forever()
