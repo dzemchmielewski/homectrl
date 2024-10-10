@@ -12,13 +12,13 @@ system = sys.argv[1]
 if system == "onair":
 
     from backend.onair import OnAir
-    from backend.activities import Activities, Database2MQTT
+    from backend.activities import Activities
 
     threads = []
     print("Starting OnAir...")
     onAir = OnAir()
     activities = Activities()
-    # threads.append(threading.Thread(target=onAir.start))
+    threads.append(threading.Thread(target=onAir.start))
     threads.append(threading.Thread(target=activities.start))
 
     for t in threads:
@@ -58,10 +58,6 @@ elif system == "charts":
         ChartsGenerator().start()
     except KeyboardInterrupt:
         pass
-
-# elif system == "temp":
-#     from backend.activities import Database2MQTT
-#     Database2MQTT().run()
 
 else:
     print("Unknown subsystem: {}".format(system))
