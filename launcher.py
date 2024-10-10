@@ -12,16 +12,33 @@ system = sys.argv[1]
 if system == "onair":
 
     from backend.onair import OnAir
-    print("START OnAir")
+    from backend.activities import Activities, Database2MQTT
+
+    threads = []
+    print("Starting OnAir...")
     onAir = OnAir()
-    thread = threading.Thread(target=onAir.start)
-    thread.start()
+    activities = Activities()
+    # threads.append(threading.Thread(target=onAir.start))
+    threads.append(threading.Thread(target=activities.start))
+
+    for t in threads:
+        t.start()
+    print("Started OnAir")
+
     try:
         while True:
             time.sleep(100)
     except KeyboardInterrupt:
-        onAir.stop()
-        print("STOP OnAir")
+        pass
+
+    print("Stopping OnAir...")
+    onAir.stop()
+    activities.stop()
+    for t in threads:
+        if t.is_alive():
+            t.join()
+    print("Stopped OnAir")
+
 
 elif system == "restapi":
     import uvicorn
@@ -41,6 +58,10 @@ elif system == "charts":
         ChartsGenerator().start()
     except KeyboardInterrupt:
         pass
+
+# elif system == "temp":
+#     from backend.activities import Database2MQTT
+#     Database2MQTT().run()
 
 else:
     print("Unknown subsystem: {}".format(system))

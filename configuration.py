@@ -11,6 +11,7 @@ class Configuration:
     COLLECTOR = "collector"
     TOPIC_DEVICE = "homectrl/device"
     TOPIC_ONAIR = "homectrl/onair"
+    TOPIC_ACTIVITY = "homectrl/onair/activity"
 
     @staticmethod
     def get_config(server_id):

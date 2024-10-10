@@ -6,6 +6,7 @@ from io import BytesIO
 
 import peewee
 from peewee import Model, CharField, DateTimeField, DecimalField, BooleanField, IntegerField, TextField, ForeignKeyField, BlobField
+from playhouse.shortcuts import model_to_dict
 
 from configuration import Configuration
 
@@ -71,6 +72,20 @@ class Name(BaseModel):
         return None
 
 
+class Laundry(BaseModel):
+    start_at = DateTimeField()
+    end_at = DateTimeField(null=True)
+    start_energy = IntegerField()
+    end_energy = IntegerField(null=True)
+
+    @classmethod
+    def get_last(cls) -> Self:
+        return cls.select().order_by(cls.start_at.desc()).limit(1).get_or_none()
+
+    def is_active(self):
+        return self.start_energy is not None and self.end_at is None
+
+
 class HomeCtrlBaseModel(BaseModel):
     name = ForeignKeyField(Name, on_update='CASCADE')
     create_at = DateTimeField()
@@ -96,13 +111,6 @@ class HomeCtrlBaseModel(BaseModel):
 
 
 class HomeCtrlValueBaseModel(HomeCtrlBaseModel):
-
-    # @classmethod
-    # def save_new_value(cls, name, create_at, value):
-    #     previous = cls.get_last(name)
-    #     if previous is None or previous.value != value:
-    #         return cls.create(name=name, create_at=create_at, value=value)
-    #     return None
 
     @classmethod
     def get_currents(cls):
@@ -145,7 +153,6 @@ class Pressure(HomeCtrlValueBaseModel):
 
 class Voltage(HomeCtrlValueBaseModel):
     value = DecimalField(decimal_places=2)
-
 
 class Live(HomeCtrlValueBaseModel):
     value = BooleanField()
