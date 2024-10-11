@@ -37,17 +37,11 @@ function App() {
                         <EntryDecimal facet="humidity" label="Humidity" unit="%" setChartData={setChartData} chartRef={chartRef}/>
                         <EntryDecimal facet="pressure" label="Pressure" unit={"hPa"} setChartData={setChartData} chartRef={chartRef}/>
                     </div>
-                </div>
-                <div className="row">
-                    <div className="col w-100 p-3">
+                    <div className="col">
+                        <Electricity/>
+                        <Laundry/>
                         <Radio/>
                         <Chart chartData={chartData} ref={chartRef}/>
-                        <Electricity/>
-                    </div>
-                </div>
-                <div className="row">
-                    <div className="col w-100 p-3">
-                        <Laundry/>
                     </div>
                 </div>
             </div>

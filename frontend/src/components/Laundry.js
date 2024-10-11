@@ -36,7 +36,7 @@ const Laundry = () => {
                                 className={"badge " + (laundry.is_active ? 'bg-warning' : 'bg-secondary')}> {laundry.is_active ? 'ON' : 'OFF'} </span>
                         </div>
 
-                        <table className="table table-dark align-middle">
+                        <table className="table table-dark align-middle table-sm">
                             <tbody>
                             <tr>
                                 <th colSpan="4">
@@ -70,8 +70,8 @@ const Laundry = () => {
                             }
                             {!laundry.is_active &&
                                 <tr>
-                                    <th className="text-end" colSpan="2">Time</th>
-                                    <td colSpan="2">
+                                    <th className="text-end" colSpan="1">Duration</th>
+                                    <td colSpan="3">
                                     <span className="text-success">{laundry.duration}</span>
                                 </td>
                             </tr>

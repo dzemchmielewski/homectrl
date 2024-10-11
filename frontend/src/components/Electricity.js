@@ -31,7 +31,7 @@ const Electricity = () => {
                             <div className="d-flex justify-content-start align-items-center mb-3">
                                 <strong>{entry.name}</strong>
                             </div>
-                            <table className="table table-dark">
+                            <table className="table table-dark table-sm">
                                 <tbody>
                                 <tr>
                                     <th className="text-end">V</th>
