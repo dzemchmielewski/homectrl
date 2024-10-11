@@ -12,6 +12,7 @@ const Electricity = () => {
             //console.log(event.data)
             const receivedMessage = JSON.parse(event.data);
             setEntries(receivedMessage.result);
+            console.log("Entry: " + receivedMessage.result[0].power_factor + ", presentation: " + (receivedMessage.result[0].power_factor * 100).toFixed(0));
         };
         // Initial fetch
         setEntries([]);
@@ -35,29 +36,29 @@ const Electricity = () => {
                                 <tr>
                                     <th className="text-end">V</th>
                                     <td>
-                                        <span className="text-success">{entry.voltage}</span>
+                                        <span className="text-success">{entry.voltage.toFixed(1)}</span>
                                         <span className="text-info">V</span>
                                     </td>
                                     <th className="text-end">AP</th>
                                     <td>
-                                        <span className="text-success">{entry.active_power}</span>
+                                        <span className="text-success">{entry.active_power.toFixed(1)}</span>
                                         <span className="text-info">W</span>
                                     </td>
                                     <th className="text-end">I</th>
                                     <td>
-                                        <span className="text-success">{entry.current}</span>
+                                        <span className="text-success">{entry.current.toFixed(3)}</span>
                                         <span className="text-info">A</span>
                                     </td>
                                 </tr>
                                 <tr>
                                     <th className="text-end">AE</th>
                                     <td>
-                                        <span className="text-success">{entry.active_energy / 1000}</span>
+                                        <span className="text-success">{(entry.active_energy / 1000).toFixed(3)}</span>
                                         <span className="text-info">kWh</span>
                                     </td>
                                     <th className="text-end">PF</th>
                                     <td>
-                                        <span className="text-success">{entry.power_factor * 100}</span>
+                                        <span className="text-success">{(entry.power_factor * 100).toFixed(0)}</span>
                                         <span className="text-info">%</span>
                                     </td>
                                     <th colSpan="2"></th>

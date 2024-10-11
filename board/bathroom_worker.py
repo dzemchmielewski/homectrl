@@ -71,12 +71,12 @@ class BathroomWorker(Worker):
                     self.pzem.read()
                     readings = {
                             "voltage": self.pzem.getVoltage(),
-                            "current": self.pzem.getCurrent(),
+                            "current": round(self.pzem.getCurrent(), 3),
                             # Active Power need to be greater than 0.4 - washing machine takes some small
                             # power periodically what is messing reading history
-                            "active_power": self.pzem.getActivePower() if self.pzem.getActivePower() > 0.4 else 0,
+                            "active_power": round(self.pzem.getActivePower(), 1) if self.pzem.getActivePower() > 0.4 else 0,
                             "active_energy": self.pzem.getActiveEnergy(),
-                            "power_factor": self.pzem.getPowerFactor() if self.pzem.getActivePower() > 0.4 else 0
+                            "power_factor": round(self.pzem.getPowerFactor(), 2) if self.pzem.getActivePower() > 0.4 else 0
                     }
                     prev = worker_data.data["electricity"]
                     if ((readings["current"], readings["active_power"], readings["active_energy"], readings["power_factor"])

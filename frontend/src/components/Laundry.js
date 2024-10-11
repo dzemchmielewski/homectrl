@@ -36,7 +36,7 @@ const Laundry = () => {
                                 className={"badge " + (laundry.is_active ? 'bg-warning' : 'bg-secondary')}> {laundry.is_active ? 'ON' : 'OFF'} </span>
                         </div>
 
-                        <table className="table table-dark">
+                        <table className="table table-dark align-middle">
                             <tbody>
                             <tr>
                                 <th colSpan="4">
@@ -63,10 +63,18 @@ const Laundry = () => {
                                 <tr>
                                     <th className="text-end" colSpan="2">Energy consumed</th>
                                     <td colSpan="2">
-                                        <span className="text-success">{(laundry.end_energy - laundry.start_energy) / 1000}</span>
+                                        <span className="text-success">{laundry.energy}</span>
                                         <span className="text-info">kWh</span>
                                     </td>
                                 </tr>
+                            }
+                            {!laundry.is_active &&
+                                <tr>
+                                    <th className="text-end" colSpan="2">Time</th>
+                                    <td colSpan="2">
+                                    <span className="text-success">{laundry.duration}</span>
+                                </td>
+                            </tr>
                             }
                             </tbody>
                         </table>
