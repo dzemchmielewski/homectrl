@@ -2,6 +2,7 @@ import datetime
 import time
 from collections import deque
 
+from backend.sms import SMS
 from backend.storage import Laundry, model_to_dict, Electricity
 from backend.tools import json_deserial, json_serial, MQTTClient
 from common.common import Common
@@ -14,6 +15,7 @@ class LaundryActivity(Common):
 
     def __init__(self, mqtt: MQTTClient):
         super().__init__("Laundry", debug=False)
+        self.sms = SMS()
         self.mqtt = mqtt
         self.active_laundry = None
         self.laundry = Laundry.get_last()
@@ -40,6 +42,7 @@ class LaundryActivity(Common):
             self.laundry.end_energy = data["active_energy"]
             self.laundry.save()
             self.publish()
+            self.sms.laundry()
 
     def publish(self):
         output = model_to_dict(self.laundry)

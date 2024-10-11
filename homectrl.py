@@ -3,7 +3,9 @@
 
 import argparse, argcomplete
 import os
+import sys
 
+from backend.sms import SMS
 from backend.tools import CommandLineClient, MQTTMonitor, json_serial
 from common.common import Common
 from configuration import Configuration
@@ -70,6 +72,11 @@ def parse_args():
     mqtt.add_argument("--topic", "-t", help="Topic name. Default: '/homectrl/#")
     mqtt.set_defaults(command="mqtt")
 
+    sms = subparsers.add_parser("sms", help="SMS tool")
+    sms.add_argument("sms_action", choices=["balance", "parts"], default="balance", nargs="?")
+    sms.add_argument("--message", "-m", help="Message to process", required='parts' in sys.argv)
+    sms.set_defaults(command="sms")
+
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
@@ -132,6 +139,15 @@ class HomeCtrl(Common):
             if args.mqtt_action == "monitor":
                 topic = args.topic if args.topic else "homectrl/#"
                 MQTTMonitor(topic).start()
+
+        elif args.command == "sms":
+            if args.sms_action == "balance":
+                print(SMS().balance())
+            elif args.sms_action == "parts":
+                message = args.message
+                print("Checking number of parts for message: {}".format(message))
+                result = SMS().parts_count(message)
+                print("RESULT: {}".format(result))
 
 
 if __name__ == "__main__":

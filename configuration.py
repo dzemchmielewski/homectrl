@@ -1,7 +1,15 @@
 import os
 import json
+from dataclasses import dataclass
 
 from common.communication import SocketCommunication
+
+
+@dataclass
+class Confidential:
+    sms_token: str = "some real API token"
+    sms_recipients: str = "sms recipients"
+    sms_sender: str = "sender name"
 
 
 class Configuration:
@@ -12,6 +20,13 @@ class Configuration:
     TOPIC_DEVICE = "homectrl/device"
     TOPIC_ONAIR = "homectrl/onair"
     TOPIC_ACTIVITY = "homectrl/onair/activity"
+
+    confidential = Confidential
+    if os.path.exists(os.path.join(PATH, "secrets.py")):
+        from secrets import Confidential
+        confidential = Confidential
+    else:
+        raise BaseException("secrets.py file not found!")
 
     @staticmethod
     def get_config(server_id):
