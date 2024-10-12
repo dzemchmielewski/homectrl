@@ -4,73 +4,68 @@
       "host": "192.168.0.121",
       "port": 8123,
       "debug": false,
-      "collect": true
+      "webrepl_password": "${webrepl_password}"
     },
     "radio": {
       "host": "192.168.0.21",
       "port": 9999,
       "debug": false,
-      "collect": false
+      "webrepl_password": "${webrepl_password}"
     },
     "dev": {
       "host": "192.168.0.120",
       "port": 8123,
       "debug": false,
-      "collect": false
+      "webrepl_password": "${webrepl_password}"
     },
     "pantry": {
       "host": "192.168.0.122",
       "port": 8123,
       "debug": false,
-      "collect": false
+      "webrepl_password": "${webrepl_password}"
     },
     "wardrobe": {
       "host": "192.168.0.123",
       "port": 8123,
       "debug": false,
-      "collect": false
+      "webrepl_password": "${webrepl_password}"
     },
     "bathroom": {
       "host": "192.168.0.124",
       "port": 8123,
       "debug": false,
-      "collect": false
+      "webrepl_password": "${webrepl_password}"
     },
     "cam": {
       "host": "192.168.0.125",
       "port": 8123,
       "debug": false,
-      "collect": false
+      "webrepl_password": "${webrepl_password}"
     }
-  },
-  "collector": {
-    "host": "192.168.0.21",
-    "port": 9000,
-    "debug": false
   },
   "mqtt": {
     "host": "192.168.0.21",
     "port": 1883,
-    "username": "mqtt",
-    "password": "emkutete"
+    "username": "${mqtt_username}",
+    "password": "${mqtt_password}"
   },
   "_mqtt": {
     "host": "localhost",
     "port": 8883,
-    "username": "mqtt",
-    "password": "emkutete"
+    "username": "${mqtt_username}",
+    "password": "${mqtt_password}"
   },
   "database": {
     "db": "homectrl",
-    "username": "homectrl",
-    "password": "homectrl_dba",
+    "username": "${db_username}",
+    "password": "${db_password}",
     "host": "192.168.0.21",
     "port": 5432
   },
   "_database": {
     "db": "homectrl",
-    "username": "homectrl",
-    "password": "homectrl_dba",
+    "username": "${db_username}",
+    "password": "${db_password}",
     "host": "localhost",
     "port": 5432
   },
@@ -87,6 +82,11 @@
         "Temperature": ["kitchen", "pantry"]
       }
     }
+  },
+  "sms": {
+    "sms_token": "${sms_token}",
+    "sms_recipients": "${sms_recipients}",
+    "sms_sender": "${sms_sender}"
   }
 
 }

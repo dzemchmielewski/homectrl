@@ -9,12 +9,12 @@ class SMS(Common):
 
     def __init__(self):
         super().__init__("SMS")
+        conf = Configuration.get_sms_config()
         self.headers = {"Content-Type": "application/x-www-form-urlencoded",
-                        "Authorization": "Bearer {}".format(Configuration.confidential.sms_token)}
+                        "Authorization": "Bearer {}".format(conf["sms_token"])}
         self.url = "https://api2.smsplanet.pl/"
-        self.sender = Configuration.confidential.sms_sender
-        self.recipients = Configuration.confidential.sms_recipients
-        # self.recipients = "663744256"
+        self.sender = conf["sms_sender"]
+        self.recipients = conf["sms_recipients"]
 
     def _smsplanet_post(self, method, data):
         try:

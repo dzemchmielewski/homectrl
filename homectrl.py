@@ -5,10 +5,8 @@ import argparse, argcomplete
 import os
 import sys
 
-from backend.sms import SMS
-from backend.tools import CommandLineClient, MQTTMonitor, json_serial
 from common.common import Common
-from configuration import Configuration
+from  configuration import Configuration
 
 
 class _HelpAction(argparse._HelpAction):
@@ -42,7 +40,6 @@ def parse_args():
 
     connect = subparsers.add_parser("connect", help="Connect to specified command-line server")
     to_connect = list(Configuration.MAP["board"].keys())
-    to_connect.append(Configuration.COLLECTOR)
     connect.add_argument("server_id", choices=to_connect, help="Available servers")
     # connect.add_argument("--direct", action="store_true", help="Direct connection to server (pass collector handling)")
     connect.set_defaults(command="connect")
@@ -69,7 +66,7 @@ def parse_args():
 
     mqtt = subparsers.add_parser("mqtt", help="Monitor Mosquitto queue")
     mqtt.add_argument("mqtt_action", choices=["monitor"], default="monitor", nargs="?")
-    mqtt.add_argument("--topic", "-t", help="Topic name. Default: '/homectrl/#")
+    mqtt.add_argument("--topic", "-t", help="Topic name. Default: '{}/#'".format(Configuration.TOPIC_ROOT))
     mqtt.set_defaults(command="mqtt")
 
     sms = subparsers.add_parser("sms", help="SMS tool")
@@ -93,6 +90,8 @@ class HomeCtrl(Common):
 
     def list_db(self):
         from backend import storage
+        from backend.tools import json_serial
+
         for c in storage.entities():
             t = c.get_last()
             if t is not None:
@@ -100,11 +99,9 @@ class HomeCtrl(Common):
 
     def go(self, args):
         if args.command == "connect":
-            if args.server_id != Configuration.COLLECTOR:
-                self.log("Connecting to: {}".format(args.server_id))
-                CommandLineClient(Configuration.get_communication(args.server_id), args.server_id).start()
-            else:
-                CommandLineClient(Configuration.get_communication(Configuration.COLLECTOR), "COLLECTOR").start()
+            from backend.tools import CommandLineClient
+            self.log("Connecting to: {}".format(args.server_id))
+            CommandLineClient(Configuration.get_communication(args.server_id), args.server_id).start()
 
         elif args.command == "ping":
             ping_args = ""
@@ -113,8 +110,8 @@ class HomeCtrl(Common):
             os.system("ping {} {}".format(ping_args, Configuration.get_config(args.server_id)["host"]))
 
         elif args.command == "webrepl":
-            password = "dzemHrome"
             host = Configuration.get_config(args.server_id)["host"]
+            password = Configuration.get_config(args.server_id)["webrepl_password"]
             if args.file:
                 cmd = "webrepl -p {password} {file} {host}:/{file}".format(host=host, password=password, file=args.file)
             else:
@@ -127,7 +124,8 @@ class HomeCtrl(Common):
 
         elif args.command == "db":
             if args.db_action == "cmd":
-                cmd = "PGPASSWORD=homectrl_dba psql -U homectrl homectrl"
+                db = Configuration.get_database_config()
+                cmd = "PGPASSWORD={} psql -U {} {}".format(db["password"], db["username"], db["db"])
                 if args.sql:
                     os.system("echo \"{}\" | {}".format(args.sql, cmd))
                 else:
@@ -136,11 +134,13 @@ class HomeCtrl(Common):
                 self.list_db()
 
         elif args.command == "mqtt":
+            from backend.tools import MQTTMonitor
             if args.mqtt_action == "monitor":
-                topic = args.topic if args.topic else "homectrl/#"
+                topic = args.topic if args.topic else Configuration.TOPIC_ROOT + "/#"
                 MQTTMonitor(topic).start()
 
         elif args.command == "sms":
+            from backend.sms import SMS
             if args.sms_action == "balance":
                 print(SMS().balance())
             elif args.sms_action == "parts":

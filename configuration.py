@@ -1,32 +1,44 @@
 import os
 import json
-from dataclasses import dataclass
+import re
 
 from common.communication import SocketCommunication
 
 
-@dataclass
-class Confidential:
-    sms_token: str = "some real API token"
-    sms_recipients: str = "sms recipients"
-    sms_sender: str = "sender name"
+secret_key_regexp = re.compile(r"\$\{(.+)\}")
+
+
+def apply_secrets(input, secrets):
+    if isinstance(input, dict):
+        result = {}
+        for k, v in input.items():
+            result[k] = apply_secrets(v, secrets)
+        return result
+    elif hasattr(input, '__iter__') and not isinstance(input, str):
+        result = []
+        for item in input:
+            result.append(apply_secrets(item, secrets))
+        return result
+    elif isinstance(input, str) and (m := secret_key_regexp.match(input)):
+        secret_key = m.group(1)
+        return secrets.get(secret_key) if secrets.get(secret_key) else input
+    else:
+        return input
 
 
 class Configuration:
     PATH = os.path.dirname(os.path.realpath(__file__))
-    MAP = json.loads(open(os.path.join(PATH,"homectrl-map.json")).read())
-    DATABASE = os.path.join(PATH, "homectrl.db")
-    COLLECTOR = "collector"
+    MAP = json.loads(open(os.path.join(PATH, "homectrl-map.json")).read())
+    TOPIC_ROOT = "homectrl"
     TOPIC_DEVICE = "homectrl/device"
     TOPIC_ONAIR = "homectrl/onair"
     TOPIC_ACTIVITY = "homectrl/onair/activity"
 
-    confidential = Confidential
-    if os.path.exists(os.path.join(PATH, "secrets.py")):
-        from secrets import Confidential
-        confidential = Confidential
+    if os.path.exists(os.path.join(PATH, "secrets.json")):
+        secrets = json.loads(open(os.path.join(PATH, "secrets.json")).read())
+        MAP = apply_secrets(MAP, secrets)
     else:
-        raise BaseException("secrets.py file not found!")
+        raise BaseException("secrets.json file not found!")
 
     @staticmethod
     def get_config(server_id):
@@ -53,4 +65,6 @@ class Configuration:
     def get_charts_config():
         return Configuration.MAP["charts"]
 
-
+    @staticmethod
+    def get_sms_config():
+        return Configuration.MAP["sms"]
