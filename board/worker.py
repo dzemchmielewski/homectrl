@@ -17,6 +17,8 @@ class WorkerData:
         self.error = None
         self.data = {
         }
+        self.control = {
+        }
 
 
 worker_data = WorkerData()
@@ -80,7 +82,7 @@ class WorkerServer(CommonServer):
             worker_data.go_exit = True
 
     def handle_help(self):
-        return "WORKER SERVER COMMANDS: go, nogo, info, read; {}".format(self.worker.handle_help())
+        return "WORKER SERVER COMMANDS: go, nogo, info, read, control; {}".format(self.worker.handle_help())
 
     def handle_message(self, msg):
         worker_data = self.worker.get_data()
@@ -114,6 +116,17 @@ class WorkerServer(CommonServer):
             except Exception as e:
                 answer = str(e)
 
+        elif cmd.startswith("CONTROL"):
+            try:
+                s = msg.split()
+                name = s[1]
+                value = type(worker_data.control[name])(s[2])
+                worker_data.control[name] = value
+                answer = f'[OK] {name}: {value}'
+            except Exception as exc:
+                worker_data.control.keys()
+                answer = "[ERROR] {}: {}; USAGE: control {{{}}} value".format(exc.__class__.__name__, exc, ", ".join(worker_data.control.keys()))
+
         else:
             answer = self.worker.handle_message(msg)
 
@@ -126,6 +139,3 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
 
-
-
-# exec(open("micro_python/dummy_worker.py").read())

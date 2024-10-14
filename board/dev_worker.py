@@ -1,9 +1,6 @@
+import time
 from collections import deque
 
-import sys
-import time
-
-import uio
 from board.mqtt_publisher import MQTTPublisher
 from board.worker import Worker
 from modules.darkness import DarknessSensor
@@ -16,30 +13,26 @@ class DevWorker(Worker):
         self.log("INIT")
         self.darkness = DarknessSensor.from_analog_pin(4)
         self.mqtt = MQTTPublisher(self.name)
+        worker_data = self.get_data()
+        worker_data.control = {
+            "some_int": 5,
+            "some_str": "teststr"
+        }
 
     def handle_help(self):
         return "DEV WORKER COMMANDS: test"
 
     def handle_message(self, msg):
         cmd = msg.strip().upper()
+
         if cmd == "TEST":
             answer = "This is TEST answer"
+
         else:
             answer = "[ERROR] unknown command (DevWorker): {}".format(msg)
+
         return answer
 
-    def handle_exception(self, exception):
-        traceback = uio.StringIO()
-        sys.print_exception(exception, traceback)
-        worker_data = self.get_data()
-        worker_data.error = traceback.getvalue()
-        worker_data.is_alive = False
-        worker_data.go_exit = True
-
-    @staticmethod
-    def the_time_str() -> str:
-        t = time.localtime()
-        return "{}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}.{:06d}".format(t[0], t[1], t[2], t[3], t[4], t[5], 0)
 
     def start(self):
         self.log("START")
@@ -84,3 +77,6 @@ class DevWorker(Worker):
 
         worker_data.is_alive = False
         self.log("EXIT")
+
+
+
