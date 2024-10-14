@@ -34,6 +34,12 @@ elif BOARD == "Linux":
         from common.platform.rpi_gpio import CommonGPIO
         loaded = True
 
+    # Linux Raspberry PI 5
+    # TODO...
+    elif MACHINE == "aarch64":
+        from common.platform.none_gpio import CommonGPIO
+        loaded = True
+
 else:
     raise RuntimeError("Unsupported platform")
 
