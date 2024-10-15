@@ -1,5 +1,7 @@
+import _thread
 import sys
 
+from board.mqtt_publisher import MQTTPublisher
 from common.common import Common, time_ms, start_thread
 from common.server import CommonServer
 from common.communication import Communication
@@ -13,7 +15,7 @@ class WorkerData:
         self.is_alive = False
         self.go_exit = False
         self.loop_sleep = 1
-        self.mqtt_connected = False
+        self.mqtt = False
         self.error = None
         self.data = {
         }
@@ -42,7 +44,24 @@ class Worker(Common):
         worker_data.is_alive = False
         self.log("EXIT")
 
-    def get_data(self):
+    def begin(self):
+        self.log("BEGIN")
+        worker_data = self.get_data()
+        worker_data.is_alive = True
+
+    def keep_working(self):
+        worker_data = self.get_data()
+        if not worker_data.go_exit:
+            time.sleep(worker_data.loop_sleep)
+        return not worker_data.go_exit
+
+    def end(self):
+        worker_data = self.get_data()
+        worker_data.is_alive = False
+        self.log("END")
+
+    @staticmethod
+    def get_data() -> WorkerData:
         global worker_data
         return worker_data
 
@@ -56,7 +75,6 @@ class Worker(Common):
         sys.print_exception(exception, traceback)
         worker_data = self.get_data()
         worker_data.error = traceback.getvalue()
-        worker_data.is_alive = False
         worker_data.go_exit = True
 
     def handle_help(self):
@@ -64,6 +82,47 @@ class Worker(Common):
 
     def handle_message(self, msg):
         return "[ERROR] unknown command (DevWorker): {}".format(msg)
+
+
+class MQTTWorker(Worker):
+    def __init__(self, name, debug=False):
+        super().__init__(name, debug)
+        self.mqtt = MQTTPublisher(self.name)
+        worker_data = self.get_data()
+        worker_data.mqtt = self.mqtt.connected
+        worker_data.error = self.mqtt.error
+
+    def mqtt_publish(self):
+        worker_data = self.get_data()
+        self.mqtt.publish(worker_data.data)
+        worker_data.mqtt = self.mqtt.connected
+        worker_data.error = self.mqtt.error
+
+    def mqtt_ping(self):
+        self.mqtt.ping()
+        worker_data = self.get_data()
+        worker_data.mqtt = self.mqtt.connected
+        worker_data.error = self.mqtt.error
+
+    def handle_exception(self, exception):
+        super().handle_exception(exception)
+        worker_data = self.get_data()
+        self.mqtt.publish({
+            "live": False,
+            "error": worker_data.error
+        }, self.mqtt.live_topic, True)
+        worker_data.mqtt = self.mqtt.connected
+
+    def begin(self):
+        super().begin()
+        self.mqtt.connect()
+        worker_data.mqtt = self.mqtt.connected
+        worker_data.error = self.mqtt.error
+
+    def end(self):
+        self.mqtt.close()
+        worker_data.mqtt = self.mqtt.connected
+        super().end()
 
 
 class WorkerServer(CommonServer):
@@ -95,6 +154,8 @@ class WorkerServer(CommonServer):
                     answer = "[ERROR] worker was already started..."
                 else:
                     worker_data.go_exit = False
+                    # it doesn't seem to work... To investigate
+                    # _thread.stack_size(1024 * 64)
                     start_thread(self.worker.start)
                     answer = "call worker start: {}".format(self.worker)
             else:

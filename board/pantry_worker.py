@@ -1,44 +1,32 @@
-import sys
-import time
-
-import uio
 from modules.bmp_aht import BMP_AHT
 
-from board.mqtt_publisher import MQTTPublisher
-from board.worker import Worker
+from board.worker import MQTTWorker
 from modules.pin_io import PinIO
 from common.common import time_ms
 
 
-class PantryWorker(Worker):
+class PantryWorker(MQTTWorker):
 
     def __init__(self, debug=False):
         super().__init__("pantry", debug)
-        self.log("INIT")
         self.door_sensor = PinIO("door", 3)
-
         self.reader = BMP_AHT.from_pins(0, 1)
-
-        self.mqtt = MQTTPublisher(self.name)
+        worker_data = self.get_data()
+        worker_data.data = {
+            "name": self.name,
+            "light": None,
+            "temperature": None,
+            "pressure": None,
+            "humidity": None
+        }
 
     def start(self):
-        self.log("START")
-
+        self.begin()
         worker_data = self.get_data()
-        worker_data.is_alive = True
-        worker_data.data["name"] = self.name
-
-        worker_data.data["light"] = None
-        worker_data.data["temperature"] = None
-        worker_data.data["pressure"] = None
-        worker_data.data["humidity"] = None
-
         previous_sensor_read_time = None
 
-        while not worker_data.go_exit:
-
+        while self.keep_working():
             try:
-
                 publish = False
 
                 # Light/Door signal
@@ -55,27 +43,17 @@ class PantryWorker(Worker):
 
                     if readings != (worker_data.data["temperature"], worker_data.data["pressure"], worker_data.data["humidity"]):
                         publish = True
-                        worker_data.data["temperature"] = readings[0]
-                        worker_data.data["pressure"] = readings[1]
-                        worker_data.data["humidity"] = readings[2]
+                        (worker_data.data["temperature"], worker_data.data["pressure"], worker_data.data["humidity"]) = readings
+
                     worker_data.data["read_sensor"] = self.the_time_str()
                     previous_sensor_read_time = time_ms()
 
                 if publish:
-                    self.mqtt.publish(worker_data.data)
+                    self.mqtt_publish()
                 else:
-                    self.mqtt.ping()
-
-                time.sleep(worker_data.loop_sleep)
+                    self.mqtt_ping()
 
             except BaseException as e:
                 self.handle_exception(e)
-                self.mqtt.publish_error(worker_data.error)
 
-        try:
-            self.mqtt.close()
-        except BaseException as e:
-            self.log("Error while closing MQTT: {}".format(e))
-
-        worker_data.is_alive = False
-        self.log("EXIT")
+        self.end()

@@ -1,22 +1,27 @@
 import time
 from collections import deque
 
-from board.mqtt_publisher import MQTTPublisher
-from board.worker import Worker
+from board.worker import MQTTWorker
 from modules.darkness import DarknessSensor
+from modules.pin_io import PinIO
 
 
-class DevWorker(Worker):
+class DevWorker(MQTTWorker):
 
     def __init__(self, debug=False):
         super().__init__("dev", debug)
-        self.log("INIT")
         self.darkness = DarknessSensor.from_analog_pin(4)
-        self.mqtt = MQTTPublisher(self.name)
+        self.led = PinIO("LED", 0)
+        self.led.set_signal(0)
         worker_data = self.get_data()
+        worker_data.data = {
+            "name": self.name,
+            "voltage": None,
+            "datetime": None,
+            "led": 0
+        }
         worker_data.control = {
-            "some_int": 5,
-            "some_str": "teststr"
+            "led_modulo": 1,
         }
 
     def handle_help(self):
@@ -24,32 +29,23 @@ class DevWorker(Worker):
 
     def handle_message(self, msg):
         cmd = msg.strip().upper()
-
         if cmd == "TEST":
             answer = "This is TEST answer"
-
         else:
             answer = "[ERROR] unknown command (DevWorker): {}".format(msg)
-
         return answer
 
-
     def start(self):
-        self.log("START")
-
+        self.begin()
         worker_data = self.get_data()
-        worker_data.is_alive = True
-        worker_data.data["name"] = self.name
-        worker_data.data["voltage"] = None
-        worker_data.data["datetime"] = None
-        queue = deque((), 90)
+        queue = deque((), 5)
+        count = 0
 
-        while not worker_data.go_exit:
-
+        while self.keep_working():
             try:
-
                 publish = False
 
+                # Handle voltage reading:
                 voltage = self.darkness.read_voltage()
                 queue.append(voltage)
                 lst = list(queue)
@@ -59,24 +55,18 @@ class DevWorker(Worker):
                     publish = True
                     worker_data.data["voltage"] = mean
 
+                # Handle LED:
+                count += 1
+                if count % worker_data.control["led_modulo"] == 0:
+                    worker_data.data["led"] = (worker_data.data["led"] + 1) % 2
+                    self.led.set_signal(worker_data.data["led"])
+                    count = 0
+
                 if publish:
-                    self.mqtt.publish(worker_data.data)
+                    self.mqtt_publish()
                 else:
-                    self.mqtt.ping()
-
-                time.sleep(worker_data.loop_sleep)
-
+                    self.mqtt_ping()
             except BaseException as e:
                 self.handle_exception(e)
-                self.mqtt.publish_error(worker_data.error)
 
-        try:
-            self.mqtt.close()
-        except BaseException as e:
-            self.log("Error while closing MQTT: {}".format(e))
-
-        worker_data.is_alive = False
-        self.log("EXIT")
-
-
-
+        self.end()

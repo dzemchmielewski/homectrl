@@ -1,10 +1,6 @@
 from collections import deque
 
-import time
-import uio
-import sys
-from board.worker import Worker
-from board.mqtt_publisher import MQTTPublisher
+from board.worker import MQTTWorker
 from modules.ld2410 import LD2410
 from modules.darkness import DarknessSensor
 from modules.dht import DHTSensor
@@ -12,13 +8,12 @@ from modules.pin_io import PinIO
 from common.common import CommonSerial, time_ms
 
 
-class KitchenWorker(Worker):
+class KitchenWorker(MQTTWorker):
 
     MAX_FLOATING_TIME = 20 * 1_000
 
     def __init__(self, debug=True):
         super().__init__("kitchen", debug)
-        self.log("INIT")
         self.darkness_threshold = 2.7
         self.dht_sensor = DHTSensor("dht", 5)
         self.darkness_sensor = DarknessSensor.from_analog_pin(2)
@@ -29,38 +24,30 @@ class KitchenWorker(Worker):
         uart = CommonSerial(1, baudrate=256000, bits=8, parity=None, stop=1, tx=7, rx=6, timeout=1)
         self.radar = LD2410("LD2410", uart, debug=False)
 
-        self.mqtt = None
+        worker_data = self.get_data()
+        worker_data.loop_sleep = 0.3
+        worker_data.data = {
+            "name": self.name,
+            "temperature": None,
+            "humidity": None,
+            "darkness": None,
+            "voltage": None,
+            "presence": None,
+            "light": None
+        }
 
     def start(self):
-        self.log("START")
+        self.begin()
 
         worker_data = self.get_data()
-        worker_data.is_alive = True
-        worker_data.loop_sleep = 0.3
-        worker_data.data["name"] = self.name
-        worker_data.data["temperature"] = None
-        worker_data.data["humidity"] = None
-        worker_data.data["darkness"] = None
-        worker_data.data["voltage"] = None
-        worker_data.data["presence"] = None
-        worker_data.data["light"] = None
         queue = deque((), 90)
-
-        try:
-            self.mqtt = MQTTPublisher(self.name)
-            worker_data.mqtt_connected = self.mqtt.connected
-        except BaseException as e:
-            self.handle_exception(e)
-
         is_light_on: bool = False
         floating_time = None
         dht_read_time = None
         darkness_read_time = None
 
-        while not worker_data.go_exit:
-
+        while self.keep_working():
             try:
-
                 publish = False
 
                 # DHT sensor:
@@ -68,8 +55,7 @@ class KitchenWorker(Worker):
                     readings = (self.dht_sensor.get())
                     if readings != (worker_data.data["temperature"], worker_data.data["humidity"]):
                         publish = True
-                        worker_data.data["temperature"] = readings[0]
-                        worker_data.data["humidity"] = readings[1]
+                        (worker_data.data["temperature"], worker_data.data["humidity"]) = readings
                     worker_data.data["dht_read_time"] = self.the_time_str()
                     dht_read_time = time_ms()
 
@@ -145,21 +131,11 @@ class KitchenWorker(Worker):
                     }
 
                 if publish:
-                    self.mqtt.publish(worker_data.data)
+                    self.mqtt_publish()
                 else:
-                    self.mqtt.ping()
-
-                worker_data.mqtt_connected = self.mqtt.connected
-                time.sleep(worker_data.loop_sleep)
+                    self.mqtt_ping()
 
             except BaseException as e:
                 self.handle_exception(e)
-                self.mqtt.publish_error(worker_data.error)
 
-        try:
-            self.mqtt.close()
-        except BaseException as e:
-            self.log("Error while closing MQTT: {}".format(e))
-
-        worker_data.is_alive = False
-        self.log("EXIT")
+        self.end()

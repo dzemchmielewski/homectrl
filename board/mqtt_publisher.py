@@ -574,6 +574,7 @@ class MQTTPublisher(Common):
         self.mqtt.set_last_will(self.live_topic, json.dumps({"live": False, "error": "last will"}), True)
         self.connected = False
         self.debug_message = None
+        self.error = None
         self.last_message_time = None
 
     def connect(self):
@@ -587,8 +588,8 @@ class MQTTPublisher(Common):
             self.log("MQTT connected")
         except (OSError, MQTTException) as e:
             self.connected = False
-            self.log("Error while connecting: {}".format(e))
-            self.debug_message = "Error while connecting: {}".format(e)
+            self.error = self.debug_message = "Error while connecting: {}".format(e)
+            self.log(self.error)
 
     def publish(self, msg, topic=None, retain=False):
         if not self.connected:
@@ -606,8 +607,8 @@ class MQTTPublisher(Common):
             self.last_message_time = time_ms()
         except (OSError, MQTTException) as e:
             self.connected = False
-            self.debug_message = "Error while publishing topic {}: {}".format(topic, e)
-            self.log("Error while publishing topic {}: {}".format(topic, e))
+            self.error = self.debug_message = "Error while publishing topic {}: {}".format(topic, e)
+            self.log(self.error)
 
     def publish_error(self, msg: str):
         self.publish({
@@ -620,7 +621,11 @@ class MQTTPublisher(Common):
             self.publish(self.I_AM_ALIVE, self.live_topic, True)
 
     def close(self):
-        self.mqtt.publish(self.live_topic, json.dumps({"live": False, "error": "goodbye"}), True)
-        self.mqtt.disconnect()
-        self.connected = False
-        self.debug_message = "MQTT disconnected"
+        try:
+            self.mqtt.publish(self.live_topic, json.dumps({"live": False, "error": "goodbye"}), True)
+            self.mqtt.disconnect()
+        except Exception:
+            pass
+        finally:
+            self.connected = False
+            self.debug_message = "MQTT disconnected"
