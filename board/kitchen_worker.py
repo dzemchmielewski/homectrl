@@ -35,6 +35,9 @@ class KitchenWorker(MQTTWorker):
             "presence": None,
             "light": None
         }
+        worker_data.control = {
+            "mode": "auto"  # on, off, auto
+        }
 
     def start(self):
         self.begin()
@@ -85,25 +88,35 @@ class KitchenWorker(MQTTWorker):
                 darkness = (voltage >= self.darkness_threshold)
 
                 # Light management:
-                new_light = darkness and presence
-                if not is_light_on and new_light:
-                    # Turn on the light immediately, if darkness and presence
+                if worker_data.control["mode"] == "on":
                     is_light_on = True
-                    floating_time = None
 
-                elif is_light_on == new_light:
-                    floating_time = None
+                elif worker_data.control["mode"] == "off":
+                    is_light_on = False
 
-                else:
-                    # The last case - the light is on and can be turned off
-                    # however, not immediately
-                    if not floating_time:
-                        floating_time = time_ms()
+                elif worker_data.control["mode"] == "auto":
+                    new_light = darkness and presence
+                    if not is_light_on and new_light:
+                        # Turn on the light immediately, if darkness and presence
+                        is_light_on = True
+                        floating_time = None
+
+                    elif is_light_on == new_light:
+                        floating_time = None
 
                     else:
-                        if time_ms() - floating_time > self.MAX_FLOATING_TIME:
-                            is_light_on = False
-                            floating_time = None
+                        # The last case - the light is on and can be turned off
+                        # however, not immediately
+                        if not floating_time:
+                            floating_time = time_ms()
+
+                        else:
+                            if time_ms() - floating_time > self.MAX_FLOATING_TIME:
+                                is_light_on = False
+                                floating_time = None
+
+                else:
+                    raise ValueError("Unknown mode: {}".format(worker_data.control["mode"]))
 
                 # Finally make the physical light turn (or not):
                 self.light_switch.set_signal(is_light_on)
