@@ -154,19 +154,19 @@ class Pressure(HomeCtrlValueBaseModel):
 class Voltage(HomeCtrlValueBaseModel):
     value = DecimalField(decimal_places=2)
 
+
+class Error(HomeCtrlValueBaseModel):
+    value = TextField()
+
+    def equals(self, other: Self) -> bool:
+        return (other and type(other) is type(self) and
+                self.value == other.value
+                and self.create_at == other.create_at
+                and self.name.value == other.name.value)
+
+
 class Live(HomeCtrlValueBaseModel):
     value = BooleanField()
-
-    @classmethod
-    def get_currentsAAAA(cls):
-        with database:
-            subq = (Live.select(peewee.fn.row_number().over(partition_by=Live.name_id, order_by=[Live.create_at.desc()]).alias("row_num"),
-                                Live))
-            query = (peewee.Select(columns=[subq.c.id, subq.c.create_at, subq.c.name_id, subq.c.value])
-                     .from_(subq)
-                     .where(subq.c.row_num == 1)
-                     .bind(database))
-            return list(map(lambda r: Live(**r), query))
 
 
 class Radio(HomeCtrlBaseModel):

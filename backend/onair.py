@@ -26,9 +26,6 @@ class OnAir(Common):
             if data.get("name") is None:
                 data["name"] = msg.topic.split("/")[2]
 
-            if (error := data.get("error")) is not None:
-                self.log("[{}] {}".format(data["name"], error))
-
             data["timestamp"] = datetime.datetime.now()
 
             for entry in self.data2entries(data):
@@ -48,7 +45,7 @@ class OnAir(Common):
     def data2entries(data: dict) -> [HomeCtrlValueBaseModel]:
         result = [Live(name=data["name"], create_at=data["timestamp"], value=data.get("live") is None or data.get("live"))]
         for key, value in data.items():
-            if key in ["temperature", "humidity", "darkness", "light", "presence", "pressure", "voltage"]:
+            if key in ["temperature", "humidity", "darkness", "light", "presence", "pressure", "voltage", "error"]:
                 clazz = getattr(sys.modules[__name__], key.capitalize())
                 result.append(clazz(name=data["name"], create_at=data["timestamp"], value=value))
             elif key == "radar":
