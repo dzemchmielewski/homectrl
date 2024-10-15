@@ -66,7 +66,7 @@ def parse_args():
 
     mqtt = subparsers.add_parser("mqtt", help="Monitor Mosquitto queue")
     mqtt.add_argument("mqtt_action", choices=["monitor"], default="monitor", nargs="?")
-    mqtt.add_argument("--topic", "-t", help="Topic name. Default: '{}/#'".format(Configuration.TOPIC_ROOT))
+    mqtt.add_argument("--topic", "-t", help="Topic name. Default: '{}/#'".format(Configuration.TOPIC_ROOT), nargs="+")
     mqtt.set_defaults(command="mqtt")
 
     sms = subparsers.add_parser("sms", help="SMS tool")

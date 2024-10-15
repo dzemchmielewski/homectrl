@@ -156,7 +156,11 @@ class MQTTMonitor(Common):
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
         self.log(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}, TOPIC: {self.topic}")
-        client.subscribe(self.topic)
+        if isinstance(self.topic, str):
+            client.subscribe(self.topic)
+        elif hasattr(self.topic, '__iter__'):
+            for t in self.topic:
+                client.subscribe(t)
 
     def on_disconnect(self, *args):
         self.log("DISCONNECTED!")
