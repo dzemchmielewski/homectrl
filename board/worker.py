@@ -9,6 +9,8 @@ import json
 import time
 import uio
 
+_thread.stack_size(1024 * 16)
+
 
 class WorkerData:
     def __init__(self):
@@ -154,8 +156,6 @@ class WorkerServer(CommonServer):
                     answer = "[ERROR] worker was already started..."
                 else:
                     worker_data.go_exit = False
-                    # it doesn't seem to work... To investigate
-                    # _thread.stack_size(1024 * 64)
                     start_thread(self.worker.start)
                     answer = "call worker start: {}".format(self.worker)
             else:

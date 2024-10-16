@@ -586,7 +586,7 @@ class MQTTPublisher(Common):
             self.debug_message = "MQTT connected"
             self.mqtt.publish(self.live_topic, self.I_AM_ALIVE, True)
             self.log("MQTT connected")
-        except (OSError, MQTTException) as e:
+        except Exception as e:
             self.connected = False
             self.error = self.debug_message = "Error while connecting: {}".format(e)
             self.log(self.error)
@@ -605,7 +605,7 @@ class MQTTPublisher(Common):
 
             self.mqtt.publish(topic, msg, retain)
             self.last_message_time = time_ms()
-        except (OSError, MQTTException) as e:
+        except Exception as e:
             self.connected = False
             self.error = self.debug_message = "Error while publishing topic {}: {}".format(topic, e)
             self.log(self.error)

@@ -148,7 +148,7 @@ class KitchenWorker(MQTTWorker):
                 else:
                     self.mqtt_ping()
 
-            except BaseException as e:
+            except Exception as e:
                 self.handle_exception(e)
 
         self.end()
