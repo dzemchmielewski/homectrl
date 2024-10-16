@@ -26,3 +26,5 @@ class BMP_AHT:
     def humidity(self):
         return round(self.aht.relative_humidity, 1)
 
+    def readings(self):
+        return self.temperature, self.pressure, self.humidity

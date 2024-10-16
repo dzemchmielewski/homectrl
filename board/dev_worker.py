@@ -71,7 +71,7 @@ class DevWorker(MQTTWorker):
 
                 # BMP & AHT sensor:
                 if previous_sensor_read_time is None or time_ms() - previous_sensor_read_time > (60 * 1_000):
-                    readings = (self.reader.temperature, self.reader.pressure, self.reader.humidity)
+                    readings = self.reader.readings()
                     if readings != (worker_data.data["temperature"], worker_data.data["pressure"], worker_data.data["humidity"]):
                         publish = True
                         (worker_data.data["temperature"], worker_data.data["pressure"], worker_data.data["humidity"]) = readings
