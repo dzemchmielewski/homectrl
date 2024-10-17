@@ -31,6 +31,7 @@ class _HelpAction(argparse._HelpAction):
 
 
 def parse_args():
+    boards = list(Configuration.MAP["board"].keys())
     parser = argparse.ArgumentParser(
         prog='homectrl',
         description='DZEM HomeCtrl control command line tool',
@@ -39,20 +40,18 @@ def parse_args():
     subparsers = parser.add_subparsers(help="Available commands", title="COMMANDS", required=True)
 
     connect = subparsers.add_parser("connect", help="Connect to specified command-line server")
-    to_connect = list(Configuration.MAP["board"].keys())
-    connect.add_argument("server_id", choices=to_connect, help="Available servers")
+    connect.add_argument("server_id", choices=boards, help="Available servers")
     # connect.add_argument("--direct", action="store_true", help="Direct connection to server (pass collector handling)")
     connect.set_defaults(command="connect")
 
     webrepl = subparsers.add_parser("webrepl", help="Connect to specified WEBREPL server")
-    to_connect = list(Configuration.MAP["board"].keys())
-    webrepl.add_argument("server_id", choices=to_connect, help="Available boards")
+    webrepl.add_argument("server_id", choices=boards, help="Available boards")
     webrepl.add_argument("--file", "-f",  help="Transfer file to the board")
     webrepl.set_defaults(command="webrepl")
 
     ping = subparsers.add_parser("ping", help="Ping to specified host")
     ping.add_argument("--count", "-c", type=int, help="Stop after sending count ECHO_REQUEST packets")
-    ping.add_argument("server_id", choices=to_connect, help="Available hosts")
+    ping.add_argument("server_id", choices=boards, help="Available hosts")
 
     ping.set_defaults(command="ping")
 
@@ -66,7 +65,10 @@ def parse_args():
 
     mqtt = subparsers.add_parser("mqtt", help="Monitor Mosquitto queue")
     mqtt.add_argument("mqtt_action", choices=["monitor"], default="monitor", nargs="?")
-    mqtt.add_argument("--topic", "-t", help="Topic name. Default: '{}/#'".format(Configuration.TOPIC_ROOT), nargs="+")
+    mqtt_group = mqtt.add_mutually_exclusive_group()
+    mqtt_group.add_argument("--topic", "-t", help="Topic name. Default: '{}/#'".format(Configuration.TOPIC_ROOT),
+                            nargs="+", default="{}/#".format(Configuration.TOPIC_ROOT))
+    mqtt_group.add_argument("--device", "-d", choices=boards, help="Available boards", nargs="+")
     mqtt.set_defaults(command="mqtt")
 
     sms = subparsers.add_parser("sms", help="SMS tool")
@@ -136,7 +138,14 @@ class HomeCtrl(Common):
         elif args.command == "mqtt":
             from backend.tools import MQTTMonitor
             if args.mqtt_action == "monitor":
-                topic = args.topic if args.topic else Configuration.TOPIC_ROOT + "/#"
+                if args.device:
+                    topic = (
+                        list(map(lambda device: f"{Configuration.TOPIC_ROOT}/device/{device}/#", args.device))
+                        + list(map(lambda device: f"{Configuration.TOPIC_ROOT}/onair/+/{device}", args.device)))
+                elif args.topic:
+                    topic = args.topic
+                else:
+                    raise ValueError("Device or topic must be specified")
                 MQTTMonitor(topic).start()
 
         elif args.command == "sms":
