@@ -63,11 +63,10 @@ def parse_args():
     db.add_argument("--sql", help="SQL query")
     db.set_defaults(command="db")
 
-    mqtt = subparsers.add_parser("mqtt", help="Monitor Mosquitto queue")
-    mqtt.add_argument("mqtt_action", choices=["monitor"], default="monitor", nargs="?")
+    mqtt = subparsers.add_parser("mqtt", help="Take an action on MQTT queue")
+    mqtt.add_argument("mqtt_action", choices=["monitor", "delete"], default="monitor", nargs="?")
     mqtt_group = mqtt.add_mutually_exclusive_group()
-    mqtt_group.add_argument("--topic", "-t", help="Topic name. Default: '{}/#'".format(Configuration.TOPIC_ROOT),
-                            nargs="+", default="{}/#".format(Configuration.TOPIC_ROOT))
+    mqtt_group.add_argument("--topic", "-t", help="Topic name. Default: '{}/#'".format(Configuration.TOPIC_ROOT), nargs="+")
     mqtt_group.add_argument("--device", "-d", choices=boards, help="Available boards", nargs="+")
     mqtt.set_defaults(command="mqtt")
 
@@ -136,7 +135,8 @@ class HomeCtrl(Common):
                 self.list_db()
 
         elif args.command == "mqtt":
-            from backend.tools import MQTTMonitor
+            from backend.tools import MQTTMonitor, MQTTClient
+
             if args.mqtt_action == "monitor":
                 if args.device:
                     topic = (
@@ -145,8 +145,16 @@ class HomeCtrl(Common):
                 elif args.topic:
                     topic = args.topic
                 else:
-                    raise ValueError("Device or topic must be specified")
+                    topic = "{}/#".format(Configuration.TOPIC_ROOT)
                 MQTTMonitor(topic).start()
+
+            elif args.mqtt_action == "delete":
+                if args.topic:
+                    client = MQTTClient()
+                    for t in args.topic:
+                        client.publish(t, "", retain=True)
+                else:
+                    raise ValueError("Specify the topic to delete")
 
         elif args.command == "sms":
             from backend.sms import SMS
