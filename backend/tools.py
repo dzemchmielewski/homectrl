@@ -141,18 +141,19 @@ class MQTTMonitor(Common):
         #     print(line.strip())
 
         try:
-            data = json_deserial(message)
-            if data.get("radar"):
-                self.log("[RADAR][{}][{}][{}][{}][{}][MOV: {:03}cm, {:03}%][STA: {:03}cm, {:03}%][DST: {:03}cm] [{}]".format(
-                    msg.topic,
-                    " ON" if data["presence"] else "OFF", self.target_state(data["radar"]["target_state"]),
-                    "NIGHT" if data["darkness"] else " DAY ",
-                    "light  ON" if data["light"] else "light OFF",
-                    data["radar"]["move"]["distance"], data["radar"]["move"]["energy"],
-                    data["radar"]["static"]["distance"], data["radar"]["static"]["energy"],
-                    data["radar"]["distance"], data["presence_read_time"]))
+            if message:
+                data = json_deserial(message)
+                if data.get("radar"):
+                    self.log("[RADAR][{}][{}][{}][{}][{}][MOV: {:03}cm, {:03}%][STA: {:03}cm, {:03}%][DST: {:03}cm] [{}]".format(
+                        msg.topic,
+                        " ON" if data["presence"] else "OFF", self.target_state(data["radar"]["target_state"]),
+                        "NIGHT" if data["darkness"] else " DAY ",
+                        "light  ON" if data["light"] else "light OFF",
+                        data["radar"]["move"]["distance"], data["radar"]["move"]["energy"],
+                        data["radar"]["static"]["distance"], data["radar"]["static"]["energy"],
+                        data["radar"]["distance"], data["presence_read_time"]))
         except BaseException as e:
-            self.log("ERROR! {}", e)
+            self.log("ERROR! {}".format(e))
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
         self.log(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}, TOPIC: {self.topic}")

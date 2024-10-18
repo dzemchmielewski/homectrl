@@ -64,10 +64,12 @@ def parse_args():
     db.set_defaults(command="db")
 
     mqtt = subparsers.add_parser("mqtt", help="Take an action on MQTT queue")
-    mqtt.add_argument("mqtt_action", choices=["monitor", "delete"], default="monitor", nargs="?")
+    mqtt.add_argument("mqtt_action", choices=["monitor", "delete", "publish"], default="monitor", nargs="?")
     mqtt_group = mqtt.add_mutually_exclusive_group()
     mqtt_group.add_argument("--topic", "-t", help="Topic name. Default: '{}/#'".format(Configuration.TOPIC_ROOT), nargs="+")
     mqtt_group.add_argument("--device", "-d", choices=boards, help="Available boards", nargs="+")
+    mqtt.add_argument("--message", "-m", help="Message to publish", required="publish" in sys.argv)
+    mqtt.add_argument("--retain", "-r", help="Retain the message", action="store_true")
     mqtt.set_defaults(command="mqtt")
 
     sms = subparsers.add_parser("sms", help="SMS tool")
@@ -155,6 +157,14 @@ class HomeCtrl(Common):
                         client.publish(t, "", retain=True)
                 else:
                     raise ValueError("Specify the topic to delete")
+
+            elif args.mqtt_action == "publish":
+                if args.topic:
+                    client = MQTTClient()
+                    for t in args.topic:
+                        client.publish(t, args.message, retain=args.retain)
+                else:
+                    raise ValueError("Specify the message topic to publish")
 
         elif args.command == "sms":
             from backend.sms import SMS
