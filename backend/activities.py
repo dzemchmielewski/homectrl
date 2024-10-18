@@ -34,12 +34,12 @@ class LaundryActivity(Common):
         is_on = self.is_on(list(self.active_power_queue))
         if not self.laundry.is_active() and is_on:
             # Laundry has started!
-            self.laundry = Laundry(start_at=data["create_at"], start_energy=data["active_energy"])
+            self.laundry = Laundry(start_at=datetime.datetime.fromisoformat(data["create_at"]), start_energy=data["active_energy"])
             self.laundry.save(force_insert=True)
             self.publish()
         elif self.laundry.is_active() and not is_on:
             # Laundry has finished!
-            self.laundry.end_at = data["create_at"]
+            self.laundry.end_at = datetime.datetime.fromisoformat(data["create_at"])
             self.laundry.end_energy = data["active_energy"]
             self.laundry.save()
             self.publish()
