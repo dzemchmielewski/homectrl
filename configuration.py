@@ -34,6 +34,12 @@ class Configuration:
     TOPIC_ONAIR = "homectrl/onair"
     TOPIC_ACTIVITY = "homectrl/onair/activity"
 
+    TOPIC_CAPABILITIES = "homectrl/device/${name}/capabilities"
+    TOPIC_STATE = "homectrl/device/${name}/state"
+    TOPIC_CONTROL = "homectrl/device/${name}/control"
+
+    ONAIR_TOPIC_SUBSCRIPTIONS = ["homectrl/device/+", "homectrl/device/+/live"]
+
     if os.path.exists(os.path.join(PATH, "secrets.json")):
         secrets = json.loads(open(os.path.join(PATH, "secrets.json")).read())
         MAP = apply_secrets(MAP, secrets)

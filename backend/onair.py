@@ -77,7 +77,8 @@ class OnAir(Common):
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
         self.log(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}")
-        client.subscribe(Configuration.TOPIC_DEVICE + "/#")
+        for topic in Configuration.ONAIR_TOPIC_SUBSCRIPTIONS:
+            client.subscribe(topic)
 
     def on_disconnect(self, *args, **kwargs):
         self.log("MQTT disconnected!")
