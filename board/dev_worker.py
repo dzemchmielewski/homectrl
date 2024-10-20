@@ -21,14 +21,39 @@ class DevWorker(MQTTWorker):
             "name": self.name,
             "temperature": None,
             "pressure": None,
-            "humidity":  None,
+            "humidity": None,
             "voltage": None,
             "datetime": None,
             "led": 0
         }
         worker_data.control = {
             "led_modulo": 1,
+            "light": "auto"
         }
+
+    def capabilities(self):
+        return {
+            "controls": [
+                {
+                    "name": "light",
+                    "type": "str",
+                    "constraints": {
+                        "type": "enum",
+                        "values": ["on", "off", "auto"]
+                    }
+                },
+                {
+                    "name": "led_modulo",
+                    "type": "int",
+                    "constraints": {
+                        "type": "range",
+                        "values": {
+                            "min": 1,
+                            "max": 3600
+                        }
+                    }
+                }
+            ]}
 
     def handle_help(self):
         return "DEV WORKER COMMANDS: test"
@@ -56,7 +81,7 @@ class DevWorker(MQTTWorker):
                 voltage = self.darkness.read_voltage()
                 queue.append(voltage)
                 lst = list(queue)
-                mean = round(sum(lst)/len(lst), 1)
+                mean = round(sum(lst) / len(lst), 1)
                 worker_data.data["datetime"] = self.the_time_str()
                 if mean != worker_data.data["voltage"]:
                     publish = True

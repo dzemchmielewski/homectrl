@@ -564,18 +564,23 @@ class MQTTPublisher(Common):
     KEEPALIVE_SEC = 60
     PING_EVERY_MS = 35 * 1_000
     I_AM_ALIVE = json.dumps({"live": True})
-    MQTT_TOPIC = "homectrl/device"
 
-    def __init__(self, name):
+    def __init__(self, name, topic):
         super().__init__(name)
-        self.topic = self.MQTT_TOPIC + "/{}".format(name)
+        self.topic = topic
         self.live_topic = self.topic + "/live"
+
+        self.subscribe_topic = None
         self.mqtt = MQTTClient(self.topic, "192.168.0.21", user="mqtt", password="emkutete", keepalive=self.KEEPALIVE_SEC)
         self.mqtt.set_last_will(self.live_topic, json.dumps({"live": False, "error": "last will"}), True)
         self.connected = False
         self.debug_message = None
         self.error = None
         self.last_message_time = None
+
+    def subscribe(self, topic, callback):
+        self.mqtt.set_callback(callback)
+        self.subscribe_topic = topic
 
     def connect(self):
         try:
@@ -585,6 +590,8 @@ class MQTTPublisher(Common):
             self.connected = True
             self.debug_message = "MQTT connected"
             self.mqtt.publish(self.live_topic, self.I_AM_ALIVE, True)
+            if self.subscribe_topic:
+                self.mqtt.subscribe(self.subscribe_topic)
             self.log("MQTT connected")
         except Exception as e:
             self.connected = False
@@ -594,20 +601,18 @@ class MQTTPublisher(Common):
     def publish(self, msg, topic=None, retain=False):
         if not self.connected:
             self.connect()
+        pub_topic = topic if topic else self.topic
         try:
-            if not topic:
-                topic = self.topic
-
             if isinstance(msg, dict):
                 msg = json.dumps(msg)
             if not isinstance(msg, str):
                 raise ValueError(f"Unsupported message type: {type(msg)}")
 
-            self.mqtt.publish(topic, msg, retain)
+            self.mqtt.publish(pub_topic, msg, retain)
             self.last_message_time = time_ms()
         except Exception as e:
             self.connected = False
-            self.error = self.debug_message = "Error while publishing topic {}: {}".format(topic, e)
+            self.error = self.debug_message = "Error while publishing topic {}: {}".format(pub_topic, e)
             self.log(self.error)
 
     def publish_error(self, msg: str):
@@ -620,6 +625,9 @@ class MQTTPublisher(Common):
         if self.last_message_time is None or time_ms() - self.last_message_time > self.PING_EVERY_MS:
             self.publish(self.I_AM_ALIVE, self.live_topic, True)
 
+    def check_msg(self):
+        self.mqtt.check_msg()
+
     def close(self):
         try:
             self.mqtt.publish(self.live_topic, json.dumps({"live": False, "error": "goodbye"}), True)
@@ -629,3 +637,4 @@ class MQTTPublisher(Common):
         finally:
             self.connected = False
             self.debug_message = "MQTT disconnected"
+

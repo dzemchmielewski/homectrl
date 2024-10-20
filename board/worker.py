@@ -72,12 +72,12 @@ class Worker(Common):
         t = time.localtime()
         return "{}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}.{:06d}".format(t[0], t[1], t[2], t[3], t[4], t[5], 0)
 
-    def handle_exception(self, exception):
+    def handle_exception(self, exception, go_exit=True):
         traceback = uio.StringIO()
         sys.print_exception(exception, traceback)
         worker_data = self.get_data()
         worker_data.error = traceback.getvalue()
-        worker_data.go_exit = True
+        worker_data.go_exit = go_exit
 
     def handle_help(self):
         return ""
@@ -87,12 +87,35 @@ class Worker(Common):
 
 
 class MQTTWorker(Worker):
+
     def __init__(self, name, debug=False):
         super().__init__(name, debug)
-        self.mqtt = MQTTPublisher(self.name)
+
+        self.topic_root = "homectrl/device/{}".format(name)
+        self.topic_control = self.topic_root + "/control"
+        self.topic_state = self.topic_root + "/state"
+        self.topic_capabilities = self.topic_root + "/capabilities"
+
+        self.mqtt = MQTTPublisher(self.name, self.topic_root)
+        self.mqtt.subscribe(self.topic_control, self.mqtt_control_callback)
+
         worker_data = self.get_data()
         worker_data.mqtt = self.mqtt.connected
         worker_data.error = self.mqtt.error
+
+    def capabilities(self):
+        return None
+
+    def mqtt_control_callback(self, topic, msg, retained, duplicate):
+        worker_data = self.get_data()
+        try:
+            controls = json.loads(msg)
+            for key, value in self.validate_controls(controls).items():
+                worker_data.control[key] = value
+            self.mqtt.publish(json.dumps(worker_data.control), self.topic_state, True)
+        except Exception as e:
+            self.handle_exception(e)
+            worker_data.go_exit = False
 
     def mqtt_publish(self):
         worker_data = self.get_data()
@@ -106,18 +129,25 @@ class MQTTWorker(Worker):
         worker_data.mqtt = self.mqtt.connected
         worker_data.error = self.mqtt.error
 
-    def handle_exception(self, exception):
+    def handle_exception(self, exception, go_exit=True):
         super().handle_exception(exception)
         worker_data = self.get_data()
         self.mqtt.publish({
-            "live": False,
+            "live": go_exit,
             "error": worker_data.error
         }, self.mqtt.live_topic, True)
         worker_data.mqtt = self.mqtt.connected
 
+    def keep_working(self):
+        self.mqtt.check_msg()
+        return super().keep_working()
+
     def begin(self):
         super().begin()
         self.mqtt.connect()
+        if capabilities := self.capabilities():
+            self.mqtt.publish(json.dumps(capabilities), self.topic_capabilities, True)
+        self.mqtt.publish(json.dumps(worker_data.control), self.topic_state, True)
         worker_data.mqtt = self.mqtt.connected
         worker_data.error = self.mqtt.error
 
@@ -125,6 +155,32 @@ class MQTTWorker(Worker):
         self.mqtt.close()
         worker_data.mqtt = self.mqtt.connected
         super().end()
+
+    def validate_controls(self, input: dict) -> dict:
+        result = {}
+        if capabilities := self.capabilities():
+
+            for control in capabilities["controls"]:
+                name = control["name"]
+                constraints = control["constraints"]
+
+                if name in input:
+                    value = input[name]
+
+                    # Check type using eval on control_type
+                    if not isinstance(value, eval(control["type"])):
+                        continue  # Invalid type, skip this entry
+
+                    # Validate constraints
+                    if constraints["type"] == "enum":
+                        if value in constraints["values"]:
+                            result[name] = value  # Valid enum value
+
+                    elif constraints["type"] == "range":
+                        if constraints["values"]["min"] <= value <= constraints["values"]["max"]:
+                            result[name] = value  # Valid range value
+
+        return result
 
 
 class WorkerServer(CommonServer):
