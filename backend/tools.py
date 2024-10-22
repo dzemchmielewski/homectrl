@@ -61,7 +61,11 @@ class CommandLineClient(Client):
             else:
                 if cmd != "":
                     response = self.interact(str_raw)
-                    self.log("<< : {}".format(response))
+                    try:
+                        self.log("<< : \n{}".format(json_serial(json_deserial(response), indent=2)))
+                    except ValueError:
+                        self.log("<< : {}".format(response))
+
                     if response.upper().startswith("GOODBYE"):
                         self.exit = True
 
@@ -189,8 +193,8 @@ class HomeCtrlJsonEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-def json_serial(obj):
-    return json.dumps(obj, cls=HomeCtrlJsonEncoder)
+def json_serial(obj, indent=None):
+    return json.dumps(obj, cls=HomeCtrlJsonEncoder, indent=indent)
 
 
 def json_deserial(json_str):
