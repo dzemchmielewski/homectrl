@@ -19,7 +19,7 @@ def on_start():
     with database:
         database.create_tables(entities())
     with database:
-        for name in [["kitchen", "Kitchen"], ["radio", "Radio"], ["pantry", "Pantry"], ["wardrobe", "Wardrobe"], ["dev", "Dev"], ["bathroom", "Bathroom"]]:
+        for name in [["kitchen", "Kitchen"], ["radio", "Radio"], ["pantry", "Pantry"], ["wardrobe", "Wardrobe"], ["dev", "Dev"], ["bathroom", "Bathroom"], ["socket", "Power Socket"]]:
             try:
                 Name.get_or_create(value=name[0], description=name[1])
             except BaseException as e:
