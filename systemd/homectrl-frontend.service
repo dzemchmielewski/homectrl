@@ -1,6 +1,7 @@
 [Unit]
 Description=DZEM HomeCtrl Frontend Service
-After=multi-user.target
+After=homectrl-restapi.service
+Wants=homectrl-restapi.service
 
 [Service]
 Type=simple

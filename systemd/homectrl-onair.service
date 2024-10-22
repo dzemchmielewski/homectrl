@@ -1,6 +1,8 @@
 [Unit]
 Description=DZEM HomeCtrl OnAir Service
-After=multi-user.target
+After=mosquitto.service postgresql.service
+Wants=mosquitto.service
+Requires=postgresql.service
 
 [Service]
 Type=simple

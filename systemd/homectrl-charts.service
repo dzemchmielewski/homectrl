@@ -1,6 +1,7 @@
 [Unit]
 Description=DZEM HomeCtrl Charts Generator
-After=multi-user.target
+After=postgresql.service
+Requires=postgresql.service
 
 [Service]
 Type=simple
