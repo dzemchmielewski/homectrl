@@ -39,6 +39,19 @@ class KitchenWorker(MQTTWorker):
             "mode": "auto"  # on, off, auto
         }
 
+    def capabilities(self):
+        return {
+            "controls": [
+                {
+                    "name": "mode",
+                    "type": "str",
+                    "constraints": {
+                        "type": "enum",
+                        "values": ["on", "off", "auto"]
+                    }
+                }
+            ]}
+
     def start(self):
         self.begin()
 

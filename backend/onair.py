@@ -3,7 +3,7 @@ import sys
 import time
 from backend.storage import *
 from common.common import Common
-from configuration import Configuration
+from configuration import Topic
 from backend.tools import json_serial, json_deserial, singleton, MQTTClient
 
 
@@ -66,7 +66,7 @@ class OnAir(Common):
 
     def process_entry(self, entry: HomeCtrlBaseModel, db_save=True):
         self.status[type(entry)][entry.name.value] = entry
-        subject = Configuration.TOPIC_ONAIR + "/" + type(entry).__name__.lower() + "/" + entry.name.value
+        subject = Topic.OnAir.format(type(entry).__name__.lower(), entry.name.value)
         self.debug("PUBLISH {} -> {}".format(subject, model_to_dict(entry)))
         if db_save:
             entry.save_new_value()
@@ -77,8 +77,8 @@ class OnAir(Common):
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
         self.log(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}")
-        for topic in Configuration.ONAIR_TOPIC_SUBSCRIPTIONS:
-            client.subscribe(topic)
+        client.subscribe(Topic.Device.format("+", Topic.Device.Facility.live))
+        client.subscribe(Topic.Device.format("+", Topic.Device.Facility.data))
 
     def on_disconnect(self, *args, **kwargs):
         self.log("MQTT disconnected!")

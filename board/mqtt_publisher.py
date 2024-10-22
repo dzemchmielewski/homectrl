@@ -4,6 +4,7 @@ import usocket as socket
 import uselect
 from utime import ticks_add, ticks_ms, ticks_diff
 
+from board.configuration import Configuration
 from common.common import Common, time_ms
 
 
@@ -564,14 +565,15 @@ class MQTTPublisher(Common):
     KEEPALIVE_SEC = 60
     PING_EVERY_MS = 35 * 1_000
     I_AM_ALIVE = json.dumps({"live": True})
+    I_AM_ALIVE_WELCOME = json.dumps({"live": True, "message": "welcome"})
 
-    def __init__(self, name, topic):
+    def __init__(self, name, topic_live):
         super().__init__(name)
-        self.topic = topic
-        self.live_topic = self.topic + "/live"
+        self.live_topic = topic_live
 
         self.subscribe_topic = None
-        self.mqtt = MQTTClient(self.topic, "192.168.0.21", user="mqtt", password="emkutete", keepalive=self.KEEPALIVE_SEC)
+        self.mqtt = MQTTClient(self.live_topic, Configuration.MQTT_SERVER, user=Configuration.MQTT_USERNAME,
+                               password=Configuration.MQTT_PASSWORD, keepalive=self.KEEPALIVE_SEC)
         self.mqtt.set_last_will(self.live_topic, json.dumps({"live": False, "error": "last will"}), True)
         self.connected = False
         self.debug_message = None
@@ -589,7 +591,7 @@ class MQTTPublisher(Common):
             self.mqtt.connect()
             self.connected = True
             self.debug_message = "MQTT connected"
-            self.mqtt.publish(self.live_topic, self.I_AM_ALIVE, True)
+            self.mqtt.publish(self.live_topic, self.I_AM_ALIVE_WELCOME, True)
             if self.subscribe_topic:
                 self.mqtt.subscribe(self.subscribe_topic)
             self.log("MQTT connected")
@@ -598,21 +600,20 @@ class MQTTPublisher(Common):
             self.error = self.debug_message = "Error while connecting: {}".format(e)
             self.log(self.error)
 
-    def publish(self, msg, topic=None, retain=False):
+    def publish(self, msg, topic, retain=False):
         if not self.connected:
             self.connect()
-        pub_topic = topic if topic else self.topic
         try:
             if isinstance(msg, dict):
                 msg = json.dumps(msg)
             if not isinstance(msg, str):
                 raise ValueError(f"Unsupported message type: {type(msg)}")
 
-            self.mqtt.publish(pub_topic, msg, retain)
+            self.mqtt.publish(topic, msg, retain)
             self.last_message_time = time_ms()
         except Exception as e:
             self.connected = False
-            self.error = self.debug_message = "Error while publishing topic {}: {}".format(pub_topic, e)
+            self.error = self.debug_message = "Error while publishing topic {}: {}".format(topic, e)
             self.log(self.error)
 
     def publish_error(self, msg: str):

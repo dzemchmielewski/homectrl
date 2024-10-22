@@ -7,12 +7,12 @@ from backend.sms import SMS
 from backend.storage import Laundry, model_to_dict, Electricity
 from backend.tools import json_deserial, json_serial, MQTTClient
 from common.common import Common
-from configuration import Configuration
+from configuration import Topic
 
 
 class LaundryActivity(Common):
-    INPUT_TOPIC = Configuration.TOPIC_ONAIR + "/electricity/bathroom"
-    OUTPUT_TOPIC = Configuration.TOPIC_ACTIVITY + "/laundry"
+    INPUT_TOPIC = Topic.OnAir.format("electricity", "bathroom")
+    OUTPUT_TOPIC = Topic.OnAir.format(Topic.OnAir.Facet.activity, "laundry")
 
     def __init__(self, mqtt: MQTTClient):
         super().__init__("Laundry", debug=False)

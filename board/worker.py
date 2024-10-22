@@ -2,6 +2,7 @@ import _thread
 import sys
 
 from board.mqtt_publisher import MQTTPublisher
+from board.configuration import Configuration
 from common.common import Common, time_ms, start_thread
 from common.server import CommonServer
 from common.communication import Communication
@@ -90,13 +91,10 @@ class MQTTWorker(Worker):
 
     def __init__(self, name, debug=False):
         super().__init__(name, debug)
+        (self.topic_live, self.topic_data, self.topic_state,
+         self.topic_capabilities, self.topic_control) = Configuration.topics(name)
 
-        self.topic_root = "homectrl/device/{}".format(name)
-        self.topic_control = self.topic_root + "/control"
-        self.topic_state = self.topic_root + "/state"
-        self.topic_capabilities = self.topic_root + "/capabilities"
-
-        self.mqtt = MQTTPublisher(self.name, self.topic_root)
+        self.mqtt = MQTTPublisher(self.name, self.topic_live)
         self.mqtt.subscribe(self.topic_control, self.mqtt_control_callback)
 
         worker_data = self.get_data()
@@ -119,7 +117,7 @@ class MQTTWorker(Worker):
 
     def mqtt_publish(self):
         worker_data = self.get_data()
-        self.mqtt.publish(worker_data.data)
+        self.mqtt.publish(worker_data.data, self.topic_data)
         worker_data.mqtt = self.mqtt.connected
         worker_data.error = self.mqtt.error
 

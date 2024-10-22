@@ -1,6 +1,7 @@
 import os
 import json
 import re
+from enum import Enum
 
 from common.communication import SocketCommunication
 
@@ -26,17 +27,56 @@ def apply_secrets(input, secrets):
         return input
 
 
+class _Topic:
+    def __init__(self, topic: str, parts: int):
+        self.topic = topic + "/" + "/".join(["{}"] * parts)
+        self.topic_re = re.compile(topic + "/" + "/".join(["(.+)"] * parts))
+
+    def format(self, *parts) -> str:
+        return self.topic.format(*parts)
+
+    def parse(self, topic: str) -> tuple:
+        if m := self.topic_re.match(topic):
+            return m.groups()
+        return None
+
+
+class Topic:
+
+    Root = "homectrl"
+
+    class Device:
+        # homectrl/device/<name>/<facility>
+        _topic = _Topic("homectrl/device", 2)
+        parse = _topic.parse
+        format = _topic.format
+
+        class Facility(Enum):
+            live = "live"
+            data = "data"
+            capabilities = "capabilities"
+            state = "state"
+            control = "control"
+
+            def __str__(self):
+                return self.name
+
+    class OnAir:
+        # homectrl/onair/<facet>/<name>
+        _topic = _Topic("homectrl/onair", 2)
+        format = _topic.format
+        parse = _topic.parse
+
+        class Facet(Enum):
+            activity = "activity"
+
+            def __str__(self):
+                return self.name
+
+
 class Configuration:
     PATH = os.path.dirname(os.path.realpath(__file__))
     MAP = json.loads(open(os.path.join(PATH, "homectrl-map.json")).read())
-    TOPIC_ROOT = "homectrl"
-    TOPIC_DEVICE = "homectrl/device"
-    TOPIC_ONAIR = "homectrl/onair"
-    TOPIC_ACTIVITY = "homectrl/onair/activity"
-
-    TOPIC_CAPABILITIES = "homectrl/device/${name}/capabilities"
-    TOPIC_STATE = "homectrl/device/${name}/state"
-    TOPIC_CONTROL = "homectrl/device/${name}/control"
 
     ONAIR_TOPIC_SUBSCRIPTIONS = ["homectrl/device/+", "homectrl/device/+/live"]
 

@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 
 from backend.storage import FigureCache, ChartPeriod
 from common.common import Common
-from configuration import Configuration
+from configuration import Configuration, Topic
 from backend.tools import json_serial, json_deserial, MQTTClient
 
 
@@ -34,14 +34,14 @@ class ConnectionManager(Common):
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
         self.log(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}")
-        client.subscribe(Configuration.TOPIC_ONAIR + "/#")
+        client.subscribe(Topic.OnAir.format("+", "+"))
 
     def on_disconnect(self, *args, **kwargs):
         self.log("MQTT disconnected!")
 
     def on_message(self, client, userdata, msg):
         self.debug("[{}]{}".format(msg.topic, msg.payload.decode()))
-        facet, device = msg.topic.replace(Configuration.TOPIC_ONAIR + "/", "").split("/")
+        facet, device = Topic.OnAir.parse(msg.topic)
         message = json_deserial(msg.payload.decode())
         message["name"] = device
         if facet != "live":
