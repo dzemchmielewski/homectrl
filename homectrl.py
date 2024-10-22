@@ -1,12 +1,13 @@
 #!/usr/bin/env -S bash -c '"$(dirname $(readlink $0 || echo $0))/env/bin/python" "$0" "$@"'
 # PYTHON_ARGCOMPLETE_OK
+# set environment variable _ARC_DEBUG to debug argcomplete
 
 import argparse, argcomplete
 import os
 import sys
 
 from common.common import Common
-from  configuration import Configuration
+from  configuration import Configuration, Topic
 
 
 class _HelpAction(argparse._HelpAction):
@@ -66,8 +67,11 @@ def parse_args():
     mqtt = subparsers.add_parser("mqtt", help="Take an action on MQTT queue")
     mqtt.add_argument("mqtt_action", choices=["monitor", "delete", "publish"], default="monitor", nargs="?")
     mqtt_group = mqtt.add_mutually_exclusive_group()
-    mqtt_group.add_argument("--topic", "-t", help="Topic name. Default: '{}/#'".format(Configuration.TOPIC_ROOT), nargs="+")
+    mqtt_group.add_argument("--topic", "-t", help="Topic name. Default: '{}/#'".format(Topic.Root), nargs="+")
     mqtt_group.add_argument("--device", "-d", choices=boards, help="Available boards", nargs="+")
+    # aaa = mqtt.add_argument("--device", "-d", choices=boards, help="Available boards", nargs="+")
+    # aaa.completer = argcomplete.completers.ChoicesCompleter(boards)
+
     mqtt.add_argument("--message", "-m", help="Message to publish", required="publish" in sys.argv)
     mqtt.add_argument("--retain", "-r", help="Retain the message", action="store_true")
     mqtt.set_defaults(command="mqtt")
@@ -142,12 +146,12 @@ class HomeCtrl(Common):
             if args.mqtt_action == "monitor":
                 if args.device:
                     topic = (
-                        list(map(lambda device: f"{Configuration.TOPIC_ROOT}/device/{device}/#", args.device))
-                        + list(map(lambda device: f"{Configuration.TOPIC_ROOT}/onair/+/{device}", args.device)))
+                        list(map(lambda device: Topic.Device.format(device, "#"), args.device))
+                        + list(map(lambda device: Topic.OnAir.format("+", device), args.device)))
                 elif args.topic:
                     topic = args.topic
                 else:
-                    topic = "{}/#".format(Configuration.TOPIC_ROOT)
+                    topic = "{}/#".format(Topic.Root)
                 MQTTMonitor(topic).start()
 
             elif args.mqtt_action == "delete":
