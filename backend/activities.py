@@ -23,21 +23,49 @@ class LaundryActivity(Common):
         if self.laundry is None:
             self.laundry = Laundry()
         self.publish()
-        self.active_power_queue = deque((), 2)
 
-    @staticmethod
-    def is_on(active_power_list: list):
-        return (sum(active_power_list)/len(active_power_list)) >= 3
+        self.active_power_queue = deque((), 2)
+        self.floating_start_time = None
+        self.start_parameters = None
+
+    def threshold_crossed(self):
+        l = list(self.active_power_queue)
+        return (sum(l)/len(l)) >= 3
 
     def on_message(self, topic, data):
         self.active_power_queue.append(data["active_power"])
-        is_on = self.is_on(list(self.active_power_queue))
-        if not self.laundry.is_active() and is_on:
+
+        active = self.laundry.is_active()
+        new_active = self.threshold_crossed()
+
+        if active and not new_active:
+            # Laundry has ended
+            active = False
+
+        elif active == new_active:
+            self.floating_start_time = None
+
+        elif not active and new_active:
+            # Probably laundry is starting
+
+            if self.floating_start_time is None:
+                # Start floating time
+                self.floating_start_time = time.time()
+                self.start_parameters = data
+
+            else:
+                if time.time() - self.floating_start_time > 30:
+                    # if floating time has passed, laundry is started
+                    active = True
+                    self.floating_start_time = None
+
+        if not self.laundry.is_active() and active:
             # Laundry has started!
-            self.laundry = Laundry(start_at=datetime.datetime.fromisoformat(data["create_at"]), start_energy=data["active_energy"])
+            self.laundry = Laundry(start_at=datetime.datetime.fromisoformat(self.start_parameters["create_at"]),
+                                   start_energy=self.start_parameters["active_energy"])
             self.laundry.save(force_insert=True)
             self.publish()
-        elif self.laundry.is_active() and not is_on:
+        elif self.laundry.is_active() and not active:
             # Laundry has finished!
             self.laundry.end_at = datetime.datetime.fromisoformat(data["create_at"])
             self.laundry.end_energy = data["active_energy"]
