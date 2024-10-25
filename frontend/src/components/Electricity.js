@@ -12,7 +12,6 @@ const Electricity = () => {
             //console.log(event.data)
             const receivedMessage = JSON.parse(event.data);
             setEntries(receivedMessage.result);
-            console.log("Entry: " + receivedMessage.result[0].power_factor + ", presentation: " + (receivedMessage.result[0].power_factor * 100).toFixed(0));
         };
         // Initial fetch
         setEntries([]);

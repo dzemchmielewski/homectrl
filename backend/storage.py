@@ -85,6 +85,23 @@ class Laundry(BaseModel):
     def is_active(self):
         return self.start_energy is not None and self.end_at is None
 
+    @classmethod
+    def report(cls) -> dict:
+        with database as db:
+            curs = db.execute_sql(f"""
+                        select to_char({Laundry.end_at.name}, 'YYYY-MM') as month, count(*), sum({Laundry.end_energy.name} - {Laundry.start_energy.name}) as energy
+                        from {Laundry._meta.table_name}
+                        where now() - {Laundry.end_at.name} <= interval '2 months'
+                        group by month order by month desc""")
+            result = []
+            for item in curs:
+                result.append({
+                    "month": item[0],
+                    "count": item[1],
+                    "energy": item[2]
+                })
+            return result
+
 
 class HomeCtrlBaseModel(BaseModel):
     name = ForeignKeyField(Name, on_update='CASCADE')

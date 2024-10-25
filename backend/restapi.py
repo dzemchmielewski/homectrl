@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import uuid
 
 from starlette.websockets import WebSocketState, WebSocketDisconnect
@@ -8,8 +9,9 @@ from fastapi import FastAPI, WebSocket, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from contextlib import asynccontextmanager
+from dateutil.relativedelta import relativedelta
 
-from backend.storage import FigureCache, ChartPeriod
+from backend.storage import FigureCache, ChartPeriod, Laundry
 from common.common import Common
 from configuration import Configuration, Topic
 from backend.tools import json_serial, json_deserial, MQTTClient
@@ -151,6 +153,18 @@ class HomeCtrlAPI(Routable):
     @get("/dump")
     async def dump(self):
         return self.connection_manager.onair
+
+    @get("/stats/activity/laundry")
+    async def stats_laundry(self):
+        result = {}
+        report = Laundry.report()
+
+        this_month = datetime.date.today().strftime("%Y-%m")
+        result["this_month"] = next((x for x in report if x["month"] == this_month), {'month': this_month, 'count': 0, 'energy': 0})
+        last_month = (datetime.date.today() - relativedelta(months=1)).strftime("%Y-%m")
+        result["last_month"] = next((x for x in report if x["month"] == last_month), {'month': last_month, 'count': 0, 'energy': 0})
+
+        return result
 
     # @get("/pressure")
     # async def get_presence(self):

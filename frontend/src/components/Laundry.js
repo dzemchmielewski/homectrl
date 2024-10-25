@@ -2,8 +2,20 @@ import React, { useState, useEffect } from 'react';
 
 const Laundry = () => {
     const [laundry, setLaundry] = useState({});
+    const [stats, setStats] = useState(null);
 
     useEffect(() => {
+
+        const fetchStats = async () => {
+            try {
+                const response = await fetch(process.env.REACT_APP_HOMECTRL_RESTAPI_URL + '/stats/activity/laundry');
+                setStats(await response.json());
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+            }
+        };
+        fetchStats();
+
         const socket = new WebSocket(process.env.REACT_APP_HOMECTRL_RESTAPI_URL + '/ws/activity');
         socket.onopen = () => {
             console.log('WebSocket connection established.');
@@ -79,6 +91,32 @@ const Laundry = () => {
                             </tbody>
                         </table>
                     </li>
+                    {stats &&
+                        <li className="list-group-item d-flex justify-content-between align-items-center">
+                            <strong>This month</strong>
+                            <div>
+                                <span className="text-success">{stats["this_month"]["count"]}</span>
+                                <span className="text-info"> times</span>
+                            </div>
+                            <div>
+                                <span className="text-success">{(stats["this_month"]["energy"] / 1000).toFixed(3)}</span>
+                                <span className="text-info">kWh</span>
+                            </div>
+                        </li>
+                    }
+                    {stats &&
+                        <li className="list-group-item d-flex justify-content-between align-items-center">
+                            <strong>Last month</strong>
+                            <div>
+                                <span className="text-success">{stats["last_month"]["count"]}</span>
+                                <span className="text-info"> times</span>
+                            </div>
+                            <div>
+                                <span className="text-success">{(stats["last_month"]["energy"] / 1000).toFixed(3)}</span>
+                                <span className="text-info">kWh</span>
+                            </div>
+                        </li>
+                    }
                 </ul>
             </div>
         </div>
