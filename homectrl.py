@@ -47,7 +47,9 @@ def parse_args():
 
     webrepl = subparsers.add_parser("webrepl", help="Connect to specified WEBREPL server")
     webrepl.add_argument("server_id", choices=boards, help="Available boards")
-    webrepl.add_argument("--file", "-f",  help="Transfer file to the board")
+    webrepl_file_group = webrepl.add_mutually_exclusive_group()
+    webrepl_file_group.add_argument("--file", "-f",  help="Transfer file TO the board")
+    webrepl_file_group.add_argument("--get", "-g",  help="Transfer file FROM the board")
     webrepl.set_defaults(command="webrepl")
 
     ping = subparsers.add_parser("ping", help="Ping to specified host")
@@ -121,6 +123,8 @@ class HomeCtrl(Common):
             password = Configuration.get_config(args.server_id)["webrepl_password"]
             if args.file:
                 cmd = "webrepl -p {password} {file} {host}:/{file}".format(host=host, password=password, file=args.file)
+            elif args.get:
+                cmd = "webrepl -p {password} {host}:/{file} {file}".format(host=host, password=password, file=args.get)
             else:
                 cmd = "webrepl -p {password} {host}".format(host=host, password=password)
             self.log(cmd)
