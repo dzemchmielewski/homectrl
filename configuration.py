@@ -68,6 +68,7 @@ class Topic:
         parse = _topic.parse
 
         class Facet(Enum):
+            # There are some more dynamic facets here, like light, presence, live, etc...
             activity = "activity"
 
             def __str__(self):

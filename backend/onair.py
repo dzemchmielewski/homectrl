@@ -10,29 +10,46 @@ from backend.tools import json_serial, json_deserial, singleton, MQTTClient
 @singleton
 class OnAir(Common):
 
+    MQTT_SUBSCRIPTIONS = [
+        Topic.Device.format("+", Topic.Device.Facility.live),
+        Topic.Device.format("+", Topic.Device.Facility.data),
+        Topic.Device.format("+", Topic.Device.Facility.capabilities),
+        Topic.Device.format("+", Topic.Device.Facility.state)
+    ]
+
     def __init__(self):
         super().__init__("OnAir", debug=False)
         self.start_at = datetime.datetime.now()
         self.status = {}
+        # self.capabilities = {}
+        # self.state = {}
         self.exit = False
         self.mqtt = MQTTClient(on_connect=self.on_connect, on_message=self.on_message, on_disconnect=self.on_disconnect)
 
     def on_message(self, client, userdata, msg):
         try:
             self.debug("[{}]{}".format(msg.topic, msg.payload.decode()))
-
             data = json_deserial(msg.payload.decode())
+            device, facility_str = Topic.Device.parse(msg.topic)
+            facility = Topic.Device.Facility(facility_str)
 
-            if data.get("name") is None:
-                data["name"] = msg.topic.split("/")[2]
+            if facility in [Topic.Device.Facility.live, Topic.Device.Facility.data]:
+                if data.get("name") is None:
+                    data["name"] = device
+                data["timestamp"] = datetime.datetime.now()
 
-            data["timestamp"] = datetime.datetime.now()
+                for entry in self.data2entries(data):
+                    current = self.status[type(entry)].get(entry.name.value)
+                    if not entry.equals(current):
+                        self.debug("SWITCH {} for {}".format(type(entry), entry.name.value))
+                        self.process_entry(entry)
 
-            for entry in self.data2entries(data):
-                current = self.status[type(entry)].get(entry.name.value)
-                if not entry.equals(current):
-                    self.debug("SWITCH {} for {}".format(type(entry), entry.name.value))
-                    self.process_entry(entry)
+            elif facility in [Topic.Device.Facility.capabilities, Topic.Device.Facility.state]:
+                self.mqtt.publish(Topic.OnAir.format(facility, device),
+                                  json_serial(data), retain=True)
+
+            else:
+                self.log("ERROR! Topic not recognized: {}".format(msg.topic))
 
         except BaseException as e:
             self.log("Exception caught! {}".format(e))
@@ -77,8 +94,8 @@ class OnAir(Common):
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
         self.log(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}")
-        client.subscribe(Topic.Device.format("+", Topic.Device.Facility.live))
-        client.subscribe(Topic.Device.format("+", Topic.Device.Facility.data))
+        for topic in self.MQTT_SUBSCRIPTIONS:
+            client.subscribe(topic)
 
     def on_disconnect(self, *args, **kwargs):
         self.log("MQTT disconnected!")

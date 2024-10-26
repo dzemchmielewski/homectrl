@@ -1,7 +1,9 @@
 import asyncio
 import datetime
+import json
 import uuid
 
+from starlette.responses import JSONResponse
 from starlette.websockets import WebSocketState, WebSocketDisconnect
 from websockets.exceptions import ConnectionClosed
 from classy_fastapi import Routable, get, websocket
@@ -17,7 +19,17 @@ from configuration import Configuration, Topic
 from backend.tools import json_serial, json_deserial, MQTTClient
 
 
+class PrettyJSONResponse(JSONResponse):
+
+    def render(self, content) -> bytes:
+        return json.dumps(content, ensure_ascii=False, allow_nan=False,
+                          indent=2, separators=(",", ":")).encode("utf-8")
+
+
 class ConnectionManager(Common):
+    MQTT_SUBSCRIPTIONS = [
+        Topic.OnAir.format("+", "+")
+    ]
 
     def __init__(self) -> None:
         super().__init__("RESTAPI", debug=False)
@@ -36,7 +48,8 @@ class ConnectionManager(Common):
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
         self.log(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}")
-        client.subscribe(Topic.OnAir.format("+", "+"))
+        for topic in self.MQTT_SUBSCRIPTIONS:
+            client.subscribe(topic)
 
     def on_disconnect(self, *args, **kwargs):
         self.log("MQTT disconnected!")
@@ -46,8 +59,8 @@ class ConnectionManager(Common):
         facet, device = Topic.OnAir.parse(msg.topic)
         message = json_deserial(msg.payload.decode())
         message["name"] = device
-        if facet != "live":
-            message["live"] = self.onair.get("live") and self.onair["live"].get(device) and self.onair["live"][device]["value"]
+        #if facet != "live":
+         #   message["live"] = self.onair.get("live") and self.onair["live"].get(device) and self.onair["live"][device]["value"]
         if not self.onair.get(facet):
             self.onair[facet] = {}
         self.onair[facet][device] = message
@@ -150,7 +163,7 @@ class HomeCtrlAPI(Routable):
             return Response(status_code=status.HTTP_404_NOT_FOUND)
         return Response(content=cache.getvalue(), media_type="image/png", status_code=status.HTTP_200_OK)
 
-    @get("/dump")
+    @get("/dump", response_class=PrettyJSONResponse)
     async def dump(self):
         return self.connection_manager.onair
 
@@ -200,6 +213,7 @@ async def lifespan(app: FastAPI):
     yield
     api.connection_manager.on_stop()
 
+
 app = FastAPI(lifespan=lifespan)
 
 app.include_router(api.router)
@@ -235,4 +249,3 @@ if __name__ == "__main__":
         bind_to = 'localhost'
 
     uvicorn.run("__main__:app", host=bind_to, port=8000, workers=1)
-
