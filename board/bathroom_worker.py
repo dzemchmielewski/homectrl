@@ -1,17 +1,21 @@
+import gc
+import time
+
 import machine
 from modules.bmp_aht import BMP_AHT
 from modules.pzem import PZEM
-from board.worker import MQTTWorker
-from common.common import time_ms
+from board.worker import MQTTWorker, Guard
+from common.common import time_ms, start_thread
 
 
 class BathroomWorker(MQTTWorker):
 
     def __init__(self, debug=False):
+        worker_data = self.get_data()
+        worker_data.guard = False
         super().__init__("bathroom", debug)
         self.reader = BMP_AHT.from_pins(8, 9)
         self.pzem = PZEM(uart=machine.UART(1, baudrate=9600, tx=7, rx=6))
-        worker_data = self.get_data()
         worker_data.data = {
             "name": self.name,
             "temperature": None,
@@ -28,12 +32,19 @@ class BathroomWorker(MQTTWorker):
         }
 
     def handle_help(self):
-        return "BATHROOM COMMANDS: reset_ae"
+        return "BATHROOM COMMANDS: reset_ae, guard"
 
     def handle_message(self, msg):
         cmd = msg.strip().upper()
         if cmd == "RESET_AE":
             answer = "TODO: reset Active Energy counter!"
+        elif cmd == "GUARD":
+            worker_data = self.get_data()
+            if not worker_data.guard:
+                start_thread(Guard(self.mqtt).run)
+                answer = "Guard started."
+            else:
+                answer = "[ERROR] the worker_data.guard is {}; guard NOT started.".format(worker_data.guard)
         else:
             answer = "[ERROR] unknown command (BathroomWorker): {}".format(msg)
         return answer
@@ -45,8 +56,23 @@ class BathroomWorker(MQTTWorker):
 
         previous_sensor_read_time = None
         previous_pzem_read_time = None
+        start_at = time.time()
 
         while self.keep_working():
+
+            # That's something very weird - for unknown reason the guard thread
+            # is inactivated, when it is launched from constructor. Is it reaching
+            # memory limits, before GC has a chance to clean up..? Small devices
+            # are so strange.
+            # So, instead of staring in constructor, let's start it here, in the
+            # main loop, after a few iterations:
+            if not worker_data.guard:
+                if time.time() - start_at > 10:
+                    gc.collect()
+                    gc.collect()
+                    gc.collect()
+                    start_thread(Guard(self.mqtt).run)
+
             try:
                 publish = False
 
