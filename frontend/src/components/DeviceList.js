@@ -1,24 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, {useContext} from 'react';
+import {LiveDeviceContext} from "../LiveDeviceContext";
 
 const DeviceList = () => {
-    const [devices, setDevices] = useState([]);
 
-    useEffect(() => {
-        const socket = new WebSocket(process.env.REACT_APP_HOMECTRL_RESTAPI_URL + '/ws/live');
-        socket.onopen = () => {
-            console.log('WebSocket connection established.');
-        };
-        socket.onmessage = (event) => {
-            //console.log(event.data)
-            const receivedMessage = JSON.parse(event.data);
-            setDevices(receivedMessage.result);
-        };
-        // Initial fetch
-        setDevices([]);
-        return () => {
-            socket.close();
-        };
-    }, []);
+    const devices = useContext(LiveDeviceContext);
 
     return (
 

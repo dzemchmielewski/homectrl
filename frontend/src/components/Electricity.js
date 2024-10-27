@@ -1,7 +1,19 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useContext} from 'react';
+import {LiveDeviceContext} from "../LiveDeviceContext";
 
 const Electricity = () => {
     const [entries, setEntries] = useState([]);
+    const deviceContext = useContext(LiveDeviceContext);
+
+    const isLive = (name) => {
+        if (deviceContext && typeof deviceContext.find !== "undefined") {
+            const dev = deviceContext.find(obj => {
+                return obj.name === name
+            })
+            return dev && dev.value
+        }
+        return false
+    }
 
     useEffect(() => {
         const socket = new WebSocket(process.env.REACT_APP_HOMECTRL_RESTAPI_URL + '/ws/electricity');
@@ -26,7 +38,7 @@ const Electricity = () => {
             <div className="card-body">
                 <ul className="list-group">
                     {entries.map((entry, index) => (
-                        <li key={index} className="list-group-item">
+                        <li key={index} className={"list-group-item" + (isLive(entry.name) ? "" : " text-decoration-line-through")}>
                             <div className="d-flex justify-content-start align-items-center mb-3">
                                 <strong>{entry.name}</strong>
                             </div>

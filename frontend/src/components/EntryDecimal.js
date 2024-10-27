@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect, useContext} from 'react';
+import {LiveDeviceContext} from "../LiveDeviceContext";
 
 const EntryDecimal = (props) => {
     const [entries, setEntries] = useState([]);
+    const deviceContext = useContext(LiveDeviceContext);
 
     const handleClick = (name) => {
         props.setChartData({model: props.facet, name:name, label:props.label});
@@ -11,6 +13,16 @@ const EntryDecimal = (props) => {
             }
         }, 0);
     };
+
+    const isLive = (name) => {
+        if (deviceContext && typeof deviceContext.find !== "undefined") {
+            const dev = deviceContext.find(obj => {
+                return obj.name === name
+            })
+            return dev && dev.value
+        }
+        return false
+    }
 
     useEffect(() => {
         const socket = new WebSocket(process.env.REACT_APP_HOMECTRL_RESTAPI_URL + '/ws/' + props.facet);
@@ -38,7 +50,7 @@ const EntryDecimal = (props) => {
                         {entries.map((device, index) => (
                             <li
                                 key={index}
-                                className="list-group-item d-flex justify-content-between align-items-center"
+                                className={"list-group-item d-flex justify-content-between align-items-center" + (isLive(device.name) ? "" : " text-decoration-line-through")}
                                 onClick={() => handleClick(device.name)}>
                                 <strong>{device.name}</strong>
                                 <small
