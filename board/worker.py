@@ -1,5 +1,6 @@
 import _thread
 import sys
+import machine
 
 from board.mqtt_publisher import MQTTPublisher
 from board.configuration import Configuration
@@ -20,6 +21,8 @@ class WorkerData:
         self.loop_sleep = 1
         self.mqtt = False
         self.error = None
+        self.guard = False
+        self.loop_update = None
         self.data = {
         }
         self.control = {
@@ -27,7 +30,6 @@ class WorkerData:
 
 
 worker_data = WorkerData()
-
 
 class Worker(Common):
 
@@ -54,6 +56,7 @@ class Worker(Common):
 
     def keep_working(self):
         worker_data = self.get_data()
+        worker_data.loop_update = time.time()
         if not worker_data.go_exit:
             time.sleep(worker_data.loop_sleep)
         return not worker_data.go_exit
@@ -100,6 +103,9 @@ class MQTTWorker(Worker):
         worker_data = self.get_data()
         worker_data.mqtt = self.mqtt.connected
         worker_data.error = self.mqtt.error
+
+        if worker_data.guard:
+            start_thread(Guard(self.mqtt).run)
 
     def capabilities(self):
         return None
@@ -179,6 +185,34 @@ class MQTTWorker(Worker):
                             result[name] = value  # Valid range value
 
         return result
+
+
+class Guard(Common):
+
+    def __init__(self, mqtt):
+        super().__init__("guard")
+        self.mqtt = mqtt
+
+    def run(self):
+        global worker_data
+        while True:
+            time.sleep(1)
+            worker_data.guard = time.time()
+            if worker_data.guard - worker_data.loop_update > 120:
+                # Two minutes without going worker through the main loop.
+                # Something has jammed. Going to reboot:
+                try:
+                    self.mqtt.mqtt.connect()
+                    self.mqtt.publish({
+                        "live": False,
+                        "error": "Forced reboot at {}; last worker loop update: {}".format(worker_data.guard, worker_data.loop_update)
+                    }, self.mqtt.live_topic, True)
+                    self.mqtt.mqtt.disconnect()
+                except Exception:
+                    pass
+                finally:
+                    time.sleep(2)
+                    machine.reset()
 
 
 class WorkerServer(CommonServer):

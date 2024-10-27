@@ -1,3 +1,4 @@
+import time
 from collections import deque
 
 from board.worker import MQTTWorker
@@ -10,13 +11,14 @@ from common.common import time_ms
 class DevWorker(MQTTWorker):
 
     def __init__(self, debug=False):
+        worker_data = self.get_data()
+        worker_data.guard = True
         super().__init__("dev", debug)
         self.darkness = DarknessSensor.from_analog_pin(4)
         self.reader = BMP_AHT.from_pins(2, 1)
 
         self.led = PinIO("LED", 0)
         self.led.set_signal(0)
-        worker_data = self.get_data()
         worker_data.data = {
             "name": self.name,
             "temperature": None,
@@ -24,7 +26,8 @@ class DevWorker(MQTTWorker):
             "humidity": None,
             "voltage": None,
             "datetime": None,
-            "led": 0
+            "led": 0,
+            "something_stupid": False
         }
         worker_data.control = {
             "led_modulo": 1,
@@ -56,12 +59,13 @@ class DevWorker(MQTTWorker):
             ]}
 
     def handle_help(self):
-        return "DEV WORKER COMMANDS: test"
+        return "DEV WORKER COMMANDS: stupid"
 
     def handle_message(self, msg):
         cmd = msg.strip().upper()
-        if cmd == "TEST":
-            answer = "This is TEST answer"
+        if cmd == "STUPID":
+            self.get_data().data["something_stupid"] = True
+            answer = "You just actually done something quite stupid."
         else:
             answer = "[ERROR] unknown command (DevWorker): {}".format(msg)
         return answer
@@ -76,6 +80,10 @@ class DevWorker(MQTTWorker):
         while self.keep_working():
             try:
                 publish = False
+
+                if worker_data.data["something_stupid"]:
+                    time.sleep(200)
+                    worker_data["something_stupid"] = False
 
                 # Handle voltage reading:
                 voltage = self.darkness.read_voltage()
