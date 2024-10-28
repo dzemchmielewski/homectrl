@@ -35,11 +35,27 @@ def file_exists(filename):
         return False
 
 
+def cettime():
+    year = time.localtime()[0]       #get current year
+    HHMarch   = time.mktime((year,3 ,(31-(int(5*year/4+4))%7),1,0,0,0,0,0)) #Time of March change to CEST
+    HHOctober = time.mktime((year,10,(31-(int(5*year/4+1))%7),1,0,0,0,0,0)) #Time of October change to CET
+    now=time.time()
+    if now < HHMarch :               # we are before last sunday of march
+        cet=time.localtime(now+3600) # CET:  UTC+1H
+    elif now < HHOctober :           # we are before last sunday of october
+        cet=time.localtime(now+7200) # CEST: UTC+2H
+    else:                            # we are after last sunday of october
+        cet=time.localtime(now+3600) # CET:  UTC+1H
+    return(cet)
+
+
 def set_time():
     import ntptime
-    import utime
+    # import utime
+    ntptime.host='status.home'
     ntptime.settime()
-    (year, month, mday, hour, minute, second, weekday, yearday) = utime.localtime(utime.time() + 2 * 60 * 60)
+    # (year, month, mday, hour, minute, second, weekday, yearday) = utime.localtime(utime.time() + 2 * 60 * 60)
+    (year, month, mday, hour, minute, second, weekday, yearday) = cettime()
     machine.RTC().datetime((year, month, mday, 0, hour, minute, second, 0))
 
 
