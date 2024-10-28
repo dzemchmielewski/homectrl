@@ -195,7 +195,7 @@ class Guard(Common):
 
     def run(self):
         global worker_data
-        while True:
+        while not worker_data.go_exit:
             time.sleep(1)
             worker_data.guard = time.time()
             if worker_data.guard - worker_data.loop_update > 120:
