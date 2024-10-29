@@ -63,13 +63,12 @@ const Controls = (props) => {
         let deviceState = state.find(s => s.name === name)
         if (!deviceState) { deviceState = {}}
 
-        return <ul key={"ctrl_" + name}>
+        return <ul key={"ctrl_" + name} className={"list-group"}>
             {controls.map((c, ctrl_index) => {
                 if (["str"].includes(c.type)){
                     if (c.constraints.type === "enum") {
                         const current_value = deviceState[c.name]
-                        return <li key={ctrl_index}>
-
+                        return <li key={ctrl_index} className={"list-group-item ps-0"}>
                             <div className="d-flex flex-row align-items-center">
                                 <span className={"m-3"}>{c.name}</span>
                                 <div className="btn-group" role="group">
@@ -105,8 +104,8 @@ const Controls = (props) => {
             }
             return (
                 <li key={name}
-                    className="list-group-item d-flex justify-content-between align-items-center">
-                    {name}
+                    className="list-group-item d-flex justify-content-around align-items-center ps-1">
+                    <div>{name}</div>
                     {show_controls(name, capabilities[name].controls)}
                 </li>
             );
