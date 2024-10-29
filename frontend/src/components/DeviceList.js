@@ -22,9 +22,6 @@ const DeviceList = () => {
                                     className={"badge rounded-pill " + (device.value ? 'bg-success' : 'bg-danger')}> {device.value ? 'ON' : 'OFF'} </span>
                             </li>
                         ))}
-                        {/*<li>*/}
-                        {/*    <button type="button" className="btn btn-secondary" data-bs-container="body" data-bs-toggle="popover" data-bs-placement="top" data-bs-content="Vivamus sagittis lacus vel augue laoreet rutrum faucibus." data-bs-original-title="Popover Title" aria-describedby="popover200733">Top</button>*/}
-                        {/*</li>*/}
                     </ul>
                 </span>
             </div>

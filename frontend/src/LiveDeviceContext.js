@@ -22,3 +22,13 @@ export const LiveDeviceProvider = ({children}) => {
         </LiveDeviceContext.Provider>
     );
 };
+
+export function IsAlive(name, deviceContext) {
+    if (deviceContext && typeof deviceContext.find !== "undefined") {
+        const dev = deviceContext.find(obj => {
+            return obj.name === name
+        })
+        return dev && dev.value
+    }
+    return false
+}

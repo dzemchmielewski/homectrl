@@ -8,6 +8,7 @@ import EntryDecimal from "./components/EntryDecimal";
 import Chart from "./components/Chart";
 import Electricity from "./components/Electricity";
 import Laundry from "./components/Laundry";
+import Controls from "./components/Controls";
 
 function App() {
 
@@ -43,6 +44,7 @@ function App() {
                             <Electricity/>
                             <Laundry/>
                             <Radio/>
+                            <Controls/>
                             <Chart chartData={chartData} ref={chartRef}/>
                         </div>
                     </div>

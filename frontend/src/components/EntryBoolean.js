@@ -1,10 +1,9 @@
 import React, {useState, useEffect, useContext} from 'react';
-import {LiveDeviceContext} from "../LiveDeviceContext";
+import {LiveDeviceContext, IsAlive} from "../LiveDeviceContext";
 
 const EntryBoolean = (props) => {
     const [entries, setEntries] = useState([]);
-    const deviceContext = useContext(LiveDeviceContext);
-
+    const deviceContext = useContext(LiveDeviceContext)
 
     const handleClick = (name) => {
         props.setChartData({model: props.facet, name:name, label:props.label});
@@ -14,16 +13,6 @@ const EntryBoolean = (props) => {
             }
         }, 0);
     };
-
-    const isLive = (name) => {
-        if (deviceContext && typeof deviceContext.find !== "undefined") {
-            const dev = deviceContext.find(obj => {
-                return obj.name === name
-            })
-            return dev && dev.value
-        }
-        return false
-    }
 
     useEffect(() => {
         const socket = new WebSocket(process.env.REACT_APP_HOMECTRL_RESTAPI_URL + '/ws/' + props.facet);
@@ -53,7 +42,7 @@ const EntryBoolean = (props) => {
                         {entries.map((device, index) => (
                             <li
                                 key={index}
-                                className={"list-group-item d-flex justify-content-between align-items-center" + (isLive(device.name) ? "" : " text-decoration-line-through")}
+                                className={"list-group-item d-flex justify-content-between align-items-center" + (IsAlive(device.name, deviceContext) ? "" : " text-decoration-line-through")}
                                 onClick={() => handleClick(device.name)}>
                                 <strong>{device.name}</strong>
                                 <small className="text-body-tertiary text-center">{new Date(device.create_at).toLocaleDateString()}<br/>{new Date(device.create_at).toLocaleTimeString()}</small>

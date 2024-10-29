@@ -6,8 +6,8 @@ import uuid
 from starlette.responses import JSONResponse
 from starlette.websockets import WebSocketState, WebSocketDisconnect
 from websockets.exceptions import ConnectionClosed
-from classy_fastapi import Routable, get, websocket
-from fastapi import FastAPI, WebSocket, status
+from classy_fastapi import Routable, get, websocket, post
+from fastapi import FastAPI, WebSocket, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from contextlib import asynccontextmanager
@@ -92,6 +92,12 @@ class ConnectionManager(Common):
                 except ConnectionClosed:
                     self.debug("Client #{} disconnected while send".format(id))
                     await self.disconnect(id, facet)
+
+    async def send_control_message(self, message: dict) -> None:
+        topic = Topic.Device.format(message["name"], Topic.Device.Facility.control)
+        msg = json_serial(message)
+        self.log("publish - topic: {}, message: {}".format(topic, msg))
+        self.mqtt.publish(topic, msg, retain=True)
 
 
 class HomeCtrlAPI(Routable):
@@ -178,6 +184,25 @@ class HomeCtrlAPI(Routable):
         result["last_month"] = next((x for x in report if x["month"] == last_month), {'month': last_month, 'count': 0, 'energy': 0})
 
         return result
+
+    @get("/capabilities")
+    async def capabilities(self):
+        return self.connection_manager.onair.get("capabilities")
+
+    @websocket("/ws/state")
+    async def state(self, ws: WebSocket):
+        await self.ws_facet(ws, "state")
+
+    @post("/control")
+    async def control(self, data: dict):
+        print("CONTROL: {}".format(data))
+        name = data["name"]
+        capabilities = self.connection_manager.onair.get("capabilities")
+        if name in capabilities:
+            await self.connection_manager.send_control_message(data)
+        else:
+            raise HTTPException(status_code=400, detail="device name error")
+
 
     # @get("/pressure")
     # async def get_presence(self):

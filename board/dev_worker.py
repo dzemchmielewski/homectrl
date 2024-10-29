@@ -96,11 +96,16 @@ class DevWorker(MQTTWorker):
                     worker_data.data["voltage"] = mean
 
                 # Handle LED:
-                count += 1
-                if count % worker_data.control["led_modulo"] == 0:
-                    worker_data.data["led"] = (worker_data.data["led"] + 1) % 2
-                    self.led.set_signal(worker_data.data["led"])
-                    count = 0
+                if worker_data.control["light"] == "on":
+                    self.led.set_signal(1)
+                elif worker_data.control["light"] == "off":
+                    self.led.set_signal(0)
+                elif worker_data.control["light"] == "auto":
+                    count += 1
+                    if count % worker_data.control["led_modulo"] == 0:
+                        worker_data.data["led"] = (worker_data.data["led"] + 1) % 2
+                        self.led.set_signal(worker_data.data["led"])
+                        count = 0
 
                 # BMP & AHT sensor:
                 if previous_sensor_read_time is None or time_ms() - previous_sensor_read_time > (60 * 1_000):
