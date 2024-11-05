@@ -1,6 +1,4 @@
 import time
-from collections import deque
-
 from board.worker import MQTTWorker
 from modules.bmp_aht import BMP_AHT
 from modules.darkness import DarknessSensor
@@ -11,14 +9,13 @@ from common.common import time_ms
 class DevWorker(MQTTWorker):
 
     def __init__(self, debug=False):
-        worker_data = self.get_data()
-        worker_data.guard = True
         super().__init__("dev", debug)
-        self.darkness = DarknessSensor.from_analog_pin(4)
+        self.darkness = DarknessSensor.from_analog_pin(4, 5)
         self.reader = BMP_AHT.from_pins(2, 1)
 
         self.led = PinIO(0)
         self.led.set(0)
+        worker_data = self.get_data()
         worker_data.data = {
             "name": self.name,
             "temperature": None,
@@ -74,7 +71,6 @@ class DevWorker(MQTTWorker):
         self.begin()
         worker_data = self.get_data()
         previous_sensor_read_time = None
-        queue = deque((), 5)
         count = 0
 
         while self.keep_working():
@@ -83,13 +79,11 @@ class DevWorker(MQTTWorker):
 
                 if worker_data.data["something_stupid"]:
                     time.sleep(200)
-                    worker_data["something_stupid"] = False
+                    worker_data.data["something_stupid"] = False
 
                 # Handle voltage reading:
-                voltage = self.darkness.read_voltage()
-                queue.append(voltage)
-                lst = list(queue)
-                mean = round(sum(lst) / len(lst), 1)
+                darkness, mean_voltage, voltage = self.darkness.read_analog()
+                mean = round(mean_voltage, 1)
                 worker_data.data["datetime"] = self.the_time_str()
                 if mean != worker_data.data["voltage"]:
                     publish = True
@@ -124,5 +118,3 @@ class DevWorker(MQTTWorker):
                 self.handle_exception(e)
 
         self.end()
-
-

@@ -231,6 +231,7 @@ class Guard(Common):
                 finally:
                     time.sleep(2)
                     machine.reset()
+        worker_data.guard = False
 
 
 class WorkerServer(CommonServer):
