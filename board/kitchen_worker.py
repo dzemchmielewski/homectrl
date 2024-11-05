@@ -14,9 +14,8 @@ class KitchenWorker(MQTTWorker):
 
     def __init__(self, debug=True):
         super().__init__("kitchen", debug)
-        self.darkness_threshold = 2.7
         self.dht_sensor = DHTSensor("dht", 5)
-        self.darkness_sensor = DarknessSensor.from_analog_pin(2)
+        self.darkness_sensor = DarknessSensor.from_analog_pin(2, queue_size=90, voltage_threshold=2.7)
         self.human_presence = PinIO("human", 10)
         self.light_switch = PinIO("light", 0)
         self.light_switch.set_signal(False)
@@ -47,7 +46,7 @@ class KitchenWorker(MQTTWorker):
                     "type": "str",
                     "constraints": {
                         "type": "enum",
-                        "values": ["on", "off", "auto"]
+                        "values": ["on", "auto", "off"]
                     }
                 }
             ]}
@@ -56,7 +55,6 @@ class KitchenWorker(MQTTWorker):
         self.begin()
 
         worker_data = self.get_data()
-        queue = deque((), 90)
         is_light_on: bool = False
         floating_time = None
         dht_read_time = None
@@ -86,19 +84,16 @@ class KitchenWorker(MQTTWorker):
 
                 # Darkness sensor:
                 if darkness_read_time is None or time_ms() - darkness_read_time > (5 * 1_000):
-                    vol = self.darkness_sensor.read_voltage()
-                    queue.append(vol)
+                    darkness, mean_voltage, vol = self.darkness_sensor.read_analog()
                     worker_data.data["voltage_momentary"] = vol
-                    lst = list(queue)
-                    voltage = round(sum(lst)/len(lst), 1)
+                    voltage = round(mean_voltage, 1)
                     if voltage != worker_data.data["voltage"]:
                         publish = True
                         worker_data.data["voltage"] = voltage
                     worker_data.data["darkness_read_time"] = self.the_time_str()
                     darkness_read_time = time_ms()
                 else:
-                    voltage = worker_data.data["voltage"]
-                darkness = (voltage >= self.darkness_threshold)
+                    darkness = worker_data.data["darkness"]
 
                 # Light management:
                 if worker_data.control["mode"] == "on":

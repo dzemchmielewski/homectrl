@@ -4,7 +4,7 @@ from collections import deque
 from board.worker import MQTTWorker
 from modules.bmp_aht import BMP_AHT
 from modules.darkness import DarknessSensor
-from modules.pin_io import PinIO
+from modules.pinio import PinIO
 from common.common import time_ms
 
 
@@ -17,8 +17,8 @@ class DevWorker(MQTTWorker):
         self.darkness = DarknessSensor.from_analog_pin(4)
         self.reader = BMP_AHT.from_pins(2, 1)
 
-        self.led = PinIO("LED", 0)
-        self.led.set_signal(0)
+        self.led = PinIO(0)
+        self.led.set(0)
         worker_data.data = {
             "name": self.name,
             "temperature": None,
@@ -26,7 +26,7 @@ class DevWorker(MQTTWorker):
             "humidity": None,
             "voltage": None,
             "datetime": None,
-            "led": 0,
+            "led": False,
             "something_stupid": False
         }
         worker_data.control = {
@@ -97,15 +97,15 @@ class DevWorker(MQTTWorker):
 
                 # Handle LED:
                 if worker_data.control["light"] == "on":
-                    self.led.set_signal(1)
+                    worker_data.data["led"] = True
                 elif worker_data.control["light"] == "off":
-                    self.led.set_signal(0)
+                    worker_data.data["led"] = False
                 elif worker_data.control["light"] == "auto":
                     count += 1
                     if count % worker_data.control["led_modulo"] == 0:
-                        worker_data.data["led"] = (worker_data.data["led"] + 1) % 2
-                        self.led.set_signal(worker_data.data["led"])
+                        worker_data.data["led"] = not worker_data.data["led"]
                         count = 0
+                self.led.set(worker_data.data["led"])
 
                 # BMP & AHT sensor:
                 if previous_sensor_read_time is None or time_ms() - previous_sensor_read_time > (60 * 1_000):
@@ -124,3 +124,5 @@ class DevWorker(MQTTWorker):
                 self.handle_exception(e)
 
         self.end()
+
+

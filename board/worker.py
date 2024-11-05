@@ -1,4 +1,5 @@
 import _thread
+import gc
 import sys
 import machine
 
@@ -21,7 +22,7 @@ class WorkerData:
         self.loop_sleep = 1
         self.mqtt = False
         self.error = None
-        self.guard = False
+        self.guard = None
         self.loop_update = None
         self.data = {
         }
@@ -35,6 +36,7 @@ class Worker(Common):
 
     def __init__(self, name, debug=True):
         super().__init__(name, debug)
+        self.start_at = None
         self.log("INIT")
 
     def start(self):
@@ -53,6 +55,7 @@ class Worker(Common):
         self.log("BEGIN")
         worker_data = self.get_data()
         worker_data.is_alive = True
+        self.start_at = time.time()
 
     def keep_working(self):
         worker_data = self.get_data()
@@ -104,9 +107,6 @@ class MQTTWorker(Worker):
         worker_data.mqtt = self.mqtt.connected
         worker_data.error = self.mqtt.error
 
-        if worker_data.guard:
-            start_thread(Guard(self.mqtt).run)
-
     def capabilities(self):
         return None
 
@@ -134,16 +134,34 @@ class MQTTWorker(Worker):
         worker_data.error = self.mqtt.error
 
     def handle_exception(self, exception, go_exit=True):
-        super().handle_exception(exception)
+        super().handle_exception(exception, go_exit)
         worker_data = self.get_data()
         self.mqtt.publish({
-            "live": go_exit,
+            "live": not go_exit,
             "error": worker_data.error
         }, self.mqtt.live_topic, True)
         worker_data.mqtt = self.mqtt.connected
 
     def keep_working(self):
         self.mqtt.check_msg()
+
+        # That's something very weird - for unknown reason the guard thread
+        # is inactivated, when it is launched from constructor. Is it reaching
+        # memory limits, before GC has a chance to clean up..? Small devices
+        # are so strange.
+        # So, instead of staring in constructor, let's start it here, in the
+        # main loop, after a few iterations:
+        if not worker_data.guard:
+            if time.time() - self.start_at > 20:
+                try:
+                    worker_data.guard = True
+                    gc.collect()
+                    gc.collect()
+                    gc.collect()
+                    _thread.start_new_thread(Guard(self.mqtt).run, ())
+                except Exception as e:
+                    self.handle_exception(e, False)
+
         return super().keep_working()
 
     def begin(self):

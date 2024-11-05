@@ -8,11 +8,10 @@ from common.common import time_ms
 class PantryWorker(MQTTWorker):
 
     def __init__(self, debug=False):
-        worker_data = self.get_data()
-        worker_data.guard = True
         super().__init__("pantry", debug)
         self.door_sensor = PinIO("door", 3)
         self.reader = BMP_AHT.from_pins(0, 1)
+        worker_data = self.get_data()
         worker_data.data = {
             "name": self.name,
             "light": None,
