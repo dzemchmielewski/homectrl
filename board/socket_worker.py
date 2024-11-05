@@ -1,5 +1,3 @@
-from collections import deque
-
 from board.worker import MQTTWorker
 from modules.darkness import DarknessSensor
 from modules.pinio import PinIO

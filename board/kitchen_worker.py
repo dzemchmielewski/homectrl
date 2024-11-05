@@ -1,5 +1,3 @@
-from collections import deque
-
 from board.worker import MQTTWorker
 from modules.ld2410 import LD2410
 from modules.darkness import DarknessSensor
