@@ -10,7 +10,7 @@ class SocketWorker(MQTTWorker):
         super().__init__("socket", debug)
         self.darkness = DarknessSensor.from_analog_pin(4, queue_size=1, voltage_threshold=2.31)
         self.relay = PinIO(0, 0)
-        self.status_indicator = SocketWorker.StatusIndicator(5, 6, 7, 8)
+        self.status_indicator = SocketWorker.StatusIndicator(5, 8, 7, 6)
 
         worker_data = self.get_data()
         worker_data.loop_sleep = 0.2
@@ -18,7 +18,8 @@ class SocketWorker(MQTTWorker):
             "relay": None,
             "process": None,
             "darkness": None,
-            "debug_voltage": None
+            "debug_voltage": None,
+            "touch": None
         }
         worker_data.control = {
             "mode": "auto"
@@ -63,13 +64,16 @@ class SocketWorker(MQTTWorker):
                     raise ValueError("Unknown mode: {}".format(worker_data.control["mode"]))
 
                 # Handle the relay
+                relay_changed = False
                 if relay != worker_data.data["relay"]:
                     publish = True
                     worker_data.data["relay"] = relay
                     self.relay.set(relay)
+                    relay_changed = True
 
                 # Handle lights indicators:
-                self.status_indicator.refresh(worker_data.control["mode"], relay)
+                self.status_indicator.refresh(worker_data.control["mode"], relay, relay_changed)
+                worker_data.data["touch"] = self.status_indicator.touch.get()
 
                 # Save last process readable time
                 worker_data.data["process"] = self.the_time_str()
@@ -88,17 +92,17 @@ class SocketWorker(MQTTWorker):
         def __init__(self, touch: int, blue: int, red: int, green: int):
             self.showTime = time_ms()
             self.touch = PinIO(touch)
-            self.red = PinIO(red, False)
-            self.green = PinIO(green, False)
-            self.blue = PinIO(blue, False)
+            self.red = PinIO(red, True)
+            self.green = PinIO(green, True)
+            self.blue = PinIO(blue, True)
 
-        def refresh(self, mode: str, relay: int):
-            if self.touch.get() == 1:
+        def refresh(self, mode: str, relay: int, changed: bool):
+            if self.touch.get() == 1 or changed:
                 self.showTime = time_ms()
             elif self.showTime is not None and time_ms() - self.showTime > 5 * 1_000:
                 self.showTime = None
 
-            if self.showTime is not None:
+            if self.showTime is None:
                 self.red.off()
                 self.green.off()
                 self.blue.off()
