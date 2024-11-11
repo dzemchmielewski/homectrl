@@ -42,8 +42,9 @@ class Client(Common):
 
 class CommandLineClient(Client):
 
-    def __init__(self, connection, name="CMD_CLIENT", debug=False):
+    def __init__(self, connection, name="CMD_CLIENT", format = True, debug=False):
         super().__init__(connection, name=name, debug=debug)
+        self.format = format
 
     def start(self):
         self.log("start")
@@ -58,12 +59,21 @@ class CommandLineClient(Client):
             if cmd.startswith("PUT"):
                 self.handle_put(str_raw)
 
+            elif cmd.startswith("*FORMAT"):
+                s = cmd.split()
+                if len(s) == 2:
+                    self.format = s[1] in ("YES", "TRUE", "T", "1", "ON")
+                self.log("<<: * {}".format(self.format))
+
             else:
                 if cmd != "":
                     response = self.interact(str_raw)
-                    try:
-                        self.log("<< : \n{}".format(json_serial(json_deserial(response), indent=2)))
-                    except ValueError:
+                    if self.format:
+                        try:
+                            self.log("<< : \n{}".format(json_serial(json_deserial(response), indent=2)))
+                        except ValueError:
+                            self.log("<< : {}".format(response))
+                    else:
                         self.log("<< : {}".format(response))
 
                     if response.upper().startswith("GOODBYE"):
