@@ -42,6 +42,7 @@ def parse_args():
 
     connect = subparsers.add_parser("connect", help="Connect to specified command-line server")
     connect.add_argument("server_id", choices=boards, help="Available servers")
+    connect.add_argument("-nf", "--no-format", help="Do not format json response", default=False, action="store_true")
     # connect.add_argument("--direct", action="store_true", help="Direct connection to server (pass collector handling)")
     connect.set_defaults(command="connect")
 
@@ -110,7 +111,7 @@ class HomeCtrl(Common):
         if args.command == "connect":
             from backend.tools import CommandLineClient
             self.log("Connecting to: {}".format(args.server_id))
-            CommandLineClient(Configuration.get_communication(args.server_id), args.server_id).start()
+            CommandLineClient(Configuration.get_communication(args.server_id), args.server_id, not args.no_format).start()
 
         elif args.command == "ping":
             ping_args = ""
@@ -136,7 +137,7 @@ class HomeCtrl(Common):
         elif args.command == "db":
             if args.db_action == "cmd":
                 db = Configuration.get_database_config()
-                cmd = "PGPASSWORD={} psql -U {} {}".format(db["password"], db["username"], db["db"])
+                cmd = "PGPASSWORD={} psql -h {} -p {} -U {} {}".format(db["password"], db["host"], db["port"], db["username"], db["db"])
                 if args.sql:
                     os.system("echo \"{}\" | {}".format(args.sql, cmd))
                 else:
