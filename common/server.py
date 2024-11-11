@@ -169,7 +169,7 @@ class CommonServer(Common):
                     if hasattr(gc, "mem_alloc") and callable(getattr(gc, "mem_alloc")):
                         self.system_status["mem_alloc"] = gc.mem_alloc()
                         self.system_status["mem_free"] = gc.mem_free()
-                    if common.common.is_esp32():
+                    if common.common.is_esp32() and hasattr(esp32, "mcu_temperature") and callable(getattr(esp32, "mcu_temperature")):
                         self.system_status["mcu_temp"] = esp32.mcu_temperature()
                     answer = json.dumps(self.system_status)
 
