@@ -8,12 +8,11 @@ class SocketWorker(MQTTWorker):
 
     def __init__(self, debug=False):
         super().__init__("socket", debug)
-        self.darkness = DarknessSensor.from_analog_pin(4, queue_size=1, voltage_threshold=2.31)
+        self.darkness = DarknessSensor.from_analog_pin(4, queue_size=60, voltage_threshold=2.31)
         self.relay = PinIO(0, 0)
         self.status_indicator = SocketWorker.StatusIndicator(5, 8, 7, 6)
 
         worker_data = self.get_data()
-        worker_data.loop_sleep = 0.2
         worker_data.data = {
             "relay": None,
             "process": None,
