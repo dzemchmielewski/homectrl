@@ -3,7 +3,7 @@ import gc
 import sys
 import machine
 
-from board.mqtt_publisher import MQTTPublisher
+from board.mqtt import MQTT
 from board.configuration import Configuration
 from common.common import Common, time_ms, start_thread
 from common.server import CommonServer
@@ -100,7 +100,7 @@ class MQTTWorker(Worker):
         (self.topic_live, self.topic_data, self.topic_state,
          self.topic_capabilities, self.topic_control) = Configuration.topics(name)
 
-        self.mqtt = MQTTPublisher(self.name, self.topic_live)
+        self.mqtt = MQTT(self.name, self.topic_live)
         self.mqtt.subscribe(self.topic_control, self.mqtt_control_callback)
 
         worker_data = self.get_data()

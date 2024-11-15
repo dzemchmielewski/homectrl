@@ -10,7 +10,7 @@ class DevWorker(MQTTWorker):
 
     def __init__(self, debug=False):
         super().__init__("dev", debug)
-        self.darkness = DarknessSensor.from_analog_pin(4, 5)
+        # self.darkness = DarknessSensor.from_analog_pin(4, 5)
         self.reader = BMP_AHT.from_pins(2, 1)
 
         self.led = PinIO(0)
@@ -82,12 +82,12 @@ class DevWorker(MQTTWorker):
                     worker_data.data["something_stupid"] = False
 
                 # Handle voltage reading:
-                darkness, mean_voltage, voltage = self.darkness.read_analog()
-                mean = round(mean_voltage, 1)
-                worker_data.data["datetime"] = self.the_time_str()
-                if mean != worker_data.data["voltage"]:
-                    publish = True
-                    worker_data.data["voltage"] = mean
+                # darkness, mean_voltage, voltage = self.darkness.read_analog()
+                # mean = round(mean_voltage, 1)
+                # worker_data.data["datetime"] = self.the_time_str()
+                # if mean != worker_data.data["voltage"]:
+                #     publish = True
+                #     worker_data.data["voltage"] = mean
 
                 # Handle LED:
                 if worker_data.control["light"] == "on":

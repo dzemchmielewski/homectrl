@@ -560,7 +560,7 @@ class MQTTClient:
         return out
 
 
-class MQTTPublisher(Common):
+class MQTT(Common):
 
     KEEPALIVE_SEC = 60
     PING_EVERY_MS = 35 * 1_000

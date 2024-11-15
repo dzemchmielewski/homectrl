@@ -1,10 +1,32 @@
+import json
+
+
 class Configuration:
 
-    MQTT_SERVER = "192.168.0.21"
-    MQTT_USERNAME = "mqtt"
-    MQTT_PASSWORD = "emkutete"
+    MQTT_USERNAME = None
+    MQTT_PASSWORD = None
 
+    MQTT_SERVER = "192.168.0.21"
     TOPIC_ROOT = "homectrl/device/{}"
+
+    WEBREPL_PASSWORD = None
+
+    WIFI_SSID = None
+    WIFI_PASSWORD = None
+
+    secrets = None
+
+    try:
+        with open('secrets.json') as file:
+            secrets = json.loads(file.read())
+            MQTT_USERNAME = secrets['mqtt_username']
+            MQTT_PASSWORD = secrets['mqtt_password']
+            WEBREPL_PASSWORD = secrets['webrepl_password']
+            WIFI_SSID = secrets['wifi_ssid']
+            WIFI_PASSWORD = secrets['wifi_password']
+
+    except Exception as e:
+        print("FATAL ERROR when loading secrets.json: {}".format(e))
 
     @staticmethod
     def topics(name: str) -> tuple:
