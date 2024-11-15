@@ -1,11 +1,11 @@
 import framebuf
 from machine import SPI, Pin
 
-from board.desk.framebuf_writer import Writer
-from board.desk.ssd1327 import SSD1327_SPI
-import board.desk.dejavu24 as font24
-import board.desk.background as background
-import board.desk.digits_big as digits_big
+from desk.framebuf_writer import Writer
+from desk.ssd1327 import SSD1327_SPI
+import desk.dejavu24 as font24
+import desk.background as background
+import desk.digits_big as digits_big
 
 
 class DeskDisplayManager(framebuf.FrameBuffer):
