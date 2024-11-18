@@ -31,72 +31,76 @@ class _HelpAction(argparse._HelpAction):
         parser.exit()
 
 
-def parse_args():
-    boards = list(Configuration.MAP["board"].keys())
-    parser = argparse.ArgumentParser(
-        prog='homectrl',
-        description='DZEM HomeCtrl control command line tool',
-        add_help=False)
-    parser.add_argument("-h", "--help", action=_HelpAction)
-    subparsers = parser.add_subparsers(help="Available commands", title="COMMANDS", required=True)
-
-    connect = subparsers.add_parser("connect", help="Connect to specified command-line server")
-    connect.add_argument("server_id", choices=boards, help="Available servers")
-    connect.add_argument("-nf", "--no-format", help="Do not format json response", default=False, action="store_true")
-    # connect.add_argument("--direct", action="store_true", help="Direct connection to server (pass collector handling)")
-    connect.set_defaults(command="connect")
-
-    webrepl = subparsers.add_parser("webrepl", help="Connect to specified WEBREPL server")
-    webrepl.add_argument("server_id", choices=boards, help="Available boards")
-    webrepl_file_group = webrepl.add_mutually_exclusive_group()
-    webrepl_file_group.add_argument("--file", "-f",  help="Transfer file TO the board")
-    webrepl_file_group.add_argument("--get", "-g",  help="Transfer file FROM the board")
-    webrepl.set_defaults(command="webrepl")
-
-    ping = subparsers.add_parser("ping", help="Ping to specified host")
-    ping.add_argument("--count", "-c", type=int, help="Stop after sending count ECHO_REQUEST packets")
-    ping.add_argument("server_id", choices=boards, help="Available hosts")
-
-    ping.set_defaults(command="ping")
-
-    collector = subparsers.add_parser("dev", help="DEV mode")
-    collector.set_defaults(command="dev")
-
-    db = subparsers.add_parser("db", help="Open database command-line tool")
-    db.add_argument("db_action", choices=["cmd", "last"], default="cmd", nargs="?")
-    db.add_argument("--sql", help="SQL query")
-    db.set_defaults(command="db")
-
-    mqtt = subparsers.add_parser("mqtt", help="Take an action on MQTT queue")
-    mqtt.add_argument("mqtt_action", choices=["monitor", "delete", "publish"], default="monitor", nargs="?")
-    mqtt_group = mqtt.add_mutually_exclusive_group()
-    mqtt_group.add_argument("--topic", "-t", help="Topic name. Default: '{}/#'".format(Topic.Root), nargs="+")
-    mqtt_group.add_argument("--device", "-d", choices=boards, help="Available boards", nargs="+")
-    # aaa = mqtt.add_argument("--device", "-d", choices=boards, help="Available boards", nargs="+")
-    # aaa.completer = argcomplete.completers.ChoicesCompleter(boards)
-
-    mqtt.add_argument("--message", "-m", help="Message to publish", required="publish" in sys.argv)
-    mqtt.add_argument("--retain", "-r", help="Retain the message", action="store_true")
-    mqtt.set_defaults(command="mqtt")
-
-    sms = subparsers.add_parser("sms", help="SMS tool")
-    sms.add_argument("sms_action", choices=["balance", "parts"], default="balance", nargs="?")
-    sms.add_argument("--message", "-m", help="Message to process", required='parts' in sys.argv)
-    sms.set_defaults(command="sms")
-
-    argcomplete.autocomplete(parser)
-    args = parser.parse_args()
-
-    # print("DEBUG: {}".format(vars(args)))
-    # print("DEBUG: {}".format(args._get_args()))
-    # print("DEBUG: {}".format(dir(args)))
-    return args
-
-
 class HomeCtrl(Common):
 
     def __init__(self):
         super().__init__("HOMECTRL")
+        from devel.esp32_setup import Esp32Setup
+        self.devel = [Esp32Setup]
+
+    def parse_args(self):
+        boards = list(Configuration.MAP["board"].keys())
+        parser = argparse.ArgumentParser(
+            prog='homectrl',
+            description='DZEM HomeCtrl control command line tool',
+            add_help=False)
+        parser.add_argument("-h", "--help", action=_HelpAction)
+        subparsers = parser.add_subparsers(help="Available commands", title="COMMANDS", required=True)
+
+        connect = subparsers.add_parser("connect", help="Connect to specified command-line server")
+        connect.add_argument("server_id", choices=boards, help="Available servers")
+        connect.add_argument("-nf", "--no-format", help="Do not format json response", default=False, action="store_true")
+        # connect.add_argument("--direct", action="store_true", help="Direct connection to server (pass collector handling)")
+        connect.set_defaults(command="connect")
+
+        webrepl = subparsers.add_parser("webrepl", help="Connect to specified WEBREPL server")
+        webrepl.add_argument("server_id", choices=boards, help="Available boards")
+        webrepl_file_group = webrepl.add_mutually_exclusive_group()
+        webrepl_file_group.add_argument("--file", "-f",  help="Transfer file TO the board")
+        webrepl_file_group.add_argument("--get", "-g",  help="Transfer file FROM the board")
+        webrepl.set_defaults(command="webrepl")
+
+        ping = subparsers.add_parser("ping", help="Ping to specified host")
+        ping.add_argument("--count", "-c", type=int, help="Stop after sending count ECHO_REQUEST packets")
+        ping.add_argument("server_id", choices=boards, help="Available hosts")
+
+        ping.set_defaults(command="ping")
+
+        db = subparsers.add_parser("db", help="Open database command-line tool")
+        db.add_argument("db_action", choices=["cmd", "last"], default="cmd", nargs="?")
+        db.add_argument("--sql", help="SQL query")
+        db.set_defaults(command="db")
+
+        mqtt = subparsers.add_parser("mqtt", help="Take an action on MQTT queue")
+        mqtt.add_argument("mqtt_action", choices=["monitor", "delete", "publish"], default="monitor", nargs="?")
+        mqtt_group = mqtt.add_mutually_exclusive_group()
+        mqtt_group.add_argument("--topic", "-t", help="Topic name. Default: '{}/#'".format(Topic.Root), nargs="+")
+        mqtt_group.add_argument("--device", "-d", choices=boards, help="Available boards", nargs="+")
+
+        mqtt.add_argument("--message", "-m", help="Message to publish", required="publish" in sys.argv)
+        mqtt.add_argument("--retain", "-r", help="Retain the message", action="store_true")
+        mqtt.set_defaults(command="mqtt")
+
+        sms = subparsers.add_parser("sms", help="SMS tool")
+        sms.add_argument("sms_action", choices=["balance", "parts"], default="balance", nargs="?")
+        sms.add_argument("--message", "-m", help="Message to process", required='parts' in sys.argv)
+        sms.set_defaults(command="sms")
+
+        devel = subparsers.add_parser("devel")
+        devel_subparsers = devel.add_subparsers(title="Devel tools", required=True)
+        for dev in self.devel:
+            (devel_subparsers
+             .add_parser(dev.argparser.prog, parents=[dev.argparser], conflict_handler="resolve")
+             .set_defaults(devel_command=dev.argparser.prog))
+        devel.set_defaults(command="devel")
+
+        argcomplete.autocomplete(parser)
+        args = parser.parse_args()
+
+        # print("DEBUG: {}".format(vars(args)))
+        # print("DEBUG: {}".format(args._get_args()))
+        # print("DEBUG: {}".format(dir(args)))
+        return args
 
     def list_db(self):
         from backend import storage
@@ -107,7 +111,9 @@ class HomeCtrl(Common):
             if t is not None:
                 self.log("{} \t-> {}".format(type(t).__name__, json_serial(t.__dict__['__data__'])))
 
-    def go(self, args):
+    def run(self):
+        args = self.parse_args()
+
         if args.command == "connect":
             from backend.tools import CommandLineClient
             self.log("Connecting to: {}".format(args.server_id))
@@ -130,9 +136,6 @@ class HomeCtrl(Common):
                 cmd = "webrepl -p {password} {host}".format(host=host, password=password)
             self.log(cmd)
             os.system(cmd)
-
-        elif args.command == "dev":
-            pass
 
         elif args.command == "db":
             if args.db_action == "cmd":
@@ -185,9 +188,10 @@ class HomeCtrl(Common):
                 result = SMS().parts_count(message)
                 print("RESULT: {}".format(result))
 
+        elif args.command == "devel":
+            dev_cls = list(map(lambda cls: cls if cls.argparser.prog == args.devel_command else None, self.devel))[0]
+            dev_cls(args).run()
+
 
 if __name__ == "__main__":
-    args = parse_args()
-    # print("=============")
-    # print(vars(args))
-    HomeCtrl().go(args)
+    HomeCtrl().run()

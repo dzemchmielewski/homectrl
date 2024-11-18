@@ -13,24 +13,23 @@ class Boot:
     instance = None
 
     @classmethod
-    def get_instance(cls, led_notify=True):
+    def get_instance(cls, pin_notify: int = None):
         if not cls.instance:
-            cls.instance = Boot(led_notify)
+            cls.instance = Boot(pin_notify)
         return cls.instance
 
-    def __init__(self, led_notify=True):
-        self.led_notify = led_notify
+    def __init__(self, pin_notify: int = None):
         self.wifi = None
-        self.led_pin = machine.Pin(8, machine.Pin.OUT) if self.led_notify else None
+        self.pin_notify = machine.Pin(pin_notify, machine.Pin.OUT) if pin_notify else None
 
-    def led_notification(self, reverse=False, turn_off = None):
-        if self.led_notify:
+    def led_notification(self, reverse=False, turn_off=None):
+        if self.pin_notify:
             if turn_off:
-                self.led_pin.value(1)
+                self.pin_notify.value(1)
             else:
                 for sleep in (self.led_pattern[::-1] if reverse else self.led_pattern):
                     for signal in [1, 0]:
-                        self.led_pin.value(signal)
+                        self.pin_notify.value(signal)
                         time.sleep(sleep)
 
     def setup_wifi(self):
@@ -40,7 +39,7 @@ class Boot:
             self.wifi = network.WLAN(network.STA_IF)
 
         self.wifi.active(True)
-        self.wifi.disconnect()
+        # self.wifi.disconnect()
 
         while not self.wifi.isconnected():
             timeout = 30000
@@ -65,11 +64,11 @@ class Boot:
     @staticmethod
     def setup_time():
         import ntptime
-        ntptime.host='status.home'
+        ntptime.host = 'status.home'
 
         now = ntptime.time()
 
-        year = time.gmtime(now)[0]       #get current year
+        year = time.gmtime(now)[0]       # get current year
         hh_march   = time.mktime((year,3 ,(31-(int(5*year/4+4))%7),1,0,0,0,0,0)) # Time of March change to CEST
         hh_october = time.mktime((year,10,(31-(int(5*year/4+1))%7),1,0,0,0,0,0)) # Time of October change to CET
 
@@ -116,5 +115,5 @@ class Boot:
         except KeyboardInterrupt:
             pass
 
-# boot = Boot.get_instance(led_notify=True)
+# boot = Boot.get_instance(pin_notify=8)
 # boot.load()
