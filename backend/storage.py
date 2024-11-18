@@ -172,6 +172,10 @@ class Voltage(HomeCtrlValueBaseModel):
     value = DecimalField(decimal_places=2)
 
 
+class Moisture(HomeCtrlValueBaseModel):
+    value = IntegerField()
+
+
 class Error(HomeCtrlValueBaseModel):
     value = TextField()
 
