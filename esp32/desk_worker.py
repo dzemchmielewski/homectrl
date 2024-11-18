@@ -1,8 +1,10 @@
+import time
+
 from machine import Pin, SoftI2C
 from common.common import time_ms
 
 from board.worker import MQTTWorker
-from board.desk.display_manager import DeskDisplayManager, OledDisplay_1_32
+from desk.display_manager import DeskDisplayManager, OledDisplay_1_32
 from modules.ina3221 import *
 
 
@@ -18,23 +20,35 @@ class DeskWorker(MQTTWorker):
             "name": self.name,
             "process": None,
             "screen_refresh": None,
-            "display": {
+            "ina": {
                 "operational": [None for _ in range(3)],
                 "values": [
                     [0, 0] for _ in range(9)
                 ],
                 "channel": 0
+            },
+            "displayed": {
+                "channel": None,
+                "values": [None, None]
             }
         }
 
         self.manager = DeskDisplayManager()
-        self.screen = OledDisplay_1_32(1, 19, 22, 23, 18, 5, self.manager)
+        self.screen = OledDisplay_1_32(1, 2, 15, 4, 16, 17, self.manager)
 
         self.ina = []
-        for i, bus in enumerate([
-                SoftI2C(scl=Pin(16), sda=Pin(17), freq=400000),
-                SoftI2C(scl=Pin(0), sda=Pin(4), freq=400000),
-                SoftI2C(scl=Pin(15), sda=Pin(2), freq=400000)]):
+        # for i, bus in enumerate([
+        #         SoftI2C(scl=Pin(16), sda=Pin(17), freq=400000),
+        #         SoftI2C(scl=Pin(0), sda=Pin(4), freq=400000),
+        #         SoftI2C(scl=Pin(15), sda=Pin(2), freq=400000)]):
+
+        bus = SoftI2C(scl=Pin(5), sda=Pin(18), freq=400000)
+        for i in range(3):
+
+        # for i, bus in enumerate([
+        #         SoftI2C(scl=Pin(5), sda=Pin(18), freq=400000),
+        #         SoftI2C(scl=Pin(19), sda=Pin(21), freq=400000),
+        #         SoftI2C(scl=Pin(22), sda=Pin(23), freq=400000)]):
             ina = INA3221(bus, i2c_addr=0x40 + i)
             self.ina.append(ina)
             try:
@@ -43,10 +57,10 @@ class DeskWorker(MQTTWorker):
                                value=C_AVERAGING_128_SAMPLES | C_VBUS_CONV_TIME_8MS | C_SHUNT_CONV_TIME_8MS | C_MODE_SHUNT_AND_BUS_CONTINOUS)
                 for c in range(3):
                     ina.enable_channel(c + 1)
-                worker_data.data["display"]["operational"][i] = True
+                worker_data.data["ina"]["operational"][i] = True
 
             except Exception as e:
-                worker_data.data["display"]["operational"][i] = False
+                worker_data.data["ina"]["operational"][i] = False
                 self.handle_exception(e, False)
 
     def handle_help(self):
@@ -59,10 +73,10 @@ class DeskWorker(MQTTWorker):
             if len(s) != 2 or not s[1].isdigit():
                 return "[ERROR] USAGE: CHANNEL number"
             c = int(s[1])
-            data = self.get_data().data["display"]
-            if c < 0 or c >= len(data["values"]):
-                return "[ERROR] USAGE: CHANNEL number (0 - {})".format(len(data["values"]) - 1)
-            data["channel"] = c
+            ina = self.get_data().data["ina"]
+            if c < 0 or c >= len(ina["values"]):
+                return "[ERROR] USAGE: CHANNEL number (0 - {})".format(len(ina["values"]) - 1)
+            ina["channel"] = c
             answer = "Channel changed to: {}".format(c)
         elif cmd == "GUARD":
             self.get_data().guard = None
@@ -73,43 +87,40 @@ class DeskWorker(MQTTWorker):
     def start(self):
         self.begin()
         worker_data = self.get_data()
-        displayed = {
-            "channel": None,
-            "values": [None, None]
-        }
+        displayed = worker_data.data['displayed']
+        ina = worker_data.data["ina"]
 
         while self.keep_working():
             try:
                 publish = False
 
                 # TODO: Read INA values:
-                # ina = self.ina[0]
-                # while not ina.is_ready:
-                #     print(".",end='')
-                #     time.sleep(0.1)
-                #     print("")
-                # if ina.is_channel_enabled(1):
-                #     bus_voltage = ina.bus_voltage(1)
-                #     shunt_voltage = ina.shunt_voltage(1)
-                #     current = ina.current(1)
-                #     data = worker_data.data["display"]
-                #     data["values"][0][0] = bus_voltage + shunt_voltage
-                #     data["values"][0][1] = current
+                ina3221 = self.ina[0]
+                while not ina3221.is_ready:
+                    print(".",end='')
+                    time.sleep(0.1)
+                    print("")
+                if ina3221.is_channel_enabled(1):
+                    bus_voltage = ina3221.bus_voltage(1)
+                    shunt_voltage = ina3221.shunt_voltage(1)
+                    current = ina3221.current(1)
+                    ina["values"][0][0] = bus_voltage + shunt_voltage
+                    ina["values"][0][1] = current
 
                 # Display channel values:
-                data = worker_data.data["display"]
-                if (data["channel"] != displayed["channel"]
-                        or data["values"][data["channel"]] != displayed["values"]):
-                    displayed["channel"] = data["channel"]
-                    displayed["values"] = data["values"][data["channel"]]
+                if (ina["channel"] != displayed["channel"]
+                        or ina["values"][ina["channel"]] != displayed["values"]):
+                    displayed["channel"] = ina["channel"]
+                    for i in range(len(ina["values"][ina["channel"]])):
+                        displayed["values"][i] = ina["values"][ina["channel"]][i]
                     self.manager.refresh(displayed)
                     self.screen.poweron()
                     self.screen.show()
                     worker_data.data["screen_refresh"] = time_ms()
 
-                # Turn off display after 2 minutes:
-                if worker_data.data["screen_refresh"] and time_ms() - worker_data.data["screen_refresh"] > 120 * 1_000:
-                    self.screen.poweroff()
+                # # Turn off display after 2 minutes:
+                # if worker_data.data["screen_refresh"] and time_ms() - worker_data.data["screen_refresh"] > 120 * 1_000:
+                #     self.screen.poweroff()
 
                 # Save last process readable time
                 worker_data.data["process"] = self.the_time_str()
