@@ -46,7 +46,10 @@ const EntryDecimal = (props) => {
                                 <small
                                     className="text-body-tertiary text-center">{new Date(device.create_at).toLocaleDateString()}<br/>{new Date(device.create_at).toLocaleTimeString()}
                                 </small>
-                                <span className="text-success"> {device.value} {props.unit}</span>
+                                <div>
+                                    <span className="text-success"> {device.value} </span>
+                                    <span className="text-info">{props.unit}</span>
+                                </div>
                             </li>
                         ))}
                     </ul>
