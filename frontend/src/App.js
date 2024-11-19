@@ -42,6 +42,7 @@ function App() {
                         </div>
                         <div className="col">
                             <Electricity/>
+                            <EntryDecimal facet="moisture" label="Moisture" unit="%" setChartData={setChartData} chartRef={chartRef}/>
                             <Laundry/>
                             <Radio/>
                             <Controls/>

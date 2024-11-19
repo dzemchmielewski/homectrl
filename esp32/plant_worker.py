@@ -18,7 +18,7 @@ class PlantWorker(MQTTWorker):
         super().__init__("plant", debug)
         self.mqtt.mqtt.set_last_will(self.topic_live, json.dumps({"live": False, "error": "last will", "delay": 30}), True)
         self.sensor_power = PinIO(0, True)
-        self.test_power = PinIO(3, True)
+        self.test_power = PinIO(8, True)
         self.adc = ADC(Pin(4, mode=Pin.IN))
         self.adc.atten(ADC.ATTN_11DB)
 
