@@ -8,14 +8,19 @@ import uuid
 import argparse, argcomplete
 
 
-class Esp32Setup:
+class RawTextArgumentDefaultsHelpFormatter(
+    argparse.ArgumentDefaultsHelpFormatter,
+    argparse.RawTextHelpFormatter):
+    pass
 
+
+class Esp32Setup:
     argparser = argparse.ArgumentParser(
         prog='esp32setup',
         description='DZEM HomeCtrl Devel - ESP32 board setup',
-        add_help=True, formatter_class=argparse.RawTextHelpFormatter)
+        add_help=True, formatter_class=RawTextArgumentDefaultsHelpFormatter)
     argparser.add_argument('--boot-pin', '-bp', type=int, required=False, dest="pin",
-                           help="Pin number to use for boot notification.\nESP32-C3 super mini: 8\nESP32???: 2")
+                           help="Pin number to use for boot notification.\nESP32-C3 super mini: 8\nESP32???: 2\n")
     argparser.add_argument('--worker-name', '-w', type=str, help="Put the main.py with worker launcher.")
     argparser.add_argument('--port', '-p', type=str, required=False, default="/dev/ttyUSB0", help="Communication port.")
     argparser.add_argument('--commit', '-c', action="store_true",
@@ -79,7 +84,7 @@ class Esp32Setup:
         print("RSHELL: ({})".format(rshell_cmd.format(rshell)))
         print(open(rshell).read())
 
-        try :
+        try:
             if self.commit:
                 os.system(rshell_cmd.format(rshell))
             else:
@@ -98,4 +103,3 @@ if __name__ == "__main__":
 # print("DEBUG: {}".format(vars(args)))
 # print("DEBUG: {}".format(args._get_args()))
 # print("DEBUG: {}".format(dir(args)))
-
