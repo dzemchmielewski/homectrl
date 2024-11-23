@@ -2,7 +2,7 @@ from board.worker import MQTTWorker
 from modules.ld2410 import LD2410
 from modules.darkness import DarknessSensor
 from modules.dht import DHTSensor
-from modules.pin_io import PinIO
+from modules.pinio import PinIO
 from common.common import CommonSerial, time_ms
 
 
@@ -14,9 +14,8 @@ class KitchenWorker(MQTTWorker):
         super().__init__("kitchen", debug)
         self.dht_sensor = DHTSensor("dht", 5)
         self.darkness_sensor = DarknessSensor.from_analog_pin(2, queue_size=90, voltage_threshold=2.7)
-        self.human_presence = PinIO("human", 10)
-        self.light_switch = PinIO("light", 0)
-        self.light_switch.set_signal(False)
+        self.human_presence = PinIO(10)
+        self.light_switch = PinIO(0, False)
 
         uart = CommonSerial(1, baudrate=256000, bits=8, parity=None, stop=1, tx=7, rx=6, timeout=1)
         self.radar = LD2410("LD2410", uart, debug=False)
@@ -77,7 +76,7 @@ class KitchenWorker(MQTTWorker):
                     data = self.radar.get_radar_data()
 
                 # Human detection:
-                presence = self.human_presence.get_signal()
+                presence = self.human_presence.get()
                 worker_data.data["presence_read_time"] = self.the_time_str()
 
                 # Darkness sensor:
@@ -125,7 +124,7 @@ class KitchenWorker(MQTTWorker):
                     raise ValueError("Unknown mode: {}".format(worker_data.control["mode"]))
 
                 # Finally make the physical light turn (or not):
-                self.light_switch.set_signal(is_light_on)
+                self.light_switch.set(is_light_on)
 
                 # Send current state to MQTT, only when at least one
                 # of (darkness, presence, is_light_on) has been changed:

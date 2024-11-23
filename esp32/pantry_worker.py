@@ -1,7 +1,7 @@
 from modules.bmp_aht import BMP_AHT
 
 from board.worker import MQTTWorker
-from modules.pin_io import PinIO
+from modules.pinio import PinIO
 from common.common import time_ms
 
 
@@ -9,7 +9,7 @@ class PantryWorker(MQTTWorker):
 
     def __init__(self, debug=False):
         super().__init__("pantry", debug)
-        self.door_sensor = PinIO("door", 3)
+        self.door_sensor = PinIO(3)
         self.reader = BMP_AHT.from_pins(0, 1)
         worker_data = self.get_data()
         worker_data.data = {
@@ -30,7 +30,7 @@ class PantryWorker(MQTTWorker):
                 publish = False
 
                 # Light/Door signal
-                light = self.door_sensor.get_signal()
+                light = self.door_sensor.get()
                 if light != worker_data.data["light"]:
                     publish = True
                     worker_data.data["light"] = light

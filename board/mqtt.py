@@ -627,7 +627,14 @@ class MQTT(Common):
             self.publish(self.I_AM_ALIVE, self.live_topic, True)
 
     def check_msg(self):
-        self.mqtt.check_msg()
+        if not self.connected:
+            self.connect()
+        try:
+            self.mqtt.check_msg()
+        except Exception as e:
+            self.connected = False
+            self.error = self.debug_message = "Error while checking input messages: {}".format(e)
+            self.log(self.error)
 
     def close(self):
         try:

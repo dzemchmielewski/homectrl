@@ -1,5 +1,6 @@
 import time
 from board.worker import MQTTWorker
+from board.boot import Boot
 from modules.bmp_aht import BMP_AHT
 from modules.darkness import DarknessSensor
 from modules.pinio import PinIO
@@ -63,6 +64,11 @@ class DevWorker(MQTTWorker):
         if cmd == "STUPID":
             self.get_data().data["something_stupid"] = True
             answer = "You just actually done something quite stupid."
+        elif cmd == "TESTBOOT":
+            try:
+                answer = "Boot: {}".format(Boot.get_instance())
+            except Exception as e:
+                answer = "exception: " + str(e)
         else:
             answer = "[ERROR] unknown command (DevWorker): {}".format(msg)
         return answer

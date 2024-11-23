@@ -1,13 +1,13 @@
 from board.worker import MQTTWorker
-from modules.pin_io import PinIO
+from modules.pinio import PinIO
 
 
 class WardrobeWorker(MQTTWorker):
 
     def __init__(self, debug=False):
         super().__init__("wardrobe", debug)
-        self.door_sensor = PinIO("door", 3)
-        self.light_pin = PinIO("light", 4)
+        self.door_sensor = PinIO(3)
+        self.light_pin = PinIO(4)
         worker_data = self.get_data()
         worker_data.data = {
             "name": self.name,
@@ -30,7 +30,7 @@ class WardrobeWorker(MQTTWorker):
                 # Mode
                 if worker_data.control["mode"] == "auto":
                     # Light/Door signal
-                    light = self.door_sensor.get_signal()
+                    light = self.door_sensor.get()
                 elif worker_data.control["mode"] == "on":
                     light = 1
                 elif worker_data.control["mode"] == "off":
@@ -42,7 +42,7 @@ class WardrobeWorker(MQTTWorker):
                 if light != worker_data.data["light"]:
                     publish = True
                     worker_data.data["light"] = light
-                    self.light_pin.set_signal(light)
+                    self.light_pin.set(light)
                 worker_data.data["read_light"] = self.the_time_str()
 
                 if publish:

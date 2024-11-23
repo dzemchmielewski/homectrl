@@ -10,6 +10,7 @@ class Boot:
         'webrepl': False
     }
     led_pattern = [0.5, 0.3, 0.2, 0.2, 0.1, 0.1, 0.1, 0.05, 0.05]
+    version = '20241123_18_45'
     instance = None
 
     @classmethod
@@ -44,6 +45,7 @@ class Boot:
         while not self.wifi.isconnected():
             timeout = 30000
             self.led_notification()
+            print("WIFI connecting to: {}".format(Configuration.WIFI_SSID))
             self.wifi.connect(Configuration.WIFI_SSID, Configuration.WIFI_PASSWORD)
             while timeout > 0:
                 if not self.wifi.isconnected():
@@ -55,52 +57,54 @@ class Boot:
                 self.led_notification(reverse=True)
 
         self.led_notification(turn_off=True)
-        print("Connected! ifconfig: {}".format(self.wifi.ifconfig()))
+        print("WIFI connected! ifconfig: {}".format(self.wifi.ifconfig()))
+        self.loaded['wifi'] = True
 
-    @staticmethod
-    def setup_webrepl():
-        webrepl.start(password=Configuration.WEBREPL_PASSWORD)
+    def setup_webrepl(self):
+        if self.wifi and self.wifi.isconnected():
+            webrepl.start(password=Configuration.WEBREPL_PASSWORD)
+            self.loaded['webrepl'] = True
+            print("SUCCESS webrepl load")
 
-    @staticmethod
-    def setup_time():
-        import ntptime
-        ntptime.host = 'status.home'
+    def setup_time(self):
+        if self.wifi and self.wifi.isconnected():
+            import ntptime
+            ntptime.host = 'status.home'
 
-        now = ntptime.time()
+            now = ntptime.time()
 
-        year = time.gmtime(now)[0]       # get current year
-        hh_march   = time.mktime((year,3 ,(31-(int(5*year/4+4))%7),1,0,0,0,0,0)) # Time of March change to CEST
-        hh_october = time.mktime((year,10,(31-(int(5*year/4+1))%7),1,0,0,0,0,0)) # Time of October change to CET
+            year = time.gmtime(now)[0]       # get current year
+            hh_march   = time.mktime((year,3 ,(31-(int(5*year/4+4))%7),1,0,0,0,0,0)) # Time of March change to CEST
+            hh_october = time.mktime((year,10,(31-(int(5*year/4+1))%7),1,0,0,0,0,0)) # Time of October change to CET
 
-        if now < hh_march :               # we are before last sunday of march
-            cet = time.localtime(now+3600) # CET:  UTC+1H
-        elif now < hh_october :           # we are before last sunday of october
-            cet = time.localtime(now+7200) # CEST: UTC+2H
-        else:                            # we are after last sunday of october
-            cet = time.localtime(now+3600) # CET:  UTC+1H
+            if now < hh_march :               # we are before last sunday of march
+                cet = time.localtime(now+3600) # CET:  UTC+1H
+            elif now < hh_october :           # we are before last sunday of october
+                cet = time.localtime(now+7200) # CEST: UTC+2H
+            else:                            # we are after last sunday of october
+                cet = time.localtime(now+3600) # CET:  UTC+1H
 
-        (year, month, mday, hour, minute, second, weekday, yearday) = cet
-        machine.RTC().datetime((year, month, mday, 0, hour, minute, second, 0))
+            (year, month, mday, hour, minute, second, weekday, yearday) = cet
+            machine.RTC().datetime((year, month, mday, 0, hour, minute, second, 0))
+            self.loaded['time'] = True
+            print("SUCCESS time load: {}".format(time.localtime()))
 
-    def load(self):
-        if not self.loaded['wifi']:
+    def load(self, wifi=True, webrepl=True, time=True):
+        if not self.loaded['wifi'] and wifi:
             try:
                 self.setup_wifi()
-                self.loaded['wifi'] = True
             except Exception as e:
                 print("FAILED to load wifi: {}".format(e))
 
-        if not self.loaded['webrepl']:
+        if not self.loaded['webrepl'] and webrepl:
             try:
                 self.setup_webrepl()
-                self.loaded['webrepl'] = True
             except Exception as e:
                 print("FAILED to load webrepl: {}".format(e))
 
-        if not self.loaded['time']:
+        if not self.loaded['time'] and time:
             try:
                 self.setup_time()
-                self.loaded['time'] = True
             except Exception as e:
                 print("FAILED to load time: {}".format(e))
 

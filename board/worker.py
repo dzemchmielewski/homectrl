@@ -5,6 +5,7 @@ import machine
 
 from board.mqtt import MQTT
 from board.configuration import Configuration
+from board.boot import Boot
 from common.common import Common, time_ms, start_thread
 from common.server import CommonServer
 from common.communication import Communication
@@ -32,11 +33,13 @@ class WorkerData:
 
 worker_data = WorkerData()
 
+
 class Worker(Common):
 
     def __init__(self, name, debug=True):
         super().__init__(name, debug)
         self.start_at = None
+        self.boot = Boot.get_instance()
         self.log("INIT")
 
     def start(self):
@@ -250,7 +253,7 @@ class WorkerServer(CommonServer):
             worker_data.go_exit = True
 
     def handle_help(self):
-        return "WORKER SERVER COMMANDS: go, nogo, info, read, control; {}".format(self.worker.handle_help())
+        return "WORKER SERVER COMMANDS: go, nogo, info, read, boot, control; {}".format(self.worker.handle_help())
 
     def handle_message(self, msg):
         worker_data = self.worker.get_data()
@@ -277,6 +280,9 @@ class WorkerServer(CommonServer):
 
         elif cmd == "INFO":
             answer = json.dumps(worker_data.__dict__)
+
+        elif cmd == "BOOT":
+            answer = '{{"boot_version": "{}"}}'.format(self.worker.boot.version)
 
         elif cmd == "READ":
             try:

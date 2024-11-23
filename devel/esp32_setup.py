@@ -13,14 +13,36 @@ class RawTextArgumentDefaultsHelpFormatter(
     argparse.RawTextHelpFormatter):
     pass
 
+def str2bool(v):
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 
 class Esp32Setup:
     argparser = argparse.ArgumentParser(
         prog='esp32setup',
         description='DZEM HomeCtrl Devel - ESP32 board setup',
         add_help=True, formatter_class=RawTextArgumentDefaultsHelpFormatter)
+
+    argparser.add_argument('--dest-boot', type=str, required=False, dest="dest_boot", default="boot.py",
+                           help="Destination file name")
+    argparser.add_argument('--dest-main', type=str, required=False, dest="dest_main", default="main.py",
+                           help="Destination file name")
+
     argparser.add_argument('--boot-pin', '-bp', type=int, required=False, dest="pin",
                            help="Pin number to use for boot notification.\nESP32-C3 super mini: 8\nESP32???: 2\n")
+
+    argparser.add_argument('--boot-wifi', type=str2bool, default=True,
+                           help='Establish WiFi connection on boot')
+    argparser.add_argument('--boot-webrepl', type=str2bool, default=True,
+                           help='Start WEBREPL on boot')
+    argparser.add_argument('--boot-time', type=str2bool, default=True,
+                           help='Adjust CET/CEST time on boot')
+
     argparser.add_argument('--worker-name', '-w', type=str, help="Put the main.py with worker launcher.")
     argparser.add_argument('--port', '-p', type=str, required=False, default="/dev/ttyUSB0", help="Communication port.")
     argparser.add_argument('--commit', '-c', action="store_true",
@@ -36,6 +58,9 @@ class Esp32Setup:
         self.pin = parsed_args.pin
         self.commit = parsed_args.commit
         self.port = parsed_args.port
+        self.dest_boot = parsed_args.dest_boot
+        self.dest_main = parsed_args.dest_main
+        self.boot_options = [parsed_args.boot_wifi, parsed_args.boot_webrepl,parsed_args.boot_time]
 
     def run(self):
         tempdir = tempfile.gettempdir()
@@ -53,7 +78,7 @@ class Esp32Setup:
         with open(boot, "w") as f:
             f.write("from board.boot import Boot\n")
             f.write(f"boot = Boot.get_instance(pin_notify={self.pin})\n")
-            f.write("boot.load()\n")
+            f.write("boot.load(wifi={}, webrepl={}, time={})\n".format(*self.boot_options))
             # f.write("boot.setup_wifi()\n")
             # f.write("boot.setup_time()\n")
 
@@ -70,13 +95,13 @@ class Esp32Setup:
             f.write("cp {} /board/\n".format(os.path.join(src_dir, "secrets.json")))
             f.write("cp {} /board/\n".format(os.path.join(src_dir, "esp32/reboot.py")))
             if self.worker_name:
-                f.write("cp {} /board/main.py\n".format(main))
+                f.write("cp {} /board/{}\n".format(main, self.dest_main))
                 f.write("cp {} /board/\n".format(os.path.join(src_dir, "esp32/{}.py".format(worker_module))))
-            f.write("cp {} /board/boot.py\n".format(boot))
+            f.write("cp {} /board/{}\n".format(boot, self.dest_boot))
 
         rshell_cmd = f"rshell -p {self.port} -f {{}}"
 
-        print("BOOT:")
+        print("BOOT ({}):".format(self.boot_options))
         print(open(boot).read())
         if self.worker_name:
             print("MAIN:")
