@@ -257,7 +257,7 @@ class LD2410(Common):
         self.log("Module will now be factory reset")
         self.send_command(CMD_FACTORY_RESET)
         if reconnect:
-            self.restart_module(PARAM_DEFAULT_BAUD)
+            self.restart_module()
 
     def restart_module(self):
         self.log("Restarting module")
