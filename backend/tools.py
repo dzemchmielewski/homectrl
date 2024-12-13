@@ -161,7 +161,7 @@ class MQTTMonitor(Common):
                     self.log("[RADAR][{}][{}][{}][{}][{}][MOV: {:03}cm, {:03}%][STA: {:03}cm, {:03}%][DST: {:03}cm] [{}]".format(
                         msg.topic,
                         " ON" if data["presence"] else "OFF", self.target_state(data["radar"]["target_state"]),
-                        "NIGHT" if data["darkness"] else " DAY ",
+                        ("NIGHT" if data["darkness"] else " DAY ") if data.get("darkness") else " - ",
                         "light  ON" if data["light"] else "light OFF",
                         data["radar"]["move"]["distance"], data["radar"]["move"]["energy"],
                         data["radar"]["static"]["distance"], data["radar"]["static"]["energy"],
