@@ -6,12 +6,15 @@ from common.common import time_ms
 from board.worker import MQTTWorker
 from desk.display_manager import DeskDisplayManager, OledDisplay_1_32
 from modules.ina3221 import *
+from modules.pinio import PinIO
 
 
 class DeskWorker(MQTTWorker):
 
     def __init__(self, debug=False):
         super().__init__("desk", debug)
+        self.green_led = PinIO(43)
+        self.blue_led = PinIO(44)
 
         worker_data = self.get_data()
         worker_data.guard = -1
@@ -34,7 +37,8 @@ class DeskWorker(MQTTWorker):
         }
 
         self.manager = DeskDisplayManager()
-        self.screen = OledDisplay_1_32(1, 2, 15, 4, 16, 17, self.manager)
+        # self.screen = OledDisplay_1_32(1, 2, 15, 4, 16, 17, self.manager)
+        self.screen = OledDisplay_1_32(1, 5, 4, 6, 7, 15, self.manager)
 
         self.ina = []
         # for i, bus in enumerate([
@@ -42,7 +46,8 @@ class DeskWorker(MQTTWorker):
         #         SoftI2C(scl=Pin(0), sda=Pin(4), freq=400000),
         #         SoftI2C(scl=Pin(15), sda=Pin(2), freq=400000)]):
 
-        bus = SoftI2C(scl=Pin(5), sda=Pin(18), freq=400000)
+        # bus = SoftI2C(scl=Pin(5), sda=Pin(18), freq=400000)
+        bus = SoftI2C(scl=Pin(16), sda=Pin(17), freq=400000)
         for i in range(3):
 
         # for i, bus in enumerate([
@@ -97,9 +102,9 @@ class DeskWorker(MQTTWorker):
                 # TODO: Read INA values:
                 ina3221 = self.ina[0]
                 while not ina3221.is_ready:
-                    print(".",end='')
+                    print(".", end='')
                     time.sleep(0.1)
-                    print("")
+                print("")
                 if ina3221.is_channel_enabled(1):
                     bus_voltage = ina3221.bus_voltage(1)
                     shunt_voltage = ina3221.shunt_voltage(1)
