@@ -10,7 +10,7 @@ class Boot:
         'webrepl': False
     }
     led_pattern = [0.5, 0.3, 0.2, 0.2, 0.1, 0.1, 0.1, 0.05, 0.05]
-    version = '20241123_18_45'
+    version = '20241212_20_30'
     instance = None
 
     @classmethod

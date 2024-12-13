@@ -61,3 +61,7 @@ class CommonSerial(machine.UART):
 
     def __str__(self):
         return "Serial {}: tx:{},rx:{} ({})".format(self.id, self.tx, self.rx, self.baudrate)
+
+    def close(self):
+        # Do nothing. machine.UART just don't have 'close' method
+        pass
