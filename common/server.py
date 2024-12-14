@@ -15,10 +15,10 @@ machine_loaded = False
 try:
     import machine
     import ubinascii
+
     machine_loaded = True
 except ImportError as e:
     pass
-
 
 finish_server = False
 
@@ -34,7 +34,7 @@ class CommonServer(Common):
         }
         if machine_loaded:
             self.system_status["id"] = ubinascii.hexlify(machine.unique_id()).decode()
-            self.system_status["freq"] = machine.freq()/1_000_000
+            self.system_status["freq"] = machine.freq() / 1_000_000
 
     def handle_message(self, message):
         return "[ERROR] unknown command: {}".format(message)
@@ -150,6 +150,10 @@ class CommonServer(Common):
                     else:
                         answer = "[ERROR] Cannot reboot"
 
+                elif msg == "RESET":
+                    import sys
+                    sys.exit()
+
                 elif msg.startswith("PUT"):
                     answer = self.handle_put(raw_msg)
 
@@ -174,7 +178,7 @@ class CommonServer(Common):
                     answer = json.dumps(self.system_status)
 
                 elif msg == "HELP":
-                    answer = "COMMON COMMANDS: help, status, uptime, mkdir, put, ls, rm, exit (bye, quit), server_exit, reboot; {}".format(
+                    answer = "COMMON COMMANDS: help, status, uptime, mkdir, put, ls, rm, exit (bye, quit), server_exit, reboot, reset; {}".format(
                         self.handle_help())
 
                 else:
