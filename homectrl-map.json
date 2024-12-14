@@ -54,8 +54,14 @@
       "debug": false,
       "webrepl_password": "${webrepl_password}"
     },
-    "test": {
+    "plant": {
       "host": "192.168.0.128",
+      "port": 8123,
+      "debug": false,
+      "webrepl_password": "${webrepl_password}"
+    },
+    "toilet": {
+      "host": "192.168.0.129",
       "port": 8123,
       "debug": false,
       "webrepl_password": "${webrepl_password}"
