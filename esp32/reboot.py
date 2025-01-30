@@ -1,6 +1,8 @@
 import time
 import machine
 
-if True:
-    time.sleep(3)
-    machine.reset()
+for i in range(3, 0, -1):
+    print(f"Hard reset in {i} seconds...\r", end='')
+    time.sleep(1)
+print("Hard reset!")
+machine.reset()

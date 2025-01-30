@@ -13,7 +13,7 @@ class ToiletWorker(MQTTWorker):
         self.cond_reader = BMP_AHT.from_pins(2, 5)
 
         self.human_presence = PinIO(3)
-        self.light_off_delay = 20 * 1_000
+        self.light_off_delay = 2 * 1_000
         self.light_switch = PinIO(4, False)
 
         uart = CommonSerial(1, baudrate=256000, bits=8, parity=None, stop=1, tx=0, rx=1, timeout=1)
@@ -21,7 +21,7 @@ class ToiletWorker(MQTTWorker):
         self.radar_control = RadarControl(self.radar)
 
         worker_data = self.get_data()
-        worker_data.loop_sleep = 0.3
+        worker_data.loop_sleep = 0.1
         worker_data.data = {
             "name": self.name,
             "temperature": None,

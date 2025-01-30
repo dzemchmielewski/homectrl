@@ -17,6 +17,7 @@ class DevWorker(MQTTWorker):
         self.led = PinIO(0)
         self.led.set(0)
         worker_data = self.get_data()
+        worker_data.guard_reboot_time = (16, 1)
         worker_data.data = {
             "name": self.name,
             "temperature": None,

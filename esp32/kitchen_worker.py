@@ -1,7 +1,9 @@
+import time
+
 from board.worker import MQTTWorker
+from modules.bmp_aht import BMP_AHT
 from modules.ld2410 import LD2410
 from modules.darkness import DarknessSensor
-from modules.dht import DHTSensor
 from modules.pinio import PinIO
 from common.common import CommonSerial, time_ms
 
@@ -12,7 +14,8 @@ class KitchenWorker(MQTTWorker):
 
     def __init__(self, debug=True):
         super().__init__("kitchen", debug)
-        self.dht_sensor = DHTSensor("dht", 5)
+
+        self.cond_reader = BMP_AHT.from_pins(9, 5)
         self.darkness_sensor = DarknessSensor.from_analog_pin(2, queue_size=90, voltage_threshold=2.7)
         self.human_presence = PinIO(10)
         self.light_switch = PinIO(0, False)
@@ -26,6 +29,7 @@ class KitchenWorker(MQTTWorker):
             "name": self.name,
             "temperature": None,
             "humidity": None,
+            "pressure": None,
             "darkness": None,
             "voltage": None,
             "presence": None,
@@ -34,6 +38,7 @@ class KitchenWorker(MQTTWorker):
         worker_data.control = {
             "mode": "auto"  # on, off, auto
         }
+
 
     def capabilities(self):
         return {
@@ -51,6 +56,9 @@ class KitchenWorker(MQTTWorker):
     def start(self):
         self.begin()
 
+        # ??? File \"modules/bmp280.py\", line 126, in _read\nOSError: [Errno 19] ENODEV\
+        self.cond_reader = BMP_AHT.from_pins(9, 5)
+
         worker_data = self.get_data()
         is_light_on: bool = False
         floating_time = None
@@ -61,13 +69,13 @@ class KitchenWorker(MQTTWorker):
             try:
                 publish = False
 
-                # DHT sensor:
+                # BMP & AHT sensor:
                 if dht_read_time is None or time_ms() - dht_read_time > (60 * 1_000):
-                    readings = (self.dht_sensor.get())
-                    if readings != (worker_data.data["temperature"], worker_data.data["humidity"]):
+                    readings = self.cond_reader.readings()
+                    if readings != (worker_data.data["temperature"], worker_data.data["pressure"], worker_data.data["humidity"]):
                         publish = True
-                        (worker_data.data["temperature"], worker_data.data["humidity"]) = readings
-                    worker_data.data["dht_read_time"] = self.the_time_str()
+                        (worker_data.data["temperature"], worker_data.data["pressure"], worker_data.data["humidity"]) = readings
+                    worker_data.data["dht_read_sensor"] = self.the_time_str()
                     dht_read_time = time_ms()
 
                 # Human radar data:

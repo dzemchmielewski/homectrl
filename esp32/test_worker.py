@@ -37,3 +37,14 @@ class TestWorker(MQTTWorker):
                 self.handle_exception(e)
 
         self.end()
+
+
+def test(i):
+    print(i)
+    try:
+        p = PinIO(i, 1)
+        time.sleep(1)
+        p.off()
+    except ValueError as e:
+        print(f"ERROR: {e}")
+
