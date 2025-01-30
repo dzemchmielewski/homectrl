@@ -1,5 +1,5 @@
 #!/usr/bin/which python
-
+import datetime
 import sys
 import time
 
@@ -110,14 +110,65 @@ def polar_24hours(query: SelectQuery, end_date: datetime = None, headless=True):
     return bio
 
 
-def chart_1week(query: SelectQuery, headless=True):
+def chart_1week(query: SelectQuery, headless=True, value_column_name="value"):
     df = pd.DataFrame(query.dicts())
 
     fig = plt.figure(figsize=(8, 4), facecolor='#303030')
     ax2 = fig.subplots(1, 1)
     ax2.set_facecolor("#303030")
     ax2.xaxis.set_major_formatter(mdates.ConciseDateFormatter(ax2.xaxis.get_major_locator()))
-    ax2.plot(df["create_at"], df["value"])
+    ax2.plot(df["create_at"], df[value_column_name])
+
+    # Save plot to BytesIO
+    bio = io.BytesIO()
+    plt.savefig(bio, format="png", facecolor=fig.get_facecolor(), edgecolor='none')
+
+    if not headless:
+        plt.show()
+
+    # Cleanup plot
+    fig.clear()
+    plt.close()
+    plt.cla()
+    plt.clf()
+
+    return bio
+
+
+def new_chart(query: SelectQuery, start_date: datetime, end_date: datetime, value_column_name="value", headless=True):
+    df = pd.DataFrame(query.dicts())
+
+    # Drop milliseconds:
+    df["datetime"] = pd.to_datetime(df["create_at"]).dt.floor("s")
+
+    # Add border records:
+    df = pd.concat([
+        pd.DataFrame([[(df.iloc[0][value_column_name] + 1) % 2, start_date]], columns=df.columns),
+        df,
+        pd.DataFrame([[df.iloc[-1][value_column_name], end_date]], columns=df.columns)], ignore_index=True)
+    # Remove records from the same second. Take '0's for such:
+    df = df.sort_values(value_column_name, ascending=True).drop_duplicates("datetime").sort_index()
+    # print(df)
+
+    # Fill gaps for each second:
+    df.set_index("datetime", inplace=True, verify_integrity=True)
+    df = (df.resample(rule='s', origin=start_date)
+          .ffill()
+          .reset_index())
+
+    # # Trim seconds, so leave only minutes important:
+    # df["datetime"] = pd.to_datetime(df["datetime"]).dt.floor("min")
+    # # print(df)
+    # # Remove duplicates.
+    # df = df.sort_values("value", ascending=False).drop_duplicates("datetime").sort_index().reset_index()
+    # # print(df)
+
+
+    fig = plt.figure(figsize=(8, 4), facecolor='#303030')
+    ax2 = fig.subplots(1, 1)
+    ax2.set_facecolor("#303030")
+    ax2.xaxis.set_major_formatter(mdates.ConciseDateFormatter(ax2.xaxis.get_major_locator()))
+    ax2.plot(df["datetime"], df[value_column_name])
 
     # Save plot to BytesIO
     bio = io.BytesIO()
@@ -186,13 +237,6 @@ if __name__ == "__main__":
     # # chart_1week(Temperature.get_lasts("kitchen", start_date), headless=False)
     # chart_1week(Voltage.get_lasts("kitchen", start_date), headless=False)
 
-
-    try:
-        ChartsGenerator().start()
-    except KeyboardInterrupt:
-        pass
-
-
     # start_date = datetime.datetime.fromisoformat("2024-08-28T14:00:00.000000")
     # end_date = datetime.datetime.fromisoformat("2024-08-29T14:00:00.000000")
     # polar24Hours(Darkness.get_lasts("kitchen", start_date, end_date), end_date)
@@ -203,5 +247,15 @@ if __name__ == "__main__":
 
     # open("/tmp/d.png", 'wb').write(bio.getvalue())
 
+
+
+    end_date = datetime.datetime.now()
+    start_date =  end_date - datetime.timedelta(days=1)
+    query = Electricity.get_lasts("bathroom", start_date, end_date)
+    # new_chart(query, start_date, end_date, headless=False, value_column_name="active_power")
+
+    chart_1week(query, headless=False, value_column_name="active_power")
+
     # charts = Charts()
     # charts.pie_chart24(Presence, "kitchen")
+
