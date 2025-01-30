@@ -1,5 +1,5 @@
 import webrepl, time, machine
-from board.configuration import Configuration
+from configuration import Configuration
 
 
 class Boot:
@@ -10,7 +10,7 @@ class Boot:
         'webrepl': False
     }
     led_pattern = [0.5, 0.3, 0.2, 0.2, 0.1, 0.1, 0.1, 0.05, 0.05]
-    version = '20241212_20_30'
+    version = '20241228_12_45'
     instance = None
 
     @classmethod

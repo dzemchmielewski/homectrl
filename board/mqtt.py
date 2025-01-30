@@ -4,7 +4,7 @@ import usocket as socket
 import uselect
 from utime import ticks_add, ticks_ms, ticks_diff
 
-from board.configuration import Configuration
+from configuration import Configuration
 from common.common import Common, time_ms
 
 

@@ -4,7 +4,7 @@ import sys
 import machine
 
 from board.mqtt import MQTT
-from board.configuration import Configuration
+from configuration import Configuration
 from board.boot import Boot
 from common.common import Common, time_ms, start_thread
 from common.server import CommonServer
@@ -24,6 +24,7 @@ class WorkerData:
         self.mqtt = False
         self.error = None
         self.guard = None
+        self.guard_reboot_time = (3, 0)
         self.loop_update = None
         self.data = {
         }
@@ -234,6 +235,25 @@ class Guard(Common):
                 finally:
                     time.sleep(2)
                     machine.reset()
+            if worker_data.guard_reboot_time:
+                now = time.localtime()
+                if now[3] == worker_data.guard_reboot_time[0] and now[4] == worker_data.guard_reboot_time[1]:
+                    # It is the time to perform the reboot.
+                    # First let the guard  sleep one minute to make sure the reboot time will pass after the restart
+                    time.sleep(60)
+                    try:
+                        self.mqtt.mqtt.connect()
+                        self.mqtt.publish({
+                            "live": False,
+                            "error": f"Scheduled  reboot at {worker_data.guard_reboot_time[0]}:{worker_data.guard_reboot_time[1]}"
+                        }, self.mqtt.live_topic, True)
+                        self.mqtt.mqtt.disconnect()
+                    except Exception:
+                        pass
+                    finally:
+                        # and make the restart:
+                        machine.reset()
+
         worker_data.guard = False
 
 
