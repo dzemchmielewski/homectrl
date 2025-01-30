@@ -65,10 +65,16 @@
       "port": 8123,
       "debug": false,
       "webrepl_password": "${webrepl_password}"
+    },
+    "therm": {
+      "host": "192.168.0.130",
+      "port": 8123,
+      "debug": false,
+      "webrepl_password": "${webrepl_password}"
     }
   },
   "mqtt": {
-    "host": "192.168.0.21",
+    "host": "status.home",
     "port": 1883,
     "username": "${mqtt_username}",
     "password": "${mqtt_password}"
@@ -83,7 +89,7 @@
     "db": "homectrl",
     "username": "${db_username}",
     "password": "${db_password}",
-    "host": "192.168.0.21",
+    "host": "status.home",
     "port": 5432
   },
   "_database": {
