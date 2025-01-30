@@ -6,6 +6,9 @@ from desk.ssd1327 import SSD1327_SPI
 import desk.dejavu24 as font24
 import desk.background as background
 import desk.digits_big as digits_big
+import desk.digits_big_tight as digits_big_tight
+import desk.up as up_arrow
+import desk.down as down_arrow
 
 
 class DeskDisplayManager(framebuf.FrameBuffer):
@@ -14,10 +17,18 @@ class DeskDisplayManager(framebuf.FrameBuffer):
         self.width = 128
         self.height = 96
         self.background = background.data()
+        self.up_arrow = framebuf.FrameBuffer(bytearray(up_arrow.data()), 14 ,14, framebuf.GS4_HMSB)
+        self.down_arrow = framebuf.FrameBuffer(bytearray(down_arrow.data()), 14 ,14, framebuf.GS4_HMSB)
         _digits = digits_big.data()
         self.digits = []
         for i in range(10):
             self.digits.append(framebuf.FrameBuffer(bytearray(_digits[i*13*30:(i+1)*13*30]), 26, 30, framebuf.GS4_HMSB))
+
+        _digits_tight = digits_big_tight.data()
+        self.digits_tight = [
+            framebuf.FrameBuffer(bytearray(_digits_tight[i*7*30:(i+1)*7*30]), 13, 30, framebuf.GS4_HMSB)
+            for i in range(10)
+        ]
 
         self.buffer = bytearray(self.background)
         # self.buffer = bytearray(self.width*self.height//2)
@@ -33,6 +44,14 @@ class DeskDisplayManager(framebuf.FrameBuffer):
         self.set_pos(0, 0)
         for i in range(len(self.buffer)):
             self.buffer[i] = self.background[i]
+
+    def invert(self):
+        for i in range(len(self.buffer)):
+            b = self.buffer[i]
+            # new_h = 0xf - (b >> 4)
+            # new_l = 0xf - (b & 0xf)
+            # self.buffer[i] = (new_h << 4) | new_l
+            self.buffer[i] = ((0xf - (b >> 4)) << 4) | (0xf - (b & 0xf))
 
     def set_style(self, fg_color=None, bg_color=None, font = None):
         if fg_color is not None:
@@ -70,15 +89,28 @@ class DeskDisplayManager(framebuf.FrameBuffer):
     def refresh(self, data: dict):
         self.reset()
 
-        self.blit(self.digits[data["channel"]], 7, 7)
+        if (data["channel"] // 10) % 10 != 0:
+            self.blit(self.digits_tight[(data["channel"] // 10) % 10], 7, 7)
+            self.blit(self.digits_tight[data["channel"] % 10], 17, 7)
+        else:
+            self.blit(self.digits[data["channel"] % 10], 7, 7)
+
+        if data.get('mark') is not None and data['mark'] is not '':
+            self.blit(self.up_arrow if data['mark'] is 'up' else self.down_arrow, 1, 66)
 
         self.set_style(font=font24, fg_color=15)
+        self.set_pos(11, 50)
+
+        self.writer.printstring(data["status"] if len(data["status"]) <= 3 else data["status"].lower())
 
         self.set_pos(48, 28)
-        self.writer.printstring("{:6.3f}".format(data["values"][0]))
+        self.writer.printstring("{:6.3f}".format(data["voltage"]))
 
         self.set_pos(71, 28)
-        self.writer.printstring("{:6.4f}".format(data["values"][1]))
+        self.writer.printstring("{:6.4f}".format(data["current"]))
+
+        if data.get('invert') is not None and data['invert']:
+            self.invert()
 
         return self.buffer
 
@@ -102,7 +134,7 @@ if __name__ == "__main__":
             self.filename = "test.pgm"
 
         def show(self):
-            filename = "/tmp/{}{}".format(self.file_num, self.filename)
+            filename = "/tmp/test/{}{}".format(self.file_num, self.filename)
             f = open(filename, "w")
             f.write("P2" + "\n{} {}\n16\n".format(self.manager.width, self.manager.height))
             w = self.manager.width // 2
@@ -117,16 +149,20 @@ if __name__ == "__main__":
             print("File written to: {}".format(filename))
 
 
-    values = [[18.0, 0.0], [5.1, 0.200], [12.987, 0.001], [18.999, 6.33]]
+    values = [[18.0, 0.0, 'ON', 'up'], [5.1, 0.200, 'OFF', 'down'], [12.987, 0.101, 'ERR', ''], [18.999, 6.33, 'ALERT', 'up'], [3.3, 2.33, 'WARN', 'down']]
 
     manager = DeskDisplayManager()
     output = FileOutputDisplay(manager)
 
     for i in range(len(values)):
         manager.refresh({
-            "channel": i,
-            "values": values[i]
+            "channel": 10 + i,
+            "voltage": values[i][0],
+            "current": values[i][1],
+            "status": values[i][2],
+            "mark": values[i][3]
         })
+
         output.show()
 
     manager.fill(0)
