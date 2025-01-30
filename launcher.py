@@ -45,8 +45,8 @@ elif system == "restapi":
     import socket
     from backend.restapi import app
 
-    if socket.gethostname() == 'pi2':
-        bind_to = '192.168.0.21'
+    if socket.gethostname() == 'pi':
+        bind_to = '192.168.0.24'
     else:
         bind_to = 'localhost'
 
