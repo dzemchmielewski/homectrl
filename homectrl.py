@@ -5,10 +5,14 @@
 import argparse, argcomplete
 import os
 import sys
+import time
 
+from backend.tools import WebREPLClient
 from common.common import Common
 from  configuration import Configuration, Topic
+from devel.development import str2bool
 
+DEBUG = False
 
 # class _HelpAction(argparse._HelpAction):
 #
@@ -41,7 +45,8 @@ class HomeCtrl(Common):
     def __init__(self):
         super().__init__("HOMECTRL")
         from devel.esp32_setup import Esp32Setup
-        self.devel = [Esp32Setup]
+        from devel.firmware import Firmware
+        self.devel = [Esp32Setup, Firmware]
 
     def parse_args(self):
         boards = list(Configuration.MAP["board"].keys())
@@ -52,17 +57,22 @@ class HomeCtrl(Common):
         # parser.add_argument("-h", "--help", action=_HelpAction)
         subparsers = parser.add_subparsers(help="Available commands", title="COMMANDS", required=True)
 
-        connect = subparsers.add_parser("connect", help="Connect to specified command-line server", formatter_class=self.Formatter)
-        connect.add_argument("server_id", choices=boards, help="Available servers")
+        connect = subparsers.add_parser("connect", help="Connect to specified HOMECtrl command-line server", formatter_class=self.Formatter)
+        connect.add_argument("server_id", choices=boards, help="Available HOMECtrl boards")
         connect.add_argument("-nf", "--no-format", help="Do not format json response", default=False, action="store_true")
-        # connect.add_argument("--direct", action="store_true", help="Direct connection to server (pass collector handling)")
+        connect.add_argument("--exit", "-e", help="Send a HOMECtrl board the server_exit call", default=False, action="store_true")
         connect.set_defaults(command="connect")
 
         webrepl = subparsers.add_parser("webrepl", help="Connect to specified WEBREPL server", formatter_class=self.Formatter)
         webrepl.add_argument("server_id", choices=boards, help="Available boards")
+        webrepl.add_argument("--no-homectrl-exit", "-ne", help="Skip the exit HomeCtrl server on the board", default=False, action="store_true")
         webrepl_file_group = webrepl.add_mutually_exclusive_group()
         webrepl_file_group.add_argument("--file", "-f",  help="Transfer file TO the board")
         webrepl_file_group.add_argument("--get", "-g",  help="Transfer file FROM the board")
+        webrepl_file_group.add_argument("--exit", "--reset", "-e", default=False, action="store_true",
+                                        help="Send sys.exit() command, aka soft reset")
+        webrepl_file_group.add_argument("--reboot", "-r", default=False, action="store_true",
+                                        help="Send machine.reset() command aka hard reset/reboot")
         webrepl.set_defaults(command="webrepl")
 
         ping = subparsers.add_parser("ping", help="Ping to specified host", formatter_class=self.Formatter)
@@ -102,9 +112,8 @@ class HomeCtrl(Common):
         argcomplete.autocomplete(parser)
         args = parser.parse_args()
 
-        # print("DEBUG: {}".format(vars(args)))
-        # print("DEBUG: {}".format(args._get_args()))
-        # print("DEBUG: {}".format(dir(args)))
+        if DEBUG:
+            print("DEBUG ARGS: {}".format(vars(args)))
         return args
 
     def list_db(self):
@@ -120,9 +129,16 @@ class HomeCtrl(Common):
         args = self.parse_args()
 
         if args.command == "connect":
-            from backend.tools import CommandLineClient
-            self.log("Connecting to: {}".format(args.server_id))
-            CommandLineClient(Configuration.get_communication(args.server_id), args.server_id, not args.no_format).start()
+            if args.exit:
+                from backend.tools import Client
+                self.log("Connecting to: {}".format(args.server_id))
+                client = Client(Configuration.get_communication(args.server_id), args.server_id)
+                self.log(" >>  server_exit")
+                self.log(f" <<  {client.interact('server_exit')}")
+            else:
+                from backend.tools import CommandLineClient
+                self.log("Connecting to: {}".format(args.server_id))
+                CommandLineClient(Configuration.get_communication(args.server_id), args.server_id, not args.no_format).start()
 
         elif args.command == "ping":
             ping_args = ""
@@ -131,16 +147,17 @@ class HomeCtrl(Common):
             os.system("ping {} {}".format(ping_args, Configuration.get_config(args.server_id)["host"]))
 
         elif args.command == "webrepl":
-            host = Configuration.get_config(args.server_id)["host"]
-            password = Configuration.get_config(args.server_id)["webrepl_password"]
-            if args.file:
-                cmd = "webrepl -p {password} {file} {host}:/{file}".format(host=host, password=password, file=args.file)
-            elif args.get:
-                cmd = "webrepl -p {password} {host}:/{file} {file}".format(host=host, password=password, file=args.get)
-            else:
-                cmd = "webrepl -p {password} {host}".format(host=host, password=password)
-            self.log(cmd)
-            os.system(cmd)
+            with WebREPLClient(args.server_id, try_exit_homectrl_server=not args.no_homectrl_exit) as repl:
+                if args.exit:
+                    repl.ws.writetext("import sys; sys.exit()".encode("utf-8") + b"\r\n")
+                elif args.reboot:
+                    repl.ws.writetext("import machine; machine.reset()".encode("utf-8") + b"\r\n")
+                elif args.file:
+                    repl.put_file(args.file, args.file)
+                elif args.get:
+                    repl.get_file(args.get, args.get)
+                else:
+                    repl.do_repl()
 
         elif args.command == "db":
             if args.db_action == "cmd":
@@ -194,7 +211,7 @@ class HomeCtrl(Common):
                 print("RESULT: {}".format(result))
 
         elif args.command == "devel":
-            dev_cls = list(map(lambda cls: cls if cls.argparser.prog == args.devel_command else None, self.devel))[0]
+            dev_cls = next((cls for cls in self.devel if cls.argparser.prog == args.devel_command), None)
             dev_cls(args).run()
 
 
