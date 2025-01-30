@@ -84,7 +84,7 @@ class ConnectionManager(Common):
         del self.connections[facet][id]
 
     async def send_message(self, message, facet: str = None) -> None:
-        # self.log("Send Message[{}]. Clients: {}".format(facet, self.connections))
+        self.log("Send Message[{}]. Clients: {}".format(facet, self.connections))
         if self.connections.get(facet):
             for id, ws in self.connections[facet].items():
                 try:
@@ -249,9 +249,9 @@ app.include_router(api.router)
 origins = [
     "http://localhost:3000",
     "http://localhost:8080",
-    "http://192.168.0.21:3000",
-    "http://192.168.0.21:80",
-    "http://192.168.0.21",
+    "http://192.168.0.24:3000",
+    "http://192.168.0.24:80",
+    "http://192.168.0.24",
     "http://status.home.arpa:3000",
     "http://status.home.arpa:80",
     "http://status.home.arpa",
@@ -272,9 +272,10 @@ if __name__ == "__main__":
     import uvicorn
     import socket
 
-    if socket.gethostname() == 'pi2':
-        bind_to = '192.168.0.21'
-    else:
-        bind_to = 'localhost'
+    # if socket.gethostname() == 'pi':
+    #     bind_to = '192.168.0.24'
+    # else:
+    #     bind_to = 'localhost'
+    bind_to = '192.168.0.24'
 
     uvicorn.run("__main__:app", host=bind_to, port=8000, workers=1)
