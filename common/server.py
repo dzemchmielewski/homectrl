@@ -111,11 +111,10 @@ class CommonServer(Common):
 
     def start(self):
         self.log("START: {}".format(self.conn))
-        restart = False
         global finish_server
         finish_server = False
 
-        while not finish_server and not restart:
+        while not finish_server:
             try:
                 raw_msg = self.conn.receive()
             except OSError as e:
@@ -145,12 +144,18 @@ class CommonServer(Common):
                 elif msg == "REBOOT":
                     if machine_loaded:
                         self.goodbye("goodbye & see you in next life")
+                        self.on_exit()
+                        self.log("Rebooting")
                         time.sleep(1)
                         machine.reset()
                     else:
                         answer = "[ERROR] Cannot reboot"
 
                 elif msg == "RESET":
+                    self.goodbye("goodbye & see you soon")
+                    self.on_exit()
+                    self.log("Resetting")
+                    time.sleep(1)
                     import sys
                     sys.exit()
 
