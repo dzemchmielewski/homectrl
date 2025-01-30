@@ -28,9 +28,7 @@
 # output to the REPL using a font file created by this utility.
 
 import sys
-import os
 from importlib import import_module
-from font_to_py import Font, write_font
 
 # Utility functions
 

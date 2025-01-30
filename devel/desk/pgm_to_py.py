@@ -4,7 +4,7 @@ if len(sys.argv) < 2:
     print("Usage: pgm_to_py.py <pgm file>")
     sys.exit(1)
 
-debug = False
+debug = True
 pgm_file = sys.argv[1]
 
 width, height = (None, None)
@@ -37,10 +37,10 @@ for i in range(len(data)):
 if debug:
     print("Data (len={}): {}".format(len(data), data))
 
-# with open("test.pgm", "w") as f:
-#     f.write("P2\n{} {}\n16\n".format(width, height))
-#     for d in data:
-#         f.write("{} ".format(d))
+with open("test.pgm", "w") as f:
+    f.write("P2\n{} {}\n16\n".format(width, height))
+    for d in data:
+        f.write("{} ".format(d))
 
 print("_data = \\")
 for row in range(height):

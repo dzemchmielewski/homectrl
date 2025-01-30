@@ -7,19 +7,7 @@ import tempfile
 import uuid
 import argparse, argcomplete
 
-
-class RawTextArgumentDefaultsHelpFormatter(
-    argparse.ArgumentDefaultsHelpFormatter,
-    argparse.RawTextHelpFormatter):
-    pass
-
-def str2bool(v):
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
+from devel.development import RawTextArgumentDefaultsHelpFormatter, str2bool
 
 
 class Esp32Setup:
@@ -34,7 +22,7 @@ class Esp32Setup:
                            help="Destination file name")
 
     argparser.add_argument('--boot-pin', '-bp', type=int, required=False, dest="pin",
-                           help="Pin number to use for boot notification.\nESP32-C3 super mini: 8\nESP32???: 2\n")
+                           help="Pin number to use for boot notification.\nESP32-C3 super mini: 8\nESP32-S3: 44\nESP32???: 2\n")
 
     argparser.add_argument('--boot-wifi', type=str2bool, default=True,
                            help='Establish WiFi connection on boot')
@@ -91,7 +79,7 @@ class Esp32Setup:
 
         rshell = create_temp_file("rshell.py")
         with open(rshell, "w") as f:
-            f.write("cp {} /board/\n".format(os.path.join(src_dir, "board/configuration.py")))
+            f.write("cp {} /board/\n".format(os.path.join(src_dir, "esp32/configuration.py")))
             f.write("cp {} /board/\n".format(os.path.join(src_dir, "secrets.json")))
             f.write("cp {} /board/\n".format(os.path.join(src_dir, "esp32/reboot.py")))
             if self.worker_name:

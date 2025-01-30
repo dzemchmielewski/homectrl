@@ -1,0 +1,130 @@
+#!/usr/bin/env python
+# PYTHON_ARGCOMPLETE_OK
+# set environment variable _ARC_DEBUG to debug argcomplete
+import datetime
+import fileinput
+import os
+import re
+from pathlib import Path
+
+import argcomplete
+import argparse
+import shutil
+
+from backend.tools import WebREPLClient
+from configuration import Configuration
+from devel.development import RawTextArgumentDefaultsHelpFormatter, str2bool
+
+
+class Firmware:
+    boards = list(Configuration.MAP["board"].keys())
+    argparser = argparse.ArgumentParser(
+        prog='fw',
+        description='DZEM HomeCtrl Devel - Firmware tools',
+        add_help=True, formatter_class=RawTextArgumentDefaultsHelpFormatter)
+
+    subparsers = argparser.add_subparsers(help="Available commands", title="COMMANDS", required=True)
+
+    status = subparsers.add_parser("status", help="OTA status", formatter_class=RawTextArgumentDefaultsHelpFormatter)
+    status.add_argument("server_id", choices=boards, help="Available boards")
+    status.add_argument("--homectrl-exit", "-he", type=str2bool, help="Try to exit HomeCtrl server on the board", default=True)
+    status.set_defaults(ota_command="status")
+
+    update = subparsers.add_parser("update", help="OTA update", formatter_class=RawTextArgumentDefaultsHelpFormatter)
+    update.add_argument("server_id", choices=boards, help="Available boards")
+    update.add_argument("--url", "-u", type=str, help="Firmware file URL", required=True)
+    update.add_argument("--reboot", "-r", type=str2bool, help="Reboot board after update", default=True)
+    update.add_argument("--homectrl-exit", "-he", type=str2bool, help="Try to exit HomeCtrl server on the board", default=True)
+    update.set_defaults(ota_command="update")
+
+    commit = subparsers.add_parser("commit", help="OTA update commit", formatter_class=RawTextArgumentDefaultsHelpFormatter)
+    commit.add_argument("server_id", choices=boards, help="Available boards")
+    commit.add_argument("--homectrl-exit", "-he", type=str2bool, help="Try to exit HomeCtrl server on the board", default=True)
+    commit.set_defaults(ota_command="commit")
+
+    build = subparsers.add_parser("build", help="Build micropython firmware", formatter_class=RawTextArgumentDefaultsHelpFormatter)
+    build.add_argument("--port", "-p", choices=["C3", "S3"], help="Available ports", required=True)
+    build.add_argument("--version", "-v", help="Version number to put into the firmware",
+                       default=datetime.datetime.now().strftime("%Y%m%d_%H_%M"))
+    build.add_argument("--src-micropython", help="Micropython ESP32 source directory",
+                       default="/home/dzem/MP_BUILD/micropython/ports/esp32/")
+    build.add_argument("--src-esp-idf", help="ESP-IDF source directory",
+                       default="/home/dzem/MP_BUILD/esp-idf/")
+    build.add_argument("--src-homectrl", help="HOMECtrl source directory",
+                       default=os.path.dirname(os.path.dirname(os.path.normpath(__file__))))
+    build.set_defaults(ota_command="build")
+
+    @classmethod
+    def parse_args(cls, args=None):
+        argcomplete.autocomplete(cls.argparser)
+        return cls.argparser.parse_args(args)
+
+    def __init__(self, parsed_args):
+        self.args = parsed_args
+        print(parsed_args)
+
+    @staticmethod
+    def copy(src, dest):
+        if not os.path.exists(src):
+            raise ValueError(f"Directory {src} not found!")
+
+        if os.path.isdir(src):
+            Path(dest).mkdir(parents=True, exist_ok=True)
+            for filename in os.listdir(src):
+                if filename.endswith('.py'):
+                    print(f"{src}/{filename} -> {dest}")
+                    shutil.copy(f"{src}/{filename}", dest)
+        else:
+            Path(os.path.dirname(dest)).mkdir(parents=True, exist_ok=True)
+            print(f"{src} -> {dest}")
+            shutil.copyfile(src, dest)
+
+    def run(self):
+        if self.args.ota_command == "build":
+            print(f"Building version: {self.args.version} for ESP32-{self.args.port}")
+
+            for sub in ["board", "modules", "common",
+                        "common/platform/__init__.py", "common/platform/rp2pico.py"]:
+                self.copy(f"{self.args.src_homectrl}/{sub}", f"{self.args.src_micropython}/modules/{sub}")
+
+            # DESK
+            self.copy(f"{self.args.src_homectrl}/esp32/desk", f"{self.args.src_micropython}/modules/desk")
+
+            boot_version_pattern = re.compile("version = (.+)")
+            with fileinput.FileInput(f"{self.args.src_micropython}/modules/board/boot.py", inplace=True) as file:
+                for line in file:
+                    print(re.sub(boot_version_pattern, f"version = '{self.args.version}'", line), end='')
+
+            ret_code = os.system(f"/bin/bash -c '"
+                                 f"cd {self.args.src_micropython} && source {self.args.src_esp_idf}/export.sh "
+                                 f"&& make BOARD=ESP32_GENERIC_{self.args.port} BOARD_VARIANT=OTA submodules "
+                                 f"&& make BOARD=ESP32_GENERIC_{self.args.port} BOARD_VARIANT=OTA'")
+            if ret_code == 0:
+                shutil.copyfile(f"{self.args.src_micropython}/build-ESP32_GENERIC_{self.args.port}-OTA/micropython.bin",
+                                f"/www/micropython-esp32-{self.args.port.lower()}-{self.args.version}.bin")
+                print("BUILD DONE")
+                print(f"http://pi5.home/micropython-esp32-{self.args.port.lower()}-{self.args.version}.bin")
+
+        else:
+            with WebREPLClient(self.args.server_id) as repl:
+                if self.args.ota_command == "status":
+                    print("")
+                    print(f"<< {repl.sendcmd('import ota.status; ota.status.status()').decode()}")
+                    print(f"<< {repl.sendcmd('boot.version').decode()}")
+                elif self.args.ota_command == "update":
+                    commands = [
+                        "import ota.update",
+                        f"ota.update.from_file('{self.args.url}', reboot={self.args.reboot})"]
+                    repl.repl(commands)
+                elif self.args.ota_command == "commit":
+                    print(f"<< {repl.sendcmd('import ota.rollback; ota.rollback.cancel()').decode()}")
+
+
+if __name__ == "__main__":
+    Firmware(Firmware.parse_args()).run()
+
+    # c = [
+    #     "import time",
+    #     "for i in range(3, 0,  -1):\r\nprint(f\'Hard reset in {i} seconds...\\r', end=('\\r\\n' if i == 1 else ''))\r\ntime.sleep(1)\r\n\r\n\r\n",
+    #     "print('')"]
+    # repl.repl(c)
