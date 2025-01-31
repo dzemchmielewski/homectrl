@@ -17,6 +17,16 @@ from devel.development import RawTextArgumentDefaultsHelpFormatter, str2bool
 
 
 class Firmware:
+
+    INC_st7789 = "st7789"
+    INC_desk = "desk"
+    include_choices = [INC_st7789, INC_desk]
+
+    include_help = f"""
+    {INC_st7789} - driver for TFT-LCD display
+    {INC_desk} - custom python modules for for specific "desk" project
+    """
+
     boards = list(Configuration.MAP["board"].keys())
     argparser = argparse.ArgumentParser(
         prog='fw',
@@ -52,6 +62,7 @@ class Firmware:
                        default="/home/dzem/MP_BUILD/esp-idf/")
     build.add_argument("--src-homectrl", help="HOMECtrl source directory",
                        default=os.path.dirname(os.path.dirname(os.path.normpath(__file__))))
+    build.add_argument("--include", "-i", nargs='+', required=False, choices=include_choices, help=include_help)
     build.set_defaults(ota_command="build")
 
     @classmethod
@@ -87,18 +98,33 @@ class Firmware:
                         "common/platform/__init__.py", "common/platform/rp2pico.py"]:
                 self.copy(f"{self.args.src_homectrl}/{sub}", f"{self.args.src_micropython}/modules/{sub}")
 
-            # DESK
-            self.copy(f"{self.args.src_homectrl}/esp32/desk", f"{self.args.src_micropython}/modules/desk")
+            try:
+                shutil.rmtree(f"{self.args.src_micropython}/modules/desk")
+            except FileNotFoundError:
+                pass
+
+            if Firmware.INC_desk in  self.args.include:
+                self.copy(f"{self.args.src_homectrl}/esp32/desk", f"{self.args.src_micropython}/modules/desk")
 
             boot_version_pattern = re.compile("version = (.+)")
             with fileinput.FileInput(f"{self.args.src_micropython}/modules/board/boot.py", inplace=True) as file:
                 for line in file:
                     print(re.sub(boot_version_pattern, f"version = '{self.args.version}'", line), end='')
 
-            ret_code = os.system(f"/bin/bash -c '"
-                                 f"cd {self.args.src_micropython} && source {self.args.src_esp_idf}/export.sh "
-                                 f"&& make BOARD=ESP32_GENERIC_{self.args.port} BOARD_VARIANT=OTA submodules "
-                                 f"&& make BOARD=ESP32_GENERIC_{self.args.port} BOARD_VARIANT=OTA'")
+            make_opt = ""
+            if Firmware.INC_st7789 in self.args.include:
+                make_opt += " USER_C_MODULES=/home/dzem/MP_BUILD/st7789_mpy/st7789/ "
+
+            build_cmd = (f"/bin/bash -c "
+                "'"
+                f" cd {self.args.src_micropython}"
+                f" && source {self.args.src_esp_idf}/export.sh "
+                f" && make BOARD=ESP32_GENERIC_{self.args.port} BOARD_VARIANT=OTA {make_opt} all"
+                "'")
+            print(f"Build command: {build_cmd}")
+
+            ret_code = os.system(build_cmd)
+
             if ret_code == 0:
                 shutil.copyfile(f"{self.args.src_micropython}/build-ESP32_GENERIC_{self.args.port}-OTA/micropython.bin",
                                 f"/www/micropython-esp32-{self.args.port.lower()}-{self.args.version}.bin")
