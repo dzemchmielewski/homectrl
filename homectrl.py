@@ -61,11 +61,12 @@ class HomeCtrl(Common):
         connect.add_argument("server_id", choices=boards, help="Available HOMECtrl boards")
         connect.add_argument("-nf", "--no-format", help="Do not format json response", default=False, action="store_true")
         connect.add_argument("--exit", "-e", help="Send a HOMECtrl board the server_exit call", default=False, action="store_true")
+        connect.add_argument("-v1", help="Legacy call to server V=1", default=False, action="store_true")
         connect.set_defaults(command="connect")
 
         webrepl = subparsers.add_parser("webrepl", help="Connect to specified WEBREPL server", formatter_class=self.Formatter)
         webrepl.add_argument("server_id", choices=boards, help="Available boards")
-        webrepl.add_argument("--no-homectrl-exit", "-ne", help="Skip the exit HomeCtrl server on the board", default=False, action="store_true")
+        # webrepl.add_argument("--no-homectrl-exit", "-ne", help="Skip the exit HomeCtrl server on the board", default=False, action="store_true")
         webrepl_file_group = webrepl.add_mutually_exclusive_group()
         webrepl_file_group.add_argument("--file", "-f",  help="Transfer file TO the board")
         webrepl_file_group.add_argument("--get", "-g",  help="Transfer file FROM the board")
@@ -129,16 +130,21 @@ class HomeCtrl(Common):
         args = self.parse_args()
 
         if args.command == "connect":
-            if args.exit:
-                from backend.tools import Client
-                self.log("Connecting to: {}".format(args.server_id))
-                client = Client(Configuration.get_communication(args.server_id), args.server_id)
-                self.log(" >>  server_exit")
-                self.log(f" <<  {client.interact('server_exit')}")
+            if args.v1:
+                if args.exit:
+                    from backend.tools import Client
+                    self.log("Connecting to: {}".format(args.server_id))
+                    client = Client(Configuration.get_communication(args.server_id), args.server_id)
+                    self.log(" >>  server_exit")
+                    self.log(f" <<  {client.interact('server_exit')}")
+                else:
+                    from backend.tools import CommandLineClient
+                    self.log("Connecting to: {}".format(args.server_id))
+                    CommandLineClient(Configuration.get_communication(args.server_id), args.server_id, not args.no_format).start()
             else:
-                from backend.tools import CommandLineClient
+                from backend.tools import WSCommandLineClient
                 self.log("Connecting to: {}".format(args.server_id))
-                CommandLineClient(Configuration.get_communication(args.server_id), args.server_id, not args.no_format).start()
+                WSCommandLineClient(args.server_id, not args.no_format).start()
 
         elif args.command == "ping":
             ping_args = ""
@@ -147,7 +153,7 @@ class HomeCtrl(Common):
             os.system("ping {} {}".format(ping_args, Configuration.get_config(args.server_id)["host"]))
 
         elif args.command == "webrepl":
-            with WebREPLClient(args.server_id, try_exit_homectrl_server=not args.no_homectrl_exit) as repl:
+            with WebREPLClient(args.server_id) as repl:
                 if args.exit:
                     repl.ws.writetext("import sys; sys.exit()".encode("utf-8") + b"\r\n")
                 elif args.reboot:

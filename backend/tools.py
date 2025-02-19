@@ -1,4 +1,5 @@
 import array
+import atexit
 import datetime
 import decimal
 import functools
@@ -6,15 +7,68 @@ import os
 import json
 import struct
 import sys
+import time
+
 import webrepl
+import websocket
 import termios, select
-import socket
+import readline
 
 from time import sleep
 from paho.mqtt.client import Client as PahoMQTTClient, CallbackAPIVersion
 from common.common import Common
 from common.communication import Communication
 from configuration import Configuration
+
+class WSCommandLineClient:
+    def __init__(self, server_id: str, json_format = True):
+        def save(prev_h_len, histfile):
+            new_h_len = readline.get_current_history_length()
+            readline.set_history_length(10_000)
+            readline.append_history_file(new_h_len - prev_h_len, histfile)
+
+        self.server_id = server_id
+        self.json_format = json_format
+        conf = Configuration.get_config(server_id)
+        self.ws = websocket.WebSocket()
+        self.ws.connect(f"ws://{conf['host']}:{conf['port']}")
+        self.exit = False
+        history_file = os.path.join(os.path.expanduser("~"), ".homectrl_ws_history")
+        try:
+            readline.read_history_file(history_file)
+            history_length = readline.get_current_history_length()
+        except FileNotFoundError:
+            open(history_file, 'wb').close()
+            history_length = 0
+        atexit.register(save, history_length, history_file)
+
+    def interact(self, command, parse_json=False) -> str:
+        self.ws.send(command)
+        result = self.ws.recv()
+        try:
+            if parse_json:
+                if self.json_format:
+                    return json_serial(json_deserial(result), indent=2)
+                else:
+                    return json_deserial(result)
+        except ValueError as e:
+            pass
+        return result
+
+    def print_lead(self):
+        return "[{}][{}]".format(time.strftime("%Y-%m-%d %H:%M:%S"), self.server_id)
+
+    def start(self):
+        while not self.exit:
+            try:
+                str_raw = input(f"{self.print_lead()} >> : ")
+            except KeyboardInterrupt:
+                str_raw = 'exit'
+                print("")
+            if str_raw == 'exit':
+                self.exit = True
+            elif str_raw:
+                print(f"{self.print_lead()} << : {self.interact(str_raw, True)}")
 
 
 class Client(Common):
@@ -164,18 +218,18 @@ class WebREPLClient(webrepl.Webrepl):
         def write(self, buf):
             self.outfile.write(buf)
 
-    def __init__(self, server_id, try_exit_homectrl_server=True):
+    def __init__(self, server_id):
         super().__init__(**{})
         cfg = Configuration.get_config(server_id)
 
-        if try_exit_homectrl_server:
-            try:
-                from backend.tools import Client
-                print("Connecting to: {}".format(server_id))
-                client = Client(Configuration.get_communication(server_id), server_id)
-                print(f" >>  server_exit\n <<  {client.interact('server_exit')}")
-            except OSError as e:
-                print("HomeCtrl server is already down")
+        # if try_exit_homectrl_server:
+        #     try:
+        #         from backend.tools import Client
+        #         print("Connecting to: {}".format(server_id))
+        #         client = Client(Configuration.get_communication(server_id), server_id)
+        #         print(f" >>  server_exit\n <<  {client.interact('server_exit')}")
+        #     except OSError as e:
+        #         print("HomeCtrl server is already down")
 
         port = 8266
         try:
@@ -240,7 +294,8 @@ class WebREPLClient(webrepl.Webrepl):
         assert self.read_resp() == 0
 
     def do_repl(self):
-        print("Use Ctrl-] to exit this shell")
+        print("Use Ctrl-] to exit this shell, Ctrl-\\ to toggle echo mode")
+        echo_mode = False
         console = WebREPLClient.ConsolePosix()
         console.enter()
         try:
@@ -250,7 +305,12 @@ class WebREPLClient(webrepl.Webrepl):
                 if c:
                     if c == b"\x1d":  # ctrl-], exit
                         break
+                    elif c == b'\x1c':  # ctrl-\ to echo mode
+                        echo_mode = not echo_mode
+                        console.write(f"echo mode is {'ON' if echo_mode else 'OFF'}\n\r".encode())
                     else:
+                        if echo_mode:
+                            console.write(c)
                         self.ws.writetext(c)
                 if self.ws.s in sel[0]:
                     c = self.ws.read(1, text_ok=True)

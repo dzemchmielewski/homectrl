@@ -3,6 +3,7 @@
 # set environment variable _ARC_DEBUG to debug argcomplete
 import datetime
 import fileinput
+import glob
 import os
 import re
 from pathlib import Path
@@ -43,7 +44,6 @@ class Firmware:
     update = subparsers.add_parser("update", help="OTA update", formatter_class=RawTextArgumentDefaultsHelpFormatter)
     update.add_argument("server_id", choices=boards, help="Available boards")
     update.add_argument("--url", "-u", type=str, help="Firmware file URL", required=True)
-    update.add_argument("--reboot", "-r", type=str2bool, help="Reboot board after update", default=True)
     update.add_argument("--homectrl-exit", "-he", type=str2bool, help="Try to exit HomeCtrl server on the board", default=True)
     update.set_defaults(ota_command="update")
 
@@ -62,7 +62,7 @@ class Firmware:
                        default="/home/dzem/MP_BUILD/esp-idf/")
     build.add_argument("--src-homectrl", help="HOMECtrl source directory",
                        default=os.path.dirname(os.path.dirname(os.path.normpath(__file__))))
-    build.add_argument("--include", "-i", nargs='+', required=False, choices=include_choices, help=include_help)
+    build.add_argument("--include", "-i", nargs='+', required=False, choices=include_choices, help=include_help, default=[])
     build.set_defaults(ota_command="build")
 
     @classmethod
@@ -90,26 +90,45 @@ class Firmware:
             print(f"{src} -> {dest}")
             shutil.copyfile(src, dest)
 
+    def sync_frozen_py(self):
+        for sub in ["board", "toolbox"]:
+            print(f"{self.args.src_homectrl}/micropython/{sub} -> {self.args.src_micropython}/modules/{sub}")
+            try:
+                shutil.rmtree(f"{self.args.src_micropython}/modules/{sub}")
+            except FileNotFoundError:
+                pass
+            shutil.copytree(f"{self.args.src_homectrl}/micropython/{sub}", f"{self.args.src_micropython}/modules/{sub}")
+
+        for file in glob.glob(rf"{self.args.src_homectrl}/micropython/*.py"):
+            print(f"{file} -> {self.args.src_micropython}/modules/")
+            shutil.copy(file, f"{self.args.src_micropython}/modules/")
+
+    def apply_boot_version(self):
+        boot_version_pattern = re.compile("version = (.+)")
+        with fileinput.FileInput(f"{self.args.src_micropython}/modules/board/boot.py", inplace=True) as file:
+            for line in file:
+                print(re.sub(boot_version_pattern, f"version = '{self.args.version}'", line), end='')
+
     def run(self):
         if self.args.ota_command == "build":
             print(f"Building version: {self.args.version} for ESP32-{self.args.port}")
 
-            for sub in ["board", "modules", "common",
-                        "common/platform/__init__.py", "common/platform/rp2pico.py"]:
-                self.copy(f"{self.args.src_homectrl}/{sub}", f"{self.args.src_micropython}/modules/{sub}")
+            # for sub in ["board", "modules", "common",
+            #             "common/platform/__init__.py", "common/platform/rp2pico.py"]:
+            #     self.copy(f"{self.args.src_homectrl}/{sub}", f"{self.args.src_micropython}/modules/{sub}")
+            #
+            # self.copy(f"{self.args.src_homectrl}/micropython-stdlib", f"{self.args.src_micropython}/modules/")
 
             try:
                 shutil.rmtree(f"{self.args.src_micropython}/modules/desk")
             except FileNotFoundError:
                 pass
 
+            self.sync_frozen_py()
+            self.apply_boot_version()
+
             if Firmware.INC_desk in  self.args.include:
                 self.copy(f"{self.args.src_homectrl}/esp32/desk", f"{self.args.src_micropython}/modules/desk")
-
-            boot_version_pattern = re.compile("version = (.+)")
-            with fileinput.FileInput(f"{self.args.src_micropython}/modules/board/boot.py", inplace=True) as file:
-                for line in file:
-                    print(re.sub(boot_version_pattern, f"version = '{self.args.version}'", line), end='')
 
             make_opt = ""
             if Firmware.INC_st7789 in self.args.include:
@@ -140,8 +159,9 @@ class Firmware:
                 elif self.args.ota_command == "update":
                     commands = [
                         "import ota.update",
-                        f"ota.update.from_file('{self.args.url}', reboot={self.args.reboot})"]
+                        f"ota.update.from_file('{self.args.url}', reboot=False)"]
                     repl.repl(commands)
+                    repl.ws.writetext("import machine; machine.reset()".encode("utf-8") + b"\r\n")
                 elif self.args.ota_command == "commit":
                     print(f"<< {repl.sendcmd('import ota.rollback; ota.rollback.cancel()').decode()}")
 
