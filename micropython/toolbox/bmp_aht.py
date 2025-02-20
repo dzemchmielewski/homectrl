@@ -1,7 +1,7 @@
 from machine import SoftI2C, Pin
 
-from modules.ahtx0 import AHT20
-from modules.bmp280 import BMP280, BMP280_CASE_HANDHELD_DYN
+from toolbox.ahtx0 import AHT20
+from toolbox.bmp280 import BMP280, BMP280_CASE_HANDHELD_DYN
 
 
 class BMP_AHT:
