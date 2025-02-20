@@ -44,6 +44,16 @@ class OnAir(Common):
                         self.debug("SWITCH {} for {}".format(type(entry), entry.name.value))
                         self.process_entry(entry)
 
+                # Some additional data, passed OnAir, but not saved in the database:
+                for key, value in data.items():
+                    if key.startswith("transient_"):
+                        msg = {
+                            "name": {"value": device},
+                            "create_at": data["timestamp"],
+                            "value": value
+                        }
+                        self.mqtt.publish(Topic.OnAir.format(key.split('_')[1], device), json_serial(msg), retain=False)
+
             elif facility in [Topic.Device.Facility.capabilities, Topic.Device.Facility.state]:
                 self.mqtt.publish(Topic.OnAir.format(facility, device),
                                   json_serial(data), retain=True)

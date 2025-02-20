@@ -1,4 +1,6 @@
 import asyncio
+import json
+
 from machine import Pin, SoftI2C, SPI
 
 import config
@@ -97,15 +99,15 @@ class Thermometer(shared.Exitable, shared.EventEmitter):
         shared.EventEmitter.__init__(self, 'thermometer')
         self._therm_task = asyncio.create_task(self._read())
         self.thermometer = thermometer
+        self.temperature = None
 
     async def _read(self):
-        last = None
         while not self.exit:
             try:
                 value = self.thermometer.read()
             except NoThermocoupleAttached:
                 value = None
-            if value != last:
+            if value != self.temperature:
                 self.emit({
                     'recipient': 'display',
                     'part-recipient': 'dis-temp',
@@ -114,11 +116,10 @@ class Thermometer(shared.Exitable, shared.EventEmitter):
                 self.emit({
                     'recipient': 'owen',
                     'data': {
-                        'temperature': value
+                        'transient_temperature': value
                     }
                 })
-
-                last = value
+                self.temperature = value
             await asyncio.sleep_ms(1_000)
 
     def deinit(self):
@@ -181,6 +182,7 @@ class TimerManager(shared.EventEmitter, shared.EventConsumer):
         shared.EventEmitter.__init__(self, 'timer')
         shared.EventConsumer.__init__(self, 'timer')
         self.timer = Timer(tick_callback=self.value_to_display, done_callback=self._on_done)
+        self.timer_display = None
 
     def deinit(self):
         super().deinit()
@@ -209,6 +211,7 @@ class TimerManager(shared.EventEmitter, shared.EventConsumer):
             'part-recipient': 'dis-timer',
             'value': value
         })
+        self.timer_display = value
 
     def update_display(self):
         if self.timer.mode == Timer.TIMER_MODE_TIMER:
@@ -300,6 +303,14 @@ class OwenApplication(BoardApplication, shared.EventConsumer):
         shared.EventConsumer.__init__(self, self.name)
         (_, self.topic_data, _, _, _) = Configuration.topics(self.name)
 
+    def read(self, to_json = True):
+        result = {
+            "transient_temperature": self.therm.temperature,
+            "is_dimmed": self.display.is_dimmed,
+            "timer_display": self.timer.timer_display
+        }
+        return json.dumps(result) if to_json else result
+
     async def start(self):
         await super().start()
 
@@ -334,7 +345,7 @@ class OwenApplication(BoardApplication, shared.EventConsumer):
 
         self.listen_to(self.timer)
 
-        self.timer.timer.set_timer_value(0, 0, 10)
+        self.timer.timer.set_timer_value(*config.DEFAULT_TIMER_VALUE)
         self.timer.initial()
 
         self.listen_to(self.therm)
@@ -342,7 +353,7 @@ class OwenApplication(BoardApplication, shared.EventConsumer):
 
     async def consume(self, event: dict):
         if (data := event.get('data')) is not None:
-            await self.publish(self.topic_data, data, True)
+            await self.publish(self.topic_data, data, False)
 
 #LCD:
 # 6 CS

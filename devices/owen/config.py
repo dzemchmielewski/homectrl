@@ -12,9 +12,10 @@ for handler in logging.getLogger().handlers:
 logging.getLogger('owen-ws').setLevel(logging.DEBUG)
 logging.getLogger('mqtt').setLevel(logging.DEBUG)
 
-# SCREEN_DIM_TIME = const(2*60)
-SCREEN_DIM_TIME = const(15)
+SCREEN_DIM_TIME = const(2*60)
+# SCREEN_DIM_TIME = const(15)
 ALARM_TIMEOUT = const(5*60)
+DEFAULT_TIMER_VALUE = (0, 5, 0)
 SILENT_ALARM = True
 
 def rgb888_to_rgb565(r, g, b):
