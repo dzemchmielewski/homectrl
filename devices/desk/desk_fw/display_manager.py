@@ -1,14 +1,14 @@
 import framebuf
 from machine import SPI, Pin
 
-from desk.framebuf_writer import Writer
-from desk.ssd1327 import SSD1327_SPI
-import desk.dejavu24 as font24
-import desk.background as background
-import desk.digits_big as digits_big
-import desk.digits_big_tight as digits_big_tight
-import desk.up as up_arrow
-import desk.down as down_arrow
+from desk_fw.framebuf_writer import Writer
+from desk_fw.ssd1327 import SSD1327_SPI
+import desk_fw.dejavu24 as font24
+import desk_fw.background as background
+import desk_fw.digits_big as digits_big
+import desk_fw.digits_big_tight as digits_big_tight
+import desk_fw.up as up_arrow
+import desk_fw.down as down_arrow
 
 
 class DeskDisplayManager(framebuf.FrameBuffer):
@@ -104,10 +104,12 @@ class DeskDisplayManager(framebuf.FrameBuffer):
         self.writer.printstring(data["status"] if len(data["status"]) <= 3 else data["status"].lower())
 
         self.set_pos(48, 28)
-        self.writer.printstring("{:6.3f}".format(data["voltage"]))
+        num_format = "{:6.3f}" if isinstance(data["voltage"],(float,int)) else "{}"
+        self.writer.printstring(num_format.format(data["voltage"]))
 
         self.set_pos(71, 28)
-        self.writer.printstring("{:6.4f}".format(data["current"]))
+        num_format = "{:6.4f}" if isinstance(data["current"],(float,int)) else "{}"
+        self.writer.printstring(num_format.format(data["current"]))
 
         if data.get('invert') is not None and data['invert']:
             self.invert()

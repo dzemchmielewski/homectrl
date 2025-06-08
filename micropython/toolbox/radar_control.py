@@ -1,5 +1,5 @@
-from modules.ld2410 import LD2410
-from board.command_parser import CommandParser
+from toolbox.ld2410 import LD2410
+from toolbox.command_parser import CommandParser
 
 # Ranges:
 # GATE: 0, 0.00m - 0.75m

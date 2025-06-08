@@ -144,7 +144,12 @@ class HomeCtrl(Common):
             else:
                 from backend.tools import WSCommandLineClient
                 self.log("Connecting to: {}".format(args.server_id))
-                WSCommandLineClient(args.server_id, not args.no_format).start()
+                if args.exit:
+                    client = WSCommandLineClient(args.server_id, not args.no_format)
+                    client.ws.send("shared.Exit.go()")
+                    client.ws.close()
+                else:
+                    WSCommandLineClient(args.server_id, not args.no_format).start()
 
         elif args.command == "ping":
             ping_args = ""

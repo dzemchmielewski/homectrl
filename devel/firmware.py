@@ -53,7 +53,7 @@ class Firmware:
     commit.set_defaults(ota_command="commit")
 
     build = subparsers.add_parser("build", help="Build micropython firmware", formatter_class=RawTextArgumentDefaultsHelpFormatter)
-    build.add_argument("--port", "-p", choices=["C3", "S3"], help="Available ports", required=True)
+    build.add_argument("--port", "-p", choices=["C3", "S3", "GENERIC"], help="Available ports", required=True)
     build.add_argument("--version", "-v", help="Version number to put into the firmware",
                        default=datetime.datetime.now().strftime("%Y%m%d_%H_%M"))
     build.add_argument("--src-micropython", help="Micropython ESP32 source directory",
@@ -120,7 +120,7 @@ class Firmware:
             # self.copy(f"{self.args.src_homectrl}/micropython-stdlib", f"{self.args.src_micropython}/modules/")
 
             try:
-                shutil.rmtree(f"{self.args.src_micropython}/modules/desk")
+                shutil.rmtree(f"{self.args.src_micropython}/modules/desk_fw")
             except FileNotFoundError:
                 pass
 
@@ -128,24 +128,26 @@ class Firmware:
             self.apply_boot_version()
 
             if Firmware.INC_desk in  self.args.include:
-                self.copy(f"{self.args.src_homectrl}/esp32/desk", f"{self.args.src_micropython}/modules/desk")
+                shutil.copytree(f"{self.args.src_homectrl}/devices/desk/desk_fw", f"{self.args.src_micropython}/modules/desk_fw/")
 
             make_opt = ""
             if Firmware.INC_st7789 in self.args.include:
                 make_opt += " USER_C_MODULES=/home/dzem/MP_BUILD/st7789_mpy/st7789/ "
 
+            board_name = f"ESP32_GENERIC_{self.args.port}" if self.args.port != "GENERIC" else "ESP32_GENERIC"
+
             build_cmd = (f"/bin/bash -c "
                 "'"
                 f" cd {self.args.src_micropython}"
                 f" && source {self.args.src_esp_idf}/export.sh "
-                f" && make BOARD=ESP32_GENERIC_{self.args.port} BOARD_VARIANT=OTA {make_opt} all"
+                f" && make BOARD={board_name} BOARD_VARIANT=OTA {make_opt} all"
                 "'")
             print(f"Build command: {build_cmd}")
 
             ret_code = os.system(build_cmd)
 
             if ret_code == 0:
-                shutil.copyfile(f"{self.args.src_micropython}/build-ESP32_GENERIC_{self.args.port}-OTA/micropython.bin",
+                shutil.copyfile(f"{self.args.src_micropython}/build-{board_name}-OTA/micropython.bin",
                                 f"/www/micropython-esp32-{self.args.port.lower()}-{self.args.version}.bin")
                 print("BUILD DONE")
                 print(f"http://pi5.home/micropython-esp32-{self.args.port.lower()}-{self.args.version}.bin")

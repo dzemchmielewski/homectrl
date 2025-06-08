@@ -1,13 +1,14 @@
 # MIT License (MIT)
 # Copyright (c) 2022 Mike Teachman
 # https://opensource.org/licenses/MIT
-import time
+import asyncio
 
 # Platform-independent MicroPython code for the rotary encoder module
 
 # Documentation:
 #   https://github.com/MikeTeachman/micropython-rotary
 
+from micropython import const
 from machine import Pin
 
 _DIR_CW = const(0x10)  # Clockwise step
@@ -178,6 +179,7 @@ class RotaryIRQ(Rotary):
 
     def __init__(self, pin_num_clk, pin_num_dt, min_val=0, max_val=10, incr=1,
                  reverse=False, range_mode=Rotary.RANGE_UNBOUNDED, pull_up=False, half_step=False, invert=False):
+
         super().__init__(min_val, max_val, incr, reverse, range_mode, half_step, invert)
 
         if pull_up == True:
@@ -224,46 +226,43 @@ class RotaryIRQ(Rotary):
         self._hal_disable_irq()
 
 
-class ReadOnceRotary(RotaryIRQ):
 
-    def __init__(self, pin_num_clk, pin_num_dt, min_val=0, max_val=10, incr=1,
-                 reverse=False, range_mode=Rotary.RANGE_UNBOUNDED, pull_up=False, half_step=False, invert=False):
-        super().__init__(pin_num_clk, pin_num_dt, min_val, max_val, incr, reverse, range_mode, pull_up, half_step, invert)
-        self.new_value = False
+if __name__ == '__main__':
 
-    def value(self):
-        if self.new_value:
-            self.new_value = False
-            return super().value()
-        return None
+    class Application():
+        def __init__(self, rotary):
+            self.rotary = rotary
+            self.rotary_event = asyncio.Event()
+            asyncio.create_task(self.action())
+            rotary.add_listener(self.callback)
 
-    def _process_rotary_pins(self, pin):
-        super()._process_rotary_pins(pin)
-        self.new_value = True
+        def callback(self):
+            self.rotary_event.set()
+
+        async def action(self):
+            while True:
+                await self.rotary_event.wait()
+                print("Rotary = {}". format(self.rotary.value()))
+                self.rotary_event.clear()
 
 
-if __name__ == "__main__":
+    async def main():
+        rotary_encoder = RotaryIRQ(pin_num_clk=39,
+                                     pin_num_dt=38,
+                                     min_val=0,
+                                     max_val=11,
+                                     reverse=False,
+                                     range_mode=RotaryIRQ.RANGE_WRAP)
+        app = Application(rotary_encoder)
 
-    # r = RotaryIRQ(pin_num_clk=38,
-    #           pin_num_dt=39,
-    #           min_val=0,
-    #           max_val=5,
-    #           reverse=False,
-    #           range_mode=RotaryIRQ.RANGE_WRAP)
-    # val_old = r.value()
-    # while True:
-    #     val_new = r.value()
-    #
-    #     if val_old != val_new:
-    #         val_old = val_new
-    #         print('result =', val_new)
-    #
-    #     time.sleep_ms(50)
+        # keep the event loop active
+        while True:
+            await asyncio.sleep_ms(10)
 
-    r = ReadOnceRotary(pin_num_clk=39, pin_num_dt=38,
-                      min_val=0, max_val=11,
-                      reverse=False, range_mode=RotaryIRQ.RANGE_WRAP)
-    while True:
-        if (val := r.value()) is not None:
-            print('result =', val)
-        time.sleep_ms(50)
+
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, Exception) as e:
+        print('Exception {} {}\n'.format(type(e).__name__, e))
+    finally:
+        ret = asyncio.new_event_loop()  # Clear retained uasyncio state

@@ -84,7 +84,7 @@ class ConnectionManager(Common):
         del self.connections[facet][id]
 
     async def send_message(self, message, facet: str = None) -> None:
-        self.log("Send Message[{}]. Clients: {}".format(facet, self.connections))
+        # self.log("Send Message[{}]. Clients: {}".format(facet, self.connections))
         if self.connections.get(facet):
             for id, ws in self.connections[facet].items():
                 try:

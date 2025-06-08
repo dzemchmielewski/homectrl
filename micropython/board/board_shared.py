@@ -1,5 +1,25 @@
+import time
+
 import asyncio
 import logging
+
+
+class Utils:
+
+    @staticmethod
+    def format_uptime(uptime):
+        (minutes, seconds) = divmod(uptime, 60)
+        (hours, minutes) = divmod(minutes, 60)
+        (days, hours) = divmod(hours, 24)
+        result = "{:02d}:{:02d}:{:02d}".format(hours, minutes, seconds)
+        if days:
+            result = "{:d} days ".format(days) + " " + result
+        return result
+
+    @staticmethod
+    def time_str():
+        return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+
 
 class DataEvent(asyncio.Event):
     def __init__(self):

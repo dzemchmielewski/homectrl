@@ -51,10 +51,12 @@ else:
 ESP8266 = platform == "esp8266"
 PYBOARD = platform == "pyboard"
 
+# DZEM: 0 -> non-zero
+ZERO_SLEEP_MS = 20
 
 # Default "do little" coro for optional user replacement
 async def eliza(*_):  # e.g. via set_wifi_handler(coro): see test program
-    await asyncio.sleep_ms(0)
+    await asyncio.sleep_ms(ZERO_SLEEP_MS)
 
 
 class MsgQueue:
@@ -248,7 +250,7 @@ class MQTT_base:
                 size += msg_size
                 t = ticks_ms()
                 self.last_rx = ticks_ms()
-            await asyncio.sleep_ms(0)
+            await asyncio.sleep_ms(ZERO_SLEEP_MS)
         return buffer[:n]
 
     async def _as_write(self, bytes_wr, length=0, sock=None):
@@ -272,7 +274,7 @@ class MQTT_base:
             if n:
                 t = ticks_ms()
                 bytes_wr = bytes_wr[n:]
-            await asyncio.sleep_ms(0)
+            await asyncio.sleep_ms(ZERO_SLEEP_MS)
 
     async def _send_str(self, s):
         await self._as_write(struct.pack("!H", len(s)))
@@ -300,7 +302,7 @@ class MQTT_base:
         except OSError as e:
             if e.args[0] not in BUSY_ERRORS:
                 raise
-        await asyncio.sleep_ms(0)
+        await asyncio.sleep_ms(ZERO_SLEEP_MS)
         self.dprint("Connecting to broker.")
         if self._ssl:
             try:
@@ -582,7 +584,7 @@ class MQTT_base:
             res = self._sock.read(1)  # Throws OSError on WiFi fail
         except OSError as e:
             if e.args[0] in BUSY_ERRORS:  # Needed by RP2
-                await asyncio.sleep_ms(0)
+                await asyncio.sleep_ms(ZERO_SLEEP_MS)
                 return
             raise
 
@@ -848,7 +850,7 @@ class MQTTClient(MQTT_base):
                 async with self.lock:
                     await self.wait_msg()  # Immediate return if no message
                 # DZEM: 0 -> non-zero
-                await asyncio.sleep_ms(100)  # Let other tasks get lock
+                await asyncio.sleep_ms(ZERO_SLEEP_MS)  # Let other tasks get lock
 
         except OSError:
             pass
@@ -873,7 +875,7 @@ class MQTTClient(MQTT_base):
         for task in self._tasks:
             task.cancel()
         self._tasks.clear()
-        await asyncio.sleep_ms(0)  # Ensure cancellation complete
+        await asyncio.sleep_ms(ZERO_SLEEP_MS)  # Ensure cancellation complete
         if kill_skt:  # Close socket
             self._close()
 

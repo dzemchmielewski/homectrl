@@ -1,6 +1,4 @@
-import time
-
-from modules.pinio import PinIO
+from toolbox.pinio import PinIO
 
 
 class AnalogMultiplexer:
@@ -29,6 +27,7 @@ class AnalogMultiplexer:
 
         bin_channel = self.bin_format.format(channel)
         self.log("CHANNEL: {}, PIN inputs ({}): {}".format(channel, " ".join(["s{}".format(i) for i in reversed(range(0, len(self.pins)))]), bin_channel))
+
         for i in range(0, len(bin_channel)):
             signal = 1 if bin_channel[i:i + 1] == "1" else 0
             self.pinsIO[i].set(signal)
@@ -57,24 +56,3 @@ class AnalogMultiplexer:
         if self.signal_pin:
             self.signal_pin.on()
 
-
-if __name__ == "__main__":
-
-    m = AnalogMultiplexer([14, 13, 47, 48][::-1], signal_pin=21, channels_range=16)
-
-    try:
-        while True:
-            print("")
-            number = int(input("Number (0-{}): ".format(m.channels_range - 1)))
-            m.set_on(number)
-    except KeyboardInterrupt:
-        pass
-
-    # try:
-    #     while True:
-    #         ons = m.read_on()
-    #         if len(ons) > 0:
-    #             print(f"SIGNAL ON CHANNEL(S): {ons}")
-    #         time.sleep(1)
-    # except KeyboardInterrupt:
-    #     pass

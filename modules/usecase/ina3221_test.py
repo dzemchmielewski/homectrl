@@ -3,13 +3,14 @@
 import time
 import sys
 from machine import Pin, SoftI2C
-from modules.ina3221 import *
+from ina3221 import *
 
 bus  = SoftI2C(scl=Pin(11), sda=Pin(12), freq=400000)
 
 # INA3221.IS_FULL_API = False
-ina = [INA3221(bus, i2c_addr=0x40 + i) for i in range(4)]
-for i in range(4):
+size = 1
+ina = [INA3221(bus, i2c_addr=0x40 + i) for i in range(size)]
+for i in range(size):
     if INA3221.IS_FULL_API:
         ina[i].update(reg=C_REG_CONFIG,
                            mask=C_AVERAGING_MASK | C_VBUS_CONV_TIME_MASK | C_SHUNT_CONV_TIME_MASK | C_MODE_MASK,
@@ -17,7 +18,7 @@ for i in range(4):
     for c in range(3):
         ina[i].enable_channel(c + 1)
 
-ina3221 = ina[2]
+ina3221 = ina[0]
 while True:
     if INA3221.IS_FULL_API: # is_ready available only in "full" variant
         while not ina3221.is_ready:
@@ -33,7 +34,7 @@ while True:
     line_current =       "Current       "
 
     for chan in range(1,4):
-        if ina3221.is_channel_enabled(chan):
+        #if ina3221.is_channel_enabled(chan):
             #
             bus_voltage = ina3221.bus_voltage(chan)
             shunt_voltage = ina3221.shunt_voltage(chan)

@@ -3,8 +3,7 @@ import time
 
 print("START")
 
-# pin = 0
-pin = 4
+pin = 1
 adc_pin = Pin(pin, mode=Pin.IN)
 adc = ADC(adc_pin)
 adc.atten(ADC.ATTN_11DB)

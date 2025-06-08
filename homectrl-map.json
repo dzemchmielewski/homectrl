@@ -71,6 +71,12 @@
       "port": 8123,
       "debug": false,
       "webrepl_password": "${webrepl_password}"
+    },
+    "test": {
+      "host": "192.168.0.131",
+      "port": 8123,
+      "debug": false,
+      "webrepl_password": "${webrepl_password}"
     }
   },
   "mqtt": {
@@ -102,14 +108,14 @@
   "charts": {
     "24hours": {
       "polar": {
-        "Presence": ["kitchen"],
-        "Light": ["pantry", "kitchen"],
+        "Presence": ["kitchen", "toilet"],
+        "Light": ["pantry", "kitchen", "toilet", "wardrobe"],
         "Darkness": ["kitchen"]
       }
     },
     "1week": {
       "default": {
-        "Temperature": ["kitchen", "pantry"]
+        "Temperature": ["kitchen", "pantry", "toilet"]
       }
     }
   },

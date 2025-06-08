@@ -1,8 +1,11 @@
 import asyncio
+
+import logging
 import time
 import os
 
 import board.board_shared as shared
+from board.board_shared import Utils as util
 from board.board_web_socket import BoardWebSocket
 from board.mqtt_as import MQTTClient
 from board.mqtt_as import config as mqttconfig
@@ -59,15 +62,17 @@ class MQTT(shared.Exitable, shared.Named):
 
 class BoardApplication(shared.Named, shared.Exitable):
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, use_mqtt: bool = True):
         shared.Exit.init()
         if not hasattr(self, 'name'):
             shared.Named.__init__(self, name)
         shared.Exitable.__init__(self)
         self.start_time = time.ticks_ms()
-        self.mqtt = None
         self.ws_server = BoardWebSocket({'self': self} | globals())
-        (self.topic_live, _, self.topic_state, self.topic_capabilities, _) = Configuration.topics(name)
+        self.use_mqtt = use_mqtt
+        if self.use_mqtt:
+            self.mqtt = None
+            (self.topic_live, _, self.topic_state, self.topic_capabilities, _) = Configuration.topics(name)
         self.control = {}
         self.capabilities = {'controls': []}
 
@@ -76,24 +81,26 @@ class BoardApplication(shared.Named, shared.Exitable):
              'id': ubinascii.hexlify(machine.unique_id()).decode(),
             'uname': {key: eval('os.uname().' + key) for key in dir(os.uname()) if not key.startswith('__')},
             'frequency': machine.freq() / 1_000_000,
-            'os_up_time': self.format_uptime(time.ticks_ms() // 1_000),
-            'app_up_time': self.format_uptime((time.ticks_ms() - self.start_time) // 1_000),
+            'os_up_time': util.format_uptime(time.ticks_ms() // 1_000),
+            'app_up_time': util.format_uptime((time.ticks_ms() - self.start_time) // 1_000),
             'mcu_temperature': esp32.mcu_temperature() if hasattr(esp32,'mcu_temperature') else None,
             'mem_alloc': gc.mem_alloc(),
             'mem_free': gc.mem_free(),
             'boot': Boot.get_instance().version,
             'ifconfig': Boot.get_instance().wifi.ifconfig(),
-            'time': time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            'time': util.time_str()
         })
 
     async def publish(self, topic, data, retain=False, qos=0, properties=None):
-        await self.mqtt.client.publish(topic, json.dumps(data), retain, qos, properties)
+        if self.use_mqtt:
+            await self.mqtt.client.publish(topic, json.dumps(data), retain, qos, properties)
 
     async def start(self):
-        self.mqtt = MQTT(self.name)
-        await self.mqtt.connect()
-        await self.publish(self.topic_state, self.control, True)
-        await self.publish(self.topic_capabilities, self.capabilities, True)
+        if self.use_mqtt:
+            self.mqtt = MQTT(self.name)
+            await self.mqtt.connect()
+            await self.publish(self.topic_state, self.control, True)
+            await self.publish(self.topic_capabilities, self.capabilities, True)
 
     async def mqtt_messages(self):
         async for topic, msg, retained in self.mqtt.client.queue:
@@ -110,7 +117,8 @@ class BoardApplication(shared.Named, shared.Exitable):
 
     async def _asyncio_entry(self):
         asyncio.create_task(self.start())
-        self._mqtt_messages_task = asyncio.create_task(self.mqtt_messages())
+        if self.use_mqtt:
+            self._mqtt_messages_task = asyncio.create_task(self.mqtt_messages())
         asyncio.create_task(self.ws_server.start_server())
         while not shared.Exit.is_exit():
             await asyncio.sleep(1)
@@ -120,7 +128,8 @@ class BoardApplication(shared.Named, shared.Exitable):
 
     def deinit(self):
         self.ws_server.shutdown()
-        self._mqtt_messages_task.cancel()
+        if self.use_mqtt:
+            self._mqtt_messages_task.cancel()
 
     def run(self):
         async def nothing():
@@ -137,15 +146,6 @@ class BoardApplication(shared.Named, shared.Exitable):
             asyncio.get_event_loop().run_until_complete(nothing())
             self.log.info("END")
 
-    @staticmethod
-    def format_uptime(uptime):
-        (minutes, seconds) = divmod(uptime, 60)
-        (hours, minutes) = divmod(minutes, 60)
-        (days, hours) = divmod(hours, 24)
-        result = "{:02d}:{:02d}:{:02d}".format(hours, minutes, seconds)
-        if days:
-            result = "{:d} days ".format(days) + " " + result
-        return result
 
     @staticmethod
     def validate_controls(capabilities, input: dict) -> dict:

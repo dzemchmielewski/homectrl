@@ -13,8 +13,8 @@ from board.board_application import BoardApplication
 from ft6x36 import FT6x36
 import st7789
 from display_manager import DisplayManager
-from max6675 import MAX6675, NoThermocoupleAttached
 from buzz_player import BuzzPlayer
+from max31856 import Max31856
 from timer import Timer
 
 
@@ -93,20 +93,52 @@ class Touch(shared.EventEmitter, shared.EventConsumer):
         self._read_task.cancel()
 
 
+# class Thermometer(shared.Exitable, shared.EventEmitter):
+#     def __init__(self, thermometer: MAX6675):
+#         shared.Exitable.__init__(self)
+#         shared.EventEmitter.__init__(self, 'thermometer')
+#         self._therm_task = asyncio.create_task(self._read())
+#         self.thermometer = thermometer
+#         self.temperature = None
+#
+#     async def _read(self):
+#         while not self.exit:
+#             try:
+#                 value = self.thermometer.read()
+#             except NoThermocoupleAttached:
+#                 value = None
+#             if value != self.temperature:
+#                 self.emit({
+#                     'recipient': 'display',
+#                     'part-recipient': 'dis-temp',
+#                     'value': value
+#                 })
+#                 self.emit({
+#                     'recipient': 'owen',
+#                     'data': {
+#                         'transient_temperature': value
+#                     }
+#                 })
+#                 self.temperature = value
+#             await asyncio.sleep_ms(500)
+#
+#     def deinit(self):
+#         super().deinit()
+#         self._therm_task.cancel()
+
 class Thermometer(shared.Exitable, shared.EventEmitter):
-    def __init__(self, thermometer: MAX6675):
+    def __init__(self, thermometer: Max31856, calibration=0):
         shared.Exitable.__init__(self)
         shared.EventEmitter.__init__(self, 'thermometer')
         self._therm_task = asyncio.create_task(self._read())
         self.thermometer = thermometer
+        self.calibration = calibration
         self.temperature = None
+
 
     async def _read(self):
         while not self.exit:
-            try:
-                value = self.thermometer.read()
-            except NoThermocoupleAttached:
-                value = None
+            value = round(self.thermometer.temperature(read_chip=True) + self.calibration)
             if value != self.temperature:
                 self.emit({
                     'recipient': 'display',
@@ -120,7 +152,7 @@ class Thermometer(shared.Exitable, shared.EventEmitter):
                     }
                 })
                 self.temperature = value
-            await asyncio.sleep_ms(1_000)
+            await asyncio.sleep_ms(500)
 
     def deinit(self):
         super().deinit()
@@ -306,6 +338,7 @@ class OwenApplication(BoardApplication, shared.EventConsumer):
     def read(self, to_json = True):
         result = {
             "transient_temperature": self.therm.temperature,
+            # "temperature_median": self.therm.thermometer.median(),
             "is_dimmed": self.display.is_dimmed,
             "timer_display": self.timer.timer_display
         }
@@ -325,7 +358,14 @@ class OwenApplication(BoardApplication, shared.EventConsumer):
             backlight=Pin(16, Pin.OUT),
             rotation=0))
 
-        self.therm =Thermometer(MAX6675(so_pin=11, cs_pin=12, sck_pin=13))
+        # self.therm =Thermometer(MAX6675(so_pin=11, cs_pin=12, sck_pin=13, calibration=-7))
+        max31856 = (
+            Max31856(
+                     SPI(1, baudrate=1000000, polarity=1, sck=Pin(17), mosi=Pin(12), miso=Pin(11)),
+                     cs_pin=Pin(13, Pin.OUT),
+                     tc_type='K'))
+
+        self.therm =Thermometer(max31856, calibration=-2.5)
 
         self.timer = TimerManager()
 

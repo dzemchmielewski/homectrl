@@ -14,24 +14,28 @@ class Boot:
     instance = None
 
     @classmethod
-    def get_instance(cls, pin_notify: int = None):
+    def get_instance(cls, pin_notify: int = None, pin_notify_on_signal: int | bool = None):
         if not cls.instance:
-            cls.instance = Boot(pin_notify)
+            cls.instance = Boot(pin_notify, pin_notify_on_signal)
         return cls.instance
 
-    def __init__(self, pin_notify: int = None):
+    def pin_notify_signal(self, on_off: int | bool):
+        if self.pin_notify:
+            self.pin_notify.value(int(on_off) == self.pin_notify_on_signal)
+
+    def __init__(self, pin_notify: int = None, pin_notify_on_signal: int | bool = None):
         self.wifi = None
         self.pin_notify = machine.Pin(pin_notify, machine.Pin.OUT) if pin_notify else None
+        self.pin_notify_on_signal = 0 if pin_notify_on_signal in [None, False, 0] else 1
 
-    def led_notification(self, reverse=False, turn_off=None):
+    def led_notification(self, reverse=False):
         if self.pin_notify:
-            if turn_off:
-                self.pin_notify.value(1)
-            else:
-                for sleep in (self.led_pattern[::-1] if reverse else self.led_pattern):
-                    for signal in [1, 0]:
-                        self.pin_notify.value(signal)
-                        time.sleep(sleep)
+            for sleep in (self.led_pattern[::-1] if reverse else self.led_pattern):
+                for signal in [1, 0]:
+                    self.pin_notify_signal(signal)
+                    time.sleep(sleep)
+            self.pin_notify_signal(1)
+
 
     def setup_wifi(self):
         if not self.wifi:
@@ -56,7 +60,7 @@ class Boot:
             if timeout <= 0:
                 self.led_notification(reverse=True)
 
-        self.led_notification(turn_off=True)
+        self.pin_notify_signal(0)
         print("WIFI connected! ifconfig: {}".format(self.wifi.ifconfig()))
         self.loaded['wifi'] = True
 
