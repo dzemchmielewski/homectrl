@@ -4,6 +4,7 @@ import logging
 import time
 import os
 
+
 import board.board_shared as shared
 from board.board_shared import Utils as util
 from board.board_web_socket import BoardWebSocket
@@ -33,6 +34,8 @@ class MQTT(shared.Exitable, shared.Named):
         mqttconfig['wifi_pw'] = Configuration.WIFI_PASSWORD
         mqttconfig["will"] = (self.topic_live, MQTT.LAST_WILL, True, 0)
 
+        self.is_initially_connected = False
+
         MQTTClient.DEBUG = False
         self.client = MQTTClient(mqttconfig)
         self._up_task = asyncio.create_task(self.on_up())
@@ -40,6 +43,7 @@ class MQTT(shared.Exitable, shared.Named):
     async def connect(self):
         try:
             await self.client.connect()
+            self.is_initially_connected = True
         except OSError as e:
             self.log.error(f"MQTT connecting FAILED")
             self.log.exception(e)
@@ -52,6 +56,17 @@ class MQTT(shared.Exitable, shared.Named):
             await self.client.publish(self.topic_live, self.I_AM_ALIVE, True)
             await self.client.subscribe(self.topic_control)
             self.log.info(f"MQTT listen to topic: {self.topic_control}")
+
+    async def publish(self, topic, data, retain=False, qos=0, properties=None):
+        if not self.is_initially_connected:
+            await self.connect()
+        if self.is_initially_connected:
+            try:
+                await self.client.publish(topic, data, retain, qos, properties)
+            except OSError as e:
+                self.log.error(f"MQTT publish FAILED - topic: '{topic}', message: '{data}', error: {e}")
+        else:
+            self.log.error(f"MQTT publish FAILED - not connected - topic: '{topic}', message: '{data}'")
 
     def deinit(self):
         self.client.publish(self.topic_live, self.END_OF_LIVE, True)
@@ -93,14 +108,14 @@ class BoardApplication(shared.Named, shared.Exitable):
 
     async def publish(self, topic, data, retain=False, qos=0, properties=None):
         if self.use_mqtt:
-            await self.mqtt.client.publish(topic, json.dumps(data), retain, qos, properties)
+            await self.mqtt.publish(topic, json.dumps(data), retain, qos, properties)
 
     async def start(self):
         if self.use_mqtt:
             self.mqtt = MQTT(self.name)
             await self.mqtt.connect()
-            await self.publish(self.topic_state, self.control, True)
-            await self.publish(self.topic_capabilities, self.capabilities, True)
+            # await self.publish(self.topic_state, self.control, True)
+            # await self.publish(self.topic_capabilities, self.capabilities, True)
 
     async def mqtt_messages(self):
         async for topic, msg, retained in self.mqtt.client.queue:

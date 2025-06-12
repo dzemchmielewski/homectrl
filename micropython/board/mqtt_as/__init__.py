@@ -479,7 +479,7 @@ class MQTT_base:
 
     # qos == 1: coro blocks until wait_msg gets correct PID.
     # If WiFi fails completely subclass re-publishes with new PID.
-    async def publish(self, topic, msg, retain, qos, properties=None):
+    async def publish(self, topic, msg, retain, qos=0, properties=None):
         pid = next(self.newpid)
         if qos:
             self.rcv_pids.add(pid)
@@ -959,12 +959,13 @@ class MQTTClient(MQTT_base):
                 pass
             self._reconnect()  # Broker or WiFi fail.
 
-    async def publish(self, topic, msg, retain=False, qos=0, properties=None):
-        qos_check(qos)
-        while 1:
-            await self._connection()
-            try:
-                return await super().publish(topic, msg, retain, qos, properties)
-            except OSError:
-                pass
-            self._reconnect()  # Broker or WiFi fail.
+    # DZEM: do not use this method, it is not reliable.
+    # async def publish(self, topic, msg, retain=False, qos=0, properties=None):
+    #     qos_check(qos)
+    #     while 1:
+    #         await self._connection()
+    #         try:
+    #             return await super().publish(topic, msg, retain, qos, properties)
+    #         except OSError:
+    #             pass
+    #         self._reconnect()  # Broker or WiFi fail.

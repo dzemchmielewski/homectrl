@@ -1,10 +1,10 @@
-import time
 import asyncio
 import json
 import logging
 
+import gc
 import machine
-from machine import Pin, Timer
+from machine import Pin
 
 from board.board_application import BoardApplication
 from board.boot import Boot
@@ -53,6 +53,7 @@ class TestApplication(BoardApplication):
 
     async def ping_task(self):
         while not self.exit:
+            gc.collect()
             self.read_ping = util.time_str()
             ifconfig = Boot.get_instance().wifi.ifconfig()
             logging.info("TestApplication.ping_task: ifconfig:  %s", ifconfig)
@@ -87,6 +88,7 @@ class TestApplication(BoardApplication):
         self._led_task.cancel()
         self._ping_task.cancel()
 
-from upysh import *
-cp('secrets.json_TEST', 'secrets.json')
-cp('configuration.py_TEST', 'configuration.py')
+# from upysh import *
+# cp('secrets.json_TEST', 'secrets.json')
+# cp('configuration.py_TEST', 'configuration.py')
+
