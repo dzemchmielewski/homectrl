@@ -61,7 +61,12 @@ class OnAir(Common):
             else:
                 self.log("ERROR! Topic not recognized: {}".format(msg.topic))
 
-        except BaseException as e:
+        except UnicodeError as e:
+            self.log("Unicode error caught! {}".format(e))
+            self.log("On message: [{}]{}".format(msg.topic, msg.payload))
+            traceback.print_exc()
+
+        except Exception as e:
             self.log("Exception caught! {}".format(e))
             self.log("On message: [{}]{}".format(msg.topic, msg.payload.decode()))
             traceback.print_exc()
