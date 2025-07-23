@@ -6,11 +6,12 @@ class Boot:
 
     loaded = {
         'wifi': False,
+        'lan': False,
         'time': False,
-        'webrepl': False
+        'webrepl': False,
     }
     led_pattern = [0.5, 0.3, 0.2, 0.2, 0.1, 0.1, 0.1, 0.05, 0.05]
-    version = '20241228_12_45'
+    version = '20000101_00_00'
     instance = None
 
     @classmethod
@@ -25,6 +26,7 @@ class Boot:
 
     def __init__(self, pin_notify: int = None, pin_notify_on_signal: int | bool = None):
         self.wifi = None
+        self.lan = None
         self.pin_notify = machine.Pin(pin_notify, machine.Pin.OUT) if pin_notify else None
         self.pin_notify_on_signal = 0 if pin_notify_on_signal in [None, False, 0] else 1
 
@@ -49,7 +51,7 @@ class Boot:
         while not self.wifi.isconnected():
             timeout = 30000
             self.led_notification()
-            print("WIFI connecting to: {}".format(Configuration.WIFI_SSID))
+            print(f"WIFI connecting to: {Configuration.WIFI_SSID}")
             self.wifi.connect(Configuration.WIFI_SSID, Configuration.WIFI_PASSWORD)
             while timeout > 0:
                 if not self.wifi.isconnected():
@@ -61,17 +63,45 @@ class Boot:
                 self.led_notification(reverse=True)
 
         self.pin_notify_signal(0)
-        print("WIFI connected! ifconfig: {}".format(self.wifi.ifconfig()))
+        print(f"WIFI connected! ifconfig: {self.wifi.ifconfig()}")
         self.loaded['wifi'] = True
 
+    def setup_lan(self):
+        if not self.lan:
+            import network
+
+            self.lan = network.LAN(0,
+                                   mdc=machine.Pin(23), mdio=machine.Pin(18),
+                                   phy_type=network.PHY_LAN8720, phy_addr=1,
+                                   power=machine.Pin(16))
+            self.lan.active(True)
+
+            while not self.lan.isconnected():
+                timeout = 30000
+                self.led_notification()
+                print("LAN connecting...")
+
+                while timeout > 0:
+                    if not self.wifi.isconnected():
+                        time.sleep_ms(200)
+                        timeout = timeout - 200
+                    else:
+                        break
+                if timeout <= 0:
+                    self.led_notification(reverse=True)
+
+            self.pin_notify_signal(0)
+            print(f"LAN connected! ifconfig: {self.lan.ifconfig()}")
+            self.loaded['lan'] = True
+
     def setup_webrepl(self):
-        if self.wifi and self.wifi.isconnected():
+        if self.isconnected():
             webrepl.start(password=Configuration.WEBREPL_PASSWORD)
             self.loaded['webrepl'] = True
             print("SUCCESS webrepl load")
 
     def setup_time(self):
-        if self.wifi and self.wifi.isconnected():
+        if self.isconnected():
             import ntptime
             ntptime.host = 'status.home'
 
@@ -91,26 +121,35 @@ class Boot:
             (year, month, mday, hour, minute, second, weekday, yearday) = cet
             machine.RTC().datetime((year, month, mday, 0, hour, minute, second, 0))
             self.loaded['time'] = True
-            print("SUCCESS time load: {}".format(time.localtime()))
+            print(f"SUCCESS time load: {time.localtime()}")
 
-    def load(self, wifi=True, webrepl=True, time=True):
+    def isconnected(self):
+        return (self.wifi and self.wifi.isconnected()) or (self.lan and self.lan.isconnected())
+
+    def load(self, wifi=True, lan=False, webrepl=True, time=True):
         if not self.loaded['wifi'] and wifi:
             try:
                 self.setup_wifi()
             except Exception as e:
-                print("FAILED to load wifi: {}".format(e))
+                print(f"FAILED to load wifi: {e}")
+
+        if not self.loaded['lan'] and lan:
+            try:
+                self.setup_lan()
+            except Exception as e:
+                print(f"FAILED to load lan: {e}")
 
         if not self.loaded['webrepl'] and webrepl:
             try:
                 self.setup_webrepl()
             except Exception as e:
-                print("FAILED to load webrepl: {}".format(e))
+                print(f"FAILED to load webrepl: {e}")
 
         if not self.loaded['time'] and time:
             try:
                 self.setup_time()
             except Exception as e:
-                print("FAILED to load time: {}".format(e))
+                print(f"FAILED to load time: {e}")
 
     @staticmethod
     def start_server(worker):
