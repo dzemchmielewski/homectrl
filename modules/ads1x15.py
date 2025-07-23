@@ -178,10 +178,10 @@ class ADS1X15(object):
  
         if (current_range != new_range) and (current_alert_pin_mode != ADS1X15Constants.ADS1115_DISABLE_ALERT):
             alert_limit = self.__read_ads1115(ADS1X15Constants.ADS1115_HI_THRESH_REG)
-            alert_limit = alert_limit * (current_voltage_range / self.__voltageRange)
+            alert_limit = alert_limit * (current_voltage_range // self.__voltageRange)
             self.__write_ads1115(ADS1X15Constants.ADS1115_HI_THRESH_REG, alert_limit)
             alert_limit = self.__read_ads1115(ADS1X15Constants.ADS1115_LO_THRESH_REG)
-            alert_limit = alert_limit * (current_voltage_range / self.__voltageRange)
+            alert_limit = alert_limit * (current_voltage_range // self.__voltageRange)
             self.__write_ads1115(ADS1X15Constants.ADS1115_LO_THRESH_REG, alert_limit)
      
         current_conf_reg &= ~0x8E00
