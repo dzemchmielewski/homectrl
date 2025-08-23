@@ -126,6 +126,21 @@ class Boot:
     def isconnected(self):
         return (self.wifi and self.wifi.isconnected()) or (self.lan and self.lan.isconnected())
 
+    def ifconfig(self):
+        return self.wifi.ifconfig() if self.wifi and self.wifi.isconnected() \
+            else self.lan.ifconfig() if self.lan and self.lan.isconnected() \
+            else None
+
+    def iftype(self):
+        return 'WLAN' if self.wifi and self.wifi.isconnected() \
+            else 'LAN' if self.lan and self.lan.isconnected() \
+            else None
+
+    def ifnetwork(self):
+        return self.wifi if self.wifi and self.wifi.isconnected() \
+            else self.lan if self.lan and self.lan.isconnected() \
+            else None
+
     def load(self, wifi=True, lan=False, webrepl=True, time=True):
         if not self.loaded['wifi'] and wifi:
             try:

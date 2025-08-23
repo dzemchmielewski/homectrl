@@ -112,6 +112,8 @@ config = {
     "gateway": False,
     "mqttv5": False,
     "mqttv5_con_props": None,
+    "iftype": None,
+    "ifnetwork": None,
 }
 
 
@@ -180,8 +182,12 @@ class MQTT_base:
         if self.server is None:
             raise ValueError("no server specified.")
         self._sock = None
-        self._sta_if = network.WLAN(network.STA_IF)
-        self._sta_if.active(True)
+        self.iftype = config['iftype']
+        if config['ifnetwork']:
+            self._sta_if = config['ifnetwork']
+        else:
+            self._sta_if = network.WLAN(network.STA_IF)
+            self._sta_if.active(True)
         if config["gateway"]:  # Called from gateway (hence ESP32).
             import aioespnow  # Set up ESPNOW
 
@@ -795,10 +801,15 @@ class MQTTClient(MQTT_base):
 
     async def connect(self, *, quick=False):  # Quick initial connect option for battery apps
         if not self._has_connected:
-            await self.wifi_connect(quick)  # On 1st call, caller handles error
-            # Note this blocks if DNS lookup occurs. Do it once to prevent
-            # blocking during later internet outage:
-            self._addr = socket.getaddrinfo(self.server, self.port)[0][-1]
+            if self.iftype and self.iftype == "LAN":
+                if not self._sta_if.isconnected():
+                    raise OSError("LAN cable not connected")
+                self._addr = socket.getaddrinfo(self.server, self.port)[0][-1]
+            else:
+                await self.wifi_connect(quick)  # On 1st call, caller handles error
+                # Note this blocks if DNS lookup occurs. Do it once to prevent
+                # blocking during later internet outage:
+                self._addr = socket.getaddrinfo(self.server, self.port)[0][-1]
         self._in_connect = True  # Disable low level ._isconnected check
         try:
             is_clean = self._clean
@@ -916,28 +927,34 @@ class MQTTClient(MQTT_base):
                 await asyncio.sleep(1)
                 gc.collect()
             else:  # Link is down, socket is closed, tasks are killed
-                try:
-                    self._sta_if.disconnect()
-                except OSError:
-                    self.dprint("Wi-Fi not started, unable to disconnect interface")
-                await asyncio.sleep(1)
-                try:
-                    await self.wifi_connect()
-                except OSError:
-                    continue
-                if not self._has_connected:  # User has issued the terminal .disconnect()
-                    self.dprint("Disconnected, exiting _keep_connected")
-                    break
-                try:
-                    await self.connect()
-                    # Now has set ._isconnected and scheduled _connect_handler().
-                    self.dprint("Reconnect OK!")
-                except OSError as e:
-                    self.dprint("Error in reconnect. %s", e)
-                    # Can get ECONNABORTED or -1. The latter signifies no or bad CONNACK received.
-                    self._close()  # Disconnect and try again.
-                    self._in_connect = False
-                    self._isconnected = False
+                if self.iftype and self.iftype == "LAN":
+                    self._sta_if.active(False)
+                    await asyncio.sleep(1)
+                    self._sta_if.active(True)
+                else:
+                    try:
+                        self._sta_if.disconnect()
+                    except OSError:
+                        self.dprint("Wi-Fi not started, unable to disconnect interface")
+                    await asyncio.sleep(1)
+                    try:
+                        await self.wifi_connect()
+                    except OSError:
+                        continue
+                    if not self._has_connected:  # User has issued the terminal .disconnect()
+                        self.dprint("Disconnected, exiting _keep_connected")
+                        break
+                    try:
+                        await self.connect()
+                        # Now has set ._isconnected and scheduled _connect_handler().
+                        self.dprint("Reconnect OK!")
+                    except OSError as e:
+                        self.dprint("Error in reconnect. %s", e)
+                        # Can get ECONNABORTED or -1. The latter signifies no or bad CONNACK received.
+                        self._close()  # Disconnect and try again.
+                        self._in_connect = False
+                        self._isconnected = False
+
         self.dprint("Disconnected, exited _keep_connected")
 
     async def subscribe(self, topic, qos=0, properties=None):
