@@ -78,8 +78,14 @@
       "debug": false,
       "webrepl_password": "${webrepl_password}"
     },
-    "stairs": {
+    "stairs-wifi": {
       "host": "192.168.0.132",
+      "port": 8123,
+      "debug": false,
+      "webrepl_password": "${webrepl_password}"
+    },
+    "stairs": {
+      "host": "192.168.0.133",
       "port": 8123,
       "debug": false,
       "webrepl_password": "${webrepl_password}"
