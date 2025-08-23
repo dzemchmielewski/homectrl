@@ -82,7 +82,7 @@ class Boot:
                 print("LAN connecting...")
 
                 while timeout > 0:
-                    if not self.wifi.isconnected():
+                    if not self.lan.isconnected():
                         time.sleep_ms(200)
                         timeout = timeout - 200
                     else:

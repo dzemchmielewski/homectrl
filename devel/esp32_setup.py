@@ -16,7 +16,7 @@ class Esp32Setup:
         description='DZEM HomeCtrl Devel - ESP32 board setup',
         add_help=True, formatter_class=RawTextArgumentDefaultsHelpFormatter)
 
-    argparser.add_argument('--dest-board', type=str, required=False, dest="dest_board", default="/board/",
+    argparser.add_argument('--dest-board', type=str, required=False, dest="dest_board", default="/pyboard/",
                            help="Destination board name")
     argparser.add_argument('--dest-boot', type=str, required=False, dest="dest_boot", default="boot.py",
                            help="Destination boot file name")
@@ -30,6 +30,8 @@ class Esp32Setup:
 
     argparser.add_argument('--boot-wifi', type=str2bool, default=True,
                            help='Establish WiFi connection on boot')
+    argparser.add_argument('--boot-lan', type=str2bool, default=False,
+                           help='Establish LAN connection on boot')
     argparser.add_argument('--boot-webrepl', type=str2bool, default=True,
                            help='Start WEBREPL on boot')
     argparser.add_argument('--boot-time', type=str2bool, default=True,
@@ -54,7 +56,7 @@ class Esp32Setup:
         self.dest_board = parsed_args.dest_board
         self.dest_boot = parsed_args.dest_boot
         self.dest_main = parsed_args.dest_main
-        self.boot_options = [parsed_args.boot_wifi, parsed_args.boot_webrepl,parsed_args.boot_time]
+        self.boot_options = [parsed_args.boot_wifi, parsed_args.boot_lan, parsed_args.boot_webrepl,parsed_args.boot_time]
 
     def run(self):
         tempdir = tempfile.gettempdir()
@@ -72,7 +74,7 @@ class Esp32Setup:
         with open(boot, "w") as f:
             f.write("from board.boot import Boot\n")
             f.write(f"boot = Boot.get_instance(pin_notify={self.pin}, pin_notify_on_signal={self.pin_on})\n")
-            f.write("boot.load(wifi={}, webrepl={}, time={})\n".format(*self.boot_options))
+            f.write("boot.load(wifi={}, lan={}, webrepl={}, time={})\n".format(*self.boot_options))
             # f.write("boot.setup_wifi()\n")
             # f.write("boot.setup_time()\n")
 
