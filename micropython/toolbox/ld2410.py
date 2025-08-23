@@ -305,7 +305,7 @@ class LD2410:
 
     # Configure Detection Gates and Detect Duration
     def edit_detection_params(self, moving_max_gate, static_max_gate, timeout):
-        self.log("Editing detection parameters")
+        self.log.info("Editing detection parameters")
         self.validate_range(moving_max_gate, GATE_MIN, GATE_MAX + 1)
         self.validate_range(static_max_gate, GATE_MIN, GATE_MAX + 1)
         self.validate_range(timeout, TIMEOUT_MIN, TIMEOUT_MAX + 1)
