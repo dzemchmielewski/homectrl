@@ -26,7 +26,7 @@ class KitchenApplication(BoardApplication):
         self.read_presence = None
         self.presence = None
 
-        self.conditions_reader = BMP_AHT.from_pins(9, 5)
+        self.conditions_reader = BMP_AHT.from_pins(9, 5, calibrate_pressure=-3.6)
         self.read_conditions = None
         self.conditions = (None, None, None)
 
