@@ -1,6 +1,5 @@
 import asyncio
 
-import logging
 import time
 import os
 
@@ -33,6 +32,8 @@ class MQTT(shared.Exitable, shared.Named):
         mqttconfig['ssid'] = Configuration.WIFI_SSID
         mqttconfig['wifi_pw'] = Configuration.WIFI_PASSWORD
         mqttconfig["will"] = (self.topic_live, MQTT.LAST_WILL, True, 0)
+        mqttconfig["iftype"] = Boot.get_instance().iftype()
+        mqttconfig["ifnetwork"] = Boot.get_instance().ifnetwork()
 
         self.is_initially_connected = False
 
@@ -102,7 +103,8 @@ class BoardApplication(shared.Named, shared.Exitable):
             'mem_alloc': gc.mem_alloc(),
             'mem_free': gc.mem_free(),
             'boot': Boot.get_instance().version,
-            'ifconfig': Boot.get_instance().wifi.ifconfig(),
+            'iftype': Boot.get_instance().iftype(),
+            'ifconfig': Boot.get_instance().ifconfig(),
             'time': util.time_str()
         })
 
