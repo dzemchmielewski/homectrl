@@ -1,8 +1,6 @@
 import asyncio
-
 import time
 import os
-
 
 import board.board_shared as shared
 from board.board_shared import Utils as util
@@ -20,10 +18,11 @@ class MQTT(shared.Exitable, shared.Named):
     LAST_WILL = json.dumps({"live": False, 'message': "last will"})
     END_OF_LIVE = json.dumps({"live": False, 'message': "goodbye"})
 
-    def __init__(self, app_name):
+    def __init__(self, app_name, subscriptions={}):
         shared.Exitable.__init__(self)
         shared.Named.__init__(self, 'mqtt')
-        (self.topic_live, _, _, _, self.topic_control) = Configuration.topics(app_name)
+        self.subscriptions = subscriptions
+        (self.topic_live, _, _, _, _) = Configuration.topics(app_name)
         mqttconfig['server'] = Configuration.MQTT_SERVER
         mqttconfig['user'] = Configuration.MQTT_USERNAME
         mqttconfig['password'] = Configuration.MQTT_PASSWORD
@@ -55,8 +54,9 @@ class MQTT(shared.Exitable, shared.Named):
             self.client.up.clear()
             self.log.info("MQTT connection established")
             await self.client.publish(self.topic_live, self.I_AM_ALIVE, True)
-            await self.client.subscribe(self.topic_control)
-            self.log.info(f"MQTT listen to topic: {self.topic_control}")
+            for topic in self.subscriptions.keys():
+                await self.client.subscribe(topic)
+                self.log.info(f"MQTT listen to topic: {topic}")
 
     async def publish(self, topic, data, retain=False, qos=0, properties=None):
         if not self.is_initially_connected:
@@ -75,6 +75,39 @@ class MQTT(shared.Exitable, shared.Named):
         self._up_task.cancel()
         self.client.disconnect()
 
+class Facility:
+    def __init__(self, name, endpoint, to_dict=None):
+        self.name = name
+        self._endpoint = endpoint
+        self._to_dict = to_dict if to_dict else (lambda x: {x.name: x.value})
+        self._value = None
+        self.set = None
+        self.get = None
+        self.task = None
+
+    @property
+    def value(self):
+        return self._value
+
+    @value.setter
+    def value(self, value):
+        self.set = time.ticks_ms()
+        self._value = value
+
+    @property
+    def endpoint(self):
+        self.get = time.ticks_ms()
+        return self._endpoint
+
+    def to_dict(self):
+        return ({
+                    self.name + "_set": util.time_str_ms(self.set) if self.set else None,
+                    self.name + "_get": util.time_str_ms(self.get) if self.get else None,
+                } | self._to_dict(self))
+
+    def __iter__(self):
+        return iter(self.to_dict().items())
+
 
 class BoardApplication(shared.Named, shared.Exitable):
 
@@ -88,7 +121,9 @@ class BoardApplication(shared.Named, shared.Exitable):
         self.use_mqtt = use_mqtt
         if self.use_mqtt:
             self.mqtt = None
-            (self.topic_live, _, self.topic_state, self.topic_capabilities, _) = Configuration.topics(name)
+            (self.topic_live, _, self.topic_state, self.topic_capabilities, topic_control) = Configuration.topics(name)
+            self.mqtt_subscriptions = {topic_control: None}
+
         self.control = {}
         self.capabilities = {'controls': []}
 
@@ -114,23 +149,27 @@ class BoardApplication(shared.Named, shared.Exitable):
 
     async def start(self):
         if self.use_mqtt:
-            self.mqtt = MQTT(self.name)
+            self.mqtt = MQTT(self.name, self.mqtt_subscriptions)
             await self.mqtt.connect()
             # await self.publish(self.topic_state, self.control, True)
             # await self.publish(self.topic_capabilities, self.capabilities, True)
 
     async def mqtt_messages(self):
         async for topic, msg, retained in self.mqtt.client.queue:
-            message = msg.decode()
-            self.log.info(f"MQTT incoming - topic: '{topic.decode()}', message: '{message}', retained: {retained}")
-            try:
-                controls = json.loads(message)
-                for key, value in self.validate_controls(self.capabilities, controls).items():
-                    self.control[key] = value
-                await self.publish(self.topic_state, self.control, True)
-            except Exception as e:
-                await self.publish(self.topic_live,
-                             {"live": True, 'error': f"Incoming MQTT message problem: {message}, error: {e}"}, False)
+            themessage = msg.decode()
+            thetopic = topic.decode()
+            self.log.info(f"MQTT incoming - topic: '{thetopic}', message: '{themessage}', retained: {retained}")
+            if thetopic in self.mqtt.subscriptions and (callback := self.mqtt.subscriptions[thetopic]) is not None:
+                callback(thetopic, themessage, retained)
+            else:
+                try:
+                    controls = json.loads(themessage)
+                    for key, value in self.validate_controls(self.capabilities, controls).items():
+                        self.control[key] = value
+                    await self.publish(self.topic_state, self.control, True)
+                except Exception as e:
+                    await self.publish(self.topic_live,
+                                 {"live": True, 'error': f"Incoming MQTT message problem: {themessage}, error: {e}"}, False)
 
     async def _asyncio_entry(self):
         asyncio.create_task(self.start())
