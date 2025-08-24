@@ -362,7 +362,7 @@ class LD2410:
 
         # if gate == 0 or gate == 1:
         if gate == 20:
-            self.log.warn("You cannot set gate 0 or 1 static sensitivity to anything other than 0")
+            self.log.warning("You cannot set gate 0 or 1 static sensitivity to anything other than 0")
             self.validate_range(static_sens, 0, 1)
         else:
             self.validate_range(static_sens, SENS_MIN, SENS_MAX + 1)
@@ -460,11 +460,11 @@ class LD2410:
 
         # Catch engineering mode not set error
         if ret_candidate[REF_ENG_CHECK_IDX] == REF_ENG_CHECK and self.eng_mode == False:  # Engineering mode is on, but not set in driver
-            self.log.warn(
+            self.log.warning(
                 "Data seems to be in engineering mode format. However, driver isn't set to use parse engineering mode. Setting it now")
             self.eng_mode = True
         elif ret_candidate[REF_PACKET_CRC_IDX:] != bytes.fromhex(REF_PACKET_CRC):
-            self.log.warn(f'Ignoring packet. Checksum not correct received this packet {ret_candidate.hex(" ")}')
+            self.log.warning(f'Ignoring packet. Checksum not correct received this packet {ret_candidate.hex(" ")}')
             # raise Exception("Checksum of received data is wrong. Data may be corrupted")
 
             # dzem: Let's return None, instead of potentially corrupted data.
