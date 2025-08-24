@@ -5,6 +5,7 @@ import logging
 
 
 class Utils:
+    DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
     @staticmethod
     def format_uptime(uptime):
@@ -17,9 +18,13 @@ class Utils:
         return result
 
     @staticmethod
-    def time_str():
-        return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+    def time_str(ts: tuple=None):
+        return time.strftime(Utils.DATETIME_FORMAT, ts) if ts \
+            else time.strftime(Utils.DATETIME_FORMAT, time.localtime())
 
+    @staticmethod
+    def time_str_ms(ms: int):
+        return Utils.time_str(time.ticks_ms_to_ts(ms))
 
 class DataEvent(asyncio.Event):
     def __init__(self):
