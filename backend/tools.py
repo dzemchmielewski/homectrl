@@ -48,7 +48,7 @@ class WSCommandLineClient:
         try:
             if parse_json:
                 if self.json_format:
-                    return json_serial(json_deserial(result), indent=2)
+                    return json_serial(json_deserial(result), indent=2, sort_keys=True)
                 else:
                     return json_deserial(result)
         except ValueError as e:
@@ -426,8 +426,8 @@ class HomeCtrlJsonEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-def json_serial(obj, indent=None):
-    return json.dumps(obj, cls=HomeCtrlJsonEncoder, indent=indent)
+def json_serial(obj, indent=None, sort_keys=False):
+    return json.dumps(obj, cls=HomeCtrlJsonEncoder, indent=indent, sort_keys=sort_keys)
 
 
 def json_deserial(json_str):
