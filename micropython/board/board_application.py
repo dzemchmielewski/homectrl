@@ -76,13 +76,15 @@ class MQTT(shared.Exitable, shared.Named):
         self.client.disconnect()
 
 class Facility:
-    def __init__(self, name, endpoint, to_dict=None):
+    def __init__(self, name, endpoint = None, value=None, to_dict=None, register_set=True, register_access=True):
         self.name = name
         self._endpoint = endpoint
         self._to_dict = to_dict if to_dict else (lambda x: {x.name: x.value})
-        self._value = None
+        self._value = value
+        self.register_set = register_set
         self.set = None
-        self.get = None
+        self.register_access = register_access
+        self.access = None
         self.task = None
 
     @property
@@ -91,19 +93,21 @@ class Facility:
 
     @value.setter
     def value(self, value):
-        self.set = time.ticks_ms()
+        if self.register_set:
+            self.set = time.ticks_ms()
         self._value = value
 
     @property
     def endpoint(self):
-        self.get = time.ticks_ms()
+        if self.register_access:
+            self.access = time.ticks_ms()
         return self._endpoint
 
     def to_dict(self):
-        return ({
-                    self.name + "_set": util.time_str_ms(self.set) if self.set else None,
-                    self.name + "_get": util.time_str_ms(self.get) if self.get else None,
-                } | self._to_dict(self))
+        return (
+                ({self.name + "_set": util.time_str_ms(self.set)} if self.set else {})
+                | ({self.name + "_access": util.time_str_ms(self.access)} if self.access else {})
+                | self._to_dict(self))
 
     def __iter__(self):
         return iter(self.to_dict().items())
@@ -117,6 +121,7 @@ class BoardApplication(shared.Named, shared.Exitable):
             shared.Named.__init__(self, name)
         shared.Exitable.__init__(self)
         self.start_time = time.ticks_ms()
+        self.time_sync = Facility("time_sync", Boot.get_instance(), 0, lambda x: {"time": util.time_str()})
         self.ws_server = BoardWebSocket({'self': self} | globals())
         self.use_mqtt = use_mqtt
         if self.use_mqtt:
@@ -128,6 +133,7 @@ class BoardApplication(shared.Named, shared.Exitable):
         self.capabilities = {'controls': []}
 
     def info(self):
+        boot = Boot.get_instance()
         return json.dumps({
              'id': ubinascii.hexlify(machine.unique_id()).decode(),
             'uname': {key: eval('os.uname().' + key) for key in dir(os.uname()) if not key.startswith('__')},
@@ -137,11 +143,10 @@ class BoardApplication(shared.Named, shared.Exitable):
             'mcu_temperature': esp32.mcu_temperature() if hasattr(esp32,'mcu_temperature') else None,
             'mem_alloc': gc.mem_alloc(),
             'mem_free': gc.mem_free(),
-            'boot': Boot.get_instance().version,
-            'iftype': Boot.get_instance().iftype(),
-            'ifconfig': Boot.get_instance().ifconfig(),
-            'time': util.time_str()
-        })
+            'boot': boot.version,
+            'iftype': boot.iftype(),
+            'ifconfig': boot.ifconfig(),
+        } | self.time_sync.to_dict())
 
     async def publish(self, topic, data, retain=False, qos=0, properties=None):
         if self.use_mqtt:
@@ -171,10 +176,38 @@ class BoardApplication(shared.Named, shared.Exitable):
                     await self.publish(self.topic_live,
                                  {"live": True, 'error': f"Incoming MQTT message problem: {themessage}, error: {e}"}, False)
 
+    async def daily_rtc_sync(self):
+        while not self.exit:
+            now = time.localtime()
+            h, m, s = now[3], now[4], now[5]
+            seconds_today = h * 60 * 60 + m * 60 + s
+
+            # Seconds until next 03:30
+            target = 3 * 60 * 60 + 30 * 60
+            if seconds_today < target:
+                wait = target - seconds_today
+            else:
+                wait = 24 * 60 * 60 - seconds_today + target
+
+            await asyncio.sleep(wait)
+
+            self.log.info(f"Daily RTC sync task started. Date/Time: {util.time_str()}")
+            try:
+                if self.time_sync.endpoint.setup_time():
+                    # Just a dummy increment to indicate that sync was done
+                    self.time_sync.value = self.time_sync.value + 1
+                    self.log.info(f"Daily RTC sync finished successfully. Date/Time: {util.time_str()}")
+                else:
+                    self.log.info(f"Daily RTC sync not completed.")
+            except Exception as e:
+                self.log.error(f"Daily RTC sync failed: {e}")
+
+
     async def _asyncio_entry(self):
         asyncio.create_task(self.start())
         if self.use_mqtt:
             self._mqtt_messages_task = asyncio.create_task(self.mqtt_messages())
+        self.time_sync.task = asyncio.create_task(self.daily_rtc_sync())
         asyncio.create_task(self.ws_server.start_server())
         while not shared.Exit.is_exit():
             await asyncio.sleep(1)
@@ -186,6 +219,7 @@ class BoardApplication(shared.Named, shared.Exitable):
         self.ws_server.shutdown()
         if self.use_mqtt:
             self._mqtt_messages_task.cancel()
+        self.time_sync.task.cancel()
 
     def run(self):
         async def nothing():

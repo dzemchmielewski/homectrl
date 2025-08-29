@@ -103,7 +103,7 @@ class Boot:
     def setup_time(self):
         if self.isconnected():
             import ntptime
-            ntptime.host = 'status.home'
+            ntptime.host = Configuration.NTP_SERVER
 
             now = ntptime.time()
 
@@ -120,8 +120,11 @@ class Boot:
 
             (year, month, mday, hour, minute, second, weekday, yearday) = cet
             machine.RTC().datetime((year, month, mday, 0, hour, minute, second, 0))
-            self.loaded['time'] = True
             print(f"SUCCESS time load: {time.localtime()}")
+            return True
+        else:
+            print("FAILED time load: no network")
+            return False
 
     def isconnected(self):
         return (self.wifi and self.wifi.isconnected()) or (self.lan and self.lan.isconnected())
@@ -162,20 +165,20 @@ class Boot:
 
         if not self.loaded['time'] and time:
             try:
-                self.setup_time()
+                self.loaded['time'] = self.setup_time()
             except Exception as e:
                 print(f"FAILED to load time: {e}")
 
-    @staticmethod
-    def start_server(worker):
-        from board.worker import WorkerServer
-        from common.communication import SocketCommunication
-        try:
-            connection = SocketCommunication("SOCKET", "", 8123, is_server=True, debug=False)
-            # connection = SerialCommunication("SERIAL", CommonSerial(0, 76800, tx=0, rx=1, timeout=2), debug=False)
-            WorkerServer("{}_srv".format(worker.name), communication=connection, worker=worker).start()
-        except KeyboardInterrupt:
-            pass
+    # @staticmethod
+    # def start_server(worker):
+    #     from board.worker import WorkerServer
+    #     from common.communication import SocketCommunication
+    #     try:
+    #         connection = SocketCommunication("SOCKET", "", 8123, is_server=True, debug=False)
+    #         # connection = SerialCommunication("SERIAL", CommonSerial(0, 76800, tx=0, rx=1, timeout=2), debug=False)
+    #         WorkerServer("{}_srv".format(worker.name), communication=connection, worker=worker).start()
+    #     except KeyboardInterrupt:
+    #         pass
 
 # boot = Boot.get_instance(pin_notify=8)
 # boot.load()

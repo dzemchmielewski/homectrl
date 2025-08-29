@@ -9,6 +9,8 @@ class Configuration:
     MQTT_SERVER = "192.168.0.24"
     TOPIC_ROOT = "homectrl/device/{}"
 
+    NTP_SERVER = "status.home"
+
     WEBREPL_PASSWORD = None
 
     WIFI_SSID = None
