@@ -2,7 +2,7 @@ import time
 import asyncio
 import json
 import logging
-from board.board_application import BoardApplication
+from board.board_application import BoardApplication, Facility
 from board.board_shared import Utils as util
 from configuration import Configuration
 from machine import UART
@@ -30,15 +30,13 @@ class KitchenApplication(BoardApplication):
         self.read_conditions = None
         self.conditions = (None, None, None)
 
-        self.darkness_sensor = DarknessSensor.from_analog_pin(2, queue_size=90, voltage_threshold=2.7)
-        self.read_darkness = None
-        self.darkness = None
-        self.darkness_voltage = None
-        self.darkness_voltage_momentary = None
+        self.darkness = Facility("darkness",
+                                 endpoint=DarknessSensor.from_analog_pin(2, queue_size=90, voltage_threshold=2.7))
+        self.voltage = Facility("voltage")
+        self.voltage_momentary = Facility("voltage_momentary")
 
-        self.light = False
+        self.light = Facility("light", PinIO(0, set_initial=False), value=False, register_access=False)
         self.light_floating_time = None
-        self.light_switch = PinIO(0, set_initial=self.light)
 
         self.radar = LD2410(UART(1, baudrate=256000, bits=8, parity=None, stop=1, tx=7, rx=6, timeout=1))
         self.radar_control = RadarControl(self.radar)
@@ -59,19 +57,19 @@ class KitchenApplication(BoardApplication):
         }
 
     def read(self, to_json = True):
-        result = {
-            "light": self.light,
-            "read_presence": self.read_presence,
-            "presence":  self.presence,
-            "read_conditions": self.read_conditions,
-            "temperature": self.conditions[0],
-            "pressure": self.conditions[1],
-            "humidity": self.conditions[2],
-            "darkness": self.darkness,
-            "voltage": self.darkness_voltage,
-            "voltage_momentary": self.darkness_voltage_momentary,
-            "read_darkness": self.read_darkness
-        }
+        result = (
+                self.light.to_dict()
+                | self.darkness.to_dict()
+                | self.voltage.to_dict()
+                | self.voltage_momentary.to_dict()
+                | {
+                    "read_presence": self.read_presence,
+                    "presence":  self.presence,
+                    "read_conditions": self.read_conditions,
+                    "temperature": self.conditions[0],
+                    "pressure": self.conditions[1],
+                    "humidity": self.conditions[2],
+                })
         return json.dumps(result) if to_json else result
 
 
@@ -84,16 +82,16 @@ class KitchenApplication(BoardApplication):
             return False
 
         elif self.control['mode'] == 'auto':
-            new_light = self.darkness and presence
+            new_light = self.darkness.value and presence
 
-            if not self.light and new_light:
+            if not self.light.value and new_light:
                 # Turn on the light immediately, if darkness and presence
                 self.light_floating_time = None
                 return True
 
-            elif self.light == new_light:
+            elif self.light.value == new_light:
                 self.light_floating_time = None
-                return self.light
+                return self.light.value
 
             else:
                 # The last case - the light is on and can be turned off
@@ -115,10 +113,10 @@ class KitchenApplication(BoardApplication):
             presence = self.presence_reader.get()
             light = self.determine_light(presence)
 
-            if (presence, light) != (self.presence, self.light):
+            if (presence, light) != (self.presence, self.light.value):
                 self.presence = presence
-                self.light = light
-                self.light_switch.set(self.light)
+                self.light.value = light
+                self.light.endpoint.set(self.light.value)
                 await self.publish(self.topic_data, self.read(False), True)
 
             await asyncio.sleep_ms(50)
@@ -134,12 +132,13 @@ class KitchenApplication(BoardApplication):
 
     async def darkness_task(self):
         while not self.exit:
-            darkness, mean_voltage, self.darkness_voltage_momentary = self.darkness_sensor.read_analog()
-            self.read_darkness = util.time_str()
-            voltage = round(mean_voltage, 1)
-            if (voltage, darkness) != (self.darkness_voltage, self.darkness):
-                self.darkness_voltage = voltage
-                self.darkness = darkness
+            new_darkness, mean_voltage, new_voltage_momentary = self.darkness.endpoint.read_analog()
+            new_voltage = round(mean_voltage, 1)
+            if new_voltage_momentary != self.voltage_momentary.value:
+                self.voltage_momentary.value = new_voltage_momentary
+            if (new_voltage, new_darkness) != (self.voltage.value, self.darkness.value):
+                self.voltage.value = new_voltage
+                self.darkness.value = new_darkness
                 await self.publish(self.topic_data, self.read(False), True)
             await asyncio.sleep(5)
 
@@ -147,11 +146,11 @@ class KitchenApplication(BoardApplication):
         await super().start()
         self._work_task = asyncio.create_task(self.work_task())
         self._conditions_task = asyncio.create_task(self.conditions_task())
-        self._darkness_task = asyncio.create_task(self.darkness_task())
+        self.darkness.task = asyncio.create_task(self.darkness_task())
 
     def deinit(self):
         super().deinit()
         self._work_task.cancel()
         self._conditions_task.cancel()
-        self._darkness_task.cancel()
+        self.darkness.task.cancel()
 
