@@ -24,7 +24,7 @@ class Esp32Setup:
                            help="Destination main file name")
 
     argparser.add_argument('--boot-pin', '-bp', type=int, required=False, dest="pin",
-                           help="Pin number to use for boot notification.\nESP32-C3 super mini: 8\nESP32-S3: 44\nESP32-GENERIC: 2\n")
+                           help="Pin number to use for boot notification.\nESP32-C3 super mini: 8\nESP32-S3: 44\nESP32-S3 super mini: 48\nESP32-GENERIC: 2\n")
     argparser.add_argument('--boot-pin-on', '-bp-on', type=int, required=False, dest="pin_on", choices=[0, 1], default=0,
                            help="Value that indicate when boot pin led is ON.\nESP32-C3 super mini: 0\nESP32-S3: 0???\nESP32-GENERIC: 1\n")
 
@@ -79,11 +79,11 @@ class Esp32Setup:
             # f.write("boot.setup_time()\n")
 
         if self.worker_name:
-            worker_module = "{}_worker".format(self.worker_name)
-            worker_class = "{}Worker".format(self.worker_name.capitalize())
+            worker_module = "{}".format(self.worker_name)
+            worker_class = "{}Application".format(self.worker_name.capitalize())
             main = create_temp_file("main.py")
             with open(main, "w") as f:
-                f.write(f"from {worker_module} import {worker_class}\nboot.start_server({worker_class}())\n")
+                f.write(f"from {worker_module} import {worker_class}\n{worker_class}().run()\n")
 
         rshell = create_temp_file("rshell.py")
         with open(rshell, "w") as f:
