@@ -3,6 +3,8 @@ import json
 import logging
 import time
 
+from micropython import const
+
 from board.board_application import BoardApplication, Facility
 from configuration import Configuration
 from machine import Pin, PWM
@@ -16,29 +18,45 @@ for handler in logging.getLogger().handlers:
 
 class StairsApplication(BoardApplication):
 
-    HIGH_BRIGHTNESS = 50
-    LOW_BRIGHTNESS = 10
-    FADE_IN_SPEED = 50/2
-    FADE_OUT_SPEED = 50/5
-    LIGHT_TIMEOUT = 20_000
+    # PROD:
+    CONF_USE_MQTT = const(True)
+    CONF_LIGHT_PIN = const(2)
+    CONF_PRESENCE_UP_PIN = const(35)
+    CONF_PRESENCE_DOWN_PIN = const(12)
+    CONF_LIGHT_TIMEOUT = const(20_000)
+
+    # # DEV:
+    # CONF_USE_MQTT = const(False)
+    # CONF_LIGHT_PIN = const(0)
+    # CONF_PRESENCE_UP_PIN = const(21)
+    # CONF_PRESENCE_DOWN_PIN = const(20)
+    # CONF_LIGHT_TIMEOUT = const(5_000)
+
+    BRIGHTNESS = {
+        (0, 5): 10,
+        (6, 21): 40,
+        (21, 21): 30,
+        (22, 22): 20,
+        (23, 23): 10,
+    }
 
     def __init__(self):
-        BoardApplication.__init__(self, 'stairs')
+        BoardApplication.__init__(self, 'stairs', use_mqtt=self.CONF_USE_MQTT)
         (_, self.topic_data, _, _, _) = Configuration.topics(self.name)
 
         self.darkness = Facility("darkness")
 
-        self.light = Facility("light", PWMFade(PWM(Pin(2), 5000)), value=False, register_access=False)
-        #DEV:
-        # self.light = Facility("light", PWMFade(PWM(Pin(0), 5000)), value=False, register_access=False)
+        self.light = Facility("light", PWMFade(PWM(Pin(self.CONF_LIGHT_PIN), 5000)), value=False, register_access=False)
         self.light.endpoint.pwm.duty(0)
 
-        self.presence_up = Facility("presence_up", endpoint=Pin(35, Pin.IN), value=False)
-        self.presence_down = Facility("presence_down", endpoint=Pin(12, Pin.IN), value=False)
-        #DEV:
-        # self.presence_up = Facility("presence_up", endpoint=Pin(21, Pin.IN, Pin.PULL_DOWN), value=False)
-        # self.presence_down = Facility("presence_down", endpoint=Pin(20, Pin.IN, Pin.PULL_DOWN), value=False)
+        self.presence_up = Facility("presence_up", endpoint=Pin(self.CONF_PRESENCE_UP_PIN, Pin.IN, Pin.PULL_DOWN), value=False)
+        self.presence_down = Facility("presence_down", endpoint=Pin(self.CONF_PRESENCE_DOWN_PIN, Pin.IN, Pin.PULL_DOWN), value=False)
         self.presence = Facility("presence", value=False)
+
+        if self.CONF_USE_MQTT:
+            self.mqtt_subscriptions["homectrl/onair/darkness/kitchen"] = self.darkness_message
+        else:
+            self.darkness.value = True
 
         # self.conditions = Facility("conditions", BMP_AHT.from_pins(14, 15, calibrate_pressure=2.6),
         #                            lambda x: {"temperature": x.value[0], "pressure": x.value[1], "humidity": x.value[2]})
@@ -48,7 +66,6 @@ class StairsApplication(BoardApplication):
         #     'mode': 'auto'
         # }
 
-        self.mqtt_subscriptions["homectrl/onair/darkness/kitchen"] = self.darkness_message
 
 
     def read(self, to_json = True):
@@ -67,47 +84,51 @@ class StairsApplication(BoardApplication):
     def darkness_message(self, topic, message, retained):
         self.log.info(f"Darkness message received: topic='{topic}', message='{message}', retained={retained}")
         self.darkness.value = bool(json.loads(message)['value'])
-        # DEV:
-        # self.darkness.value = True
 
-    def _light_brightness(self):
+    def _calc_brightness(self) -> float:
         (hour, minute) = time.localtime()[3:5]
-        if hour >= 23 or hour < 6:
-            return self.LOW_BRIGHTNESS
-        return self.HIGH_BRIGHTNESS
+        for (start, end), value in self.BRIGHTNESS.items():
+            if start <= hour <= end:
+                return value
+        return 0.0
+
+    def _calc_fadein(self, brightness: float):
+        return brightness / 2
+
+    def _calc_fadeout(self):
+        return self.light.endpoint.to_percent(self.light.endpoint.pwm.duty()) / 5
 
     async def light_task(self):
         while not self.exit:
             publish = False
+
+            new_presence = self.presence_up.value or self.presence_down.value
+            if new_presence != self.presence.value:
+                self.presence.value = new_presence
+                publish = True
+
             if self.darkness.value:
                 if not self.light.value:
                     if self.presence.value:
                         publish = True
                         self.light.value = True
-                        await self.light.endpoint.fade(self._light_brightness(), self.FADE_IN_SPEED)
+                        brightness = self._calc_brightness()
+                        await self.light.endpoint.fade(brightness, self._calc_fadein(brightness))
 
                 else:
                     # The light is already ACTIVE:
                     if not self.presence.value:
                         # but there is no presence. Time to deactivate the light,
                         # but not immediately - wait for 20 seconds:
-                        if time.ticks_diff(time.ticks_ms(), self.presence.set) > self.LIGHT_TIMEOUT:
+                        if time.ticks_diff(time.ticks_ms(), self.presence.set) > self.CONF_LIGHT_TIMEOUT:
                             publish = True
                             self.light.value = False
-                            await self.light.endpoint.fade(0, self.FADE_OUT_SPEED)
+                            await self.light.endpoint.fade(0, self._calc_fadeout())
                     else:
                         #Keep the light ACTIVE
                         self.light.value = True
                 if publish:
                     await self.publish(self.topic_data, self.read(to_json=False), True)
-            await asyncio.sleep_ms(100)
-
-    async def presence_task(self):
-        while not self.exit:
-            new_presence = self.presence_up.value or self.presence_down.value
-            if new_presence != self.presence.value:
-                self.presence.value = new_presence
-                await self.publish(self.topic_data, self.read(to_json=False), True)
             await asyncio.sleep_ms(100)
 
     async def presence_sensor_task(self, facility: Facility):
@@ -132,7 +153,6 @@ class StairsApplication(BoardApplication):
         self.light.task = asyncio.create_task(self.light_task())
         self.presence_up.task = asyncio.create_task(self.presence_sensor_task(self.presence_up))
         self.presence_down.task = asyncio.create_task(self.presence_sensor_task(self.presence_down))
-        self.presence.task = asyncio.create_task(self.presence_task())
         # self.conditions.task = asyncio.create_task(self.conditions_task())
 
     def deinit(self):
@@ -140,6 +160,5 @@ class StairsApplication(BoardApplication):
         self.light.endpoint.deinit()
         self.presence_up.task.cancel()
         self.presence_down.task.cancel()
-        self.presence.task.cancel()
         # self.conditions.task.cancel()
 

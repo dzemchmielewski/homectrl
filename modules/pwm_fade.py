@@ -17,7 +17,7 @@ class PWMFade:
 
     STEP_DELAY = 20  # ms
 
-    def __init__(self, pwm: PWM, gamma: float = 2.0, dmin: float = 0.0, max_duty: int = 1023):
+    def __init__(self, pwm: PWM, gamma: float = 2.0, dmin: float = 0.001, max_duty: int = 1023):
         """
         Initialize PWMFade.
 
@@ -33,7 +33,7 @@ class PWMFade:
         self.max_duty = max_duty
         self.task = None
 
-    def _to_duty(self, percent: float) -> int:
+    def to_duty(self, percent: float) -> int:
         """
         Convert a percentage value to a PWM duty cycle, applying gamma correction.
 
@@ -46,7 +46,7 @@ class PWMFade:
         b = min(max(percent, 0), 100) / 100
         return round(self.max_duty * ((b ** self.gamma) * (1 - self.dmin) + self.dmin))
 
-    def _to_percent(self, duty: int) -> float:
+    def to_percent(self, duty: int) -> float:
         """
         Convert a PWM duty cycle value to a percentage, applying gamma correction.
 
@@ -56,7 +56,8 @@ class PWMFade:
         Returns:
             float: Corresponding percentage (0-100).
         """
-        b = (min(max(duty, 0), self.max_duty) / self.max_duty - self.dmin) / (1 - self.dmin)
+        b = ((min(max(duty, 0), self.max_duty) / self.max_duty) - self.dmin) / (1 - self.dmin)
+        b = max(b, 0.0)  # avoid negative at very low duty
         return 100 * (b ** (1 / self.gamma))
 
     async def fade(self, to_percent: float, speed: float) -> None:
@@ -73,16 +74,21 @@ class PWMFade:
             to_percent (float): Target percentage (0-100).
             speed (float): Speed in percent per second.
         """
-        current = self._to_percent(self.pwm.duty())
+        current = self.to_percent(self.pwm.duty())
         target = min(max(to_percent, 0), 100)
         step = (self.STEP_DELAY / 1_000) * speed # percents per step
         direction = 1 if target > current else -1
         while (direction == 1 and current < target) or (direction == -1 and current > target):
             start = time.ticks_ms()
-            self.pwm.duty(self._to_duty(current))
+            self.pwm.duty(self.to_duty(current))
             current += direction * step
             while time.ticks_ms() - start < self.STEP_DELAY:
                 await asyncio.sleep_ms(0)
+
+        if target == 0.0:
+            self.pwm.duty(0)
+        elif target == 100.0:
+            self.pwm.duty(self.max_duty)
 
     def deinit(self):
         if self.task is not None:
