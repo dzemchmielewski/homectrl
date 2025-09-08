@@ -81,17 +81,17 @@ class OnAir(Common):
                 if value is not None:
                     clazz = getattr(sys.modules[__name__], key.capitalize())
                     result.append(clazz(name=data["name"], create_at=data["timestamp"], value=value))
-            elif key == "radar":
+            elif key == "radar" and value is not None:
                 result.append(Radar(name=data["name"], create_at=data["timestamp"],
                                     presence=value["presence"], target_state=value["target_state"],
                                     # move_distance=value["move"]["distance"], move_energy=value["move"]["energy"],
                                     # static_distance=value["static"]["distance"], static_energy=value["static"]["energy"],
                                     distance=value["distance"]))
-            elif key == "radio":
+            elif key == "radio" and value is not None:
                 result.append(Radio(name=data["name"], create_at=data["timestamp"],
                                     station_name=value["station"]["name"], station_code=value["station"]["code"],
                                     volume=value["volume"]["volume"], muted=value["volume"]["is_muted"], playinfo=value["playinfo"]))
-            elif key == "electricity":
+            elif key == "electricity" and value is not None:
                 result.append(Electricity(name=data["name"], create_at=data["timestamp"],
                                           voltage=value["voltage"], current=value["current"], active_power=value["active_power"],
                                           active_energy=value["active_energy"], power_factor=value["power_factor"]))
