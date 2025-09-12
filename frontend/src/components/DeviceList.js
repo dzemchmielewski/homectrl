@@ -1,14 +1,22 @@
 import React, {useContext} from 'react';
 import {LiveDeviceContext} from "../LiveDeviceContext";
+import {useExpandable} from "../ExpandableContext";
 
-const DeviceList = () => {
+const DeviceList = (props) => {
 
     const devices = useContext(LiveDeviceContext);
+    const { isExpanded, toggle } = useExpandable();
 
     return (
 
         <div className="card border-light mb-3" style={{ maxWidth: '30rem' }}>
-            <div className="card-header">Device Status</div>
+            <div
+                className="card-header"
+                style={{cursor: 'pointer'}}
+                onClick={() => toggle(props.facet)}>
+                Device Status
+            </div>
+            {isExpanded(props.facet) && (
             <div className="card-body">
                 <span className="card-text">
                     <ul className="list-group">
@@ -25,6 +33,7 @@ const DeviceList = () => {
                     </ul>
                 </span>
             </div>
+            )}
         </div>
     );
 };

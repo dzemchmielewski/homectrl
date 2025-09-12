@@ -1,7 +1,9 @@
 import React, { useState, useEffect, forwardRef } from 'react';
+import {useExpandable} from "../ExpandableContext";
 
-const Chart = forwardRef(({chartData}, ref) => {
+const Chart = forwardRef(({chartData, facet}, ref) => {
     const [img, setImg] = useState([]);
+    const { isExpanded, toggle } = useExpandable();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -31,12 +33,20 @@ const Chart = forwardRef(({chartData}, ref) => {
     }
     return (
         <div className="card border-light mb-3" style={{maxWidth: '30rem'}} ref={ref}>
-            <div className="card-header">{chartData.label} {chartData.name} - last 24h</div>
+            <div
+                className="card-header"
+                style={{ cursor: 'pointer' }}
+                onClick={() => toggle(facet)}>
+                {chartData.label} {chartData.name} - last 24h
+            </div>
+            {isExpanded(facet) && (
             <div className="card-body">
                 <p className="card-text">
                     <img src={img} alt="Some graph" className="img-fluid"/>
                 </p>
             </div>
+            )}
+            {isExpanded(facet) && (
             <p className="d-flex flex-row align-items-center">
                 <div style={{margin: "auto"}}>
                     <div className="btn-group" role="group" aria-label="Basic radio toggle button group">
@@ -49,6 +59,7 @@ const Chart = forwardRef(({chartData}, ref) => {
                     </div>
                 </div>
             </p>
+            )}
         </div>
     );
 });

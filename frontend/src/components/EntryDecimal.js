@@ -1,9 +1,11 @@
 import React, {useState, useEffect, useContext} from 'react';
 import {LiveDeviceContext, IsAlive} from "../LiveDeviceContext";
+import {useExpandable} from "../ExpandableContext";
 
 const EntryDecimal = (props) => {
     const [entries, setEntries] = useState([]);
     const deviceContext = useContext(LiveDeviceContext)
+    const { isExpanded, toggle } = useExpandable();
 
     const handleClick = (name) => {
         props.setChartData({model: props.facet, name:name, label:props.label});
@@ -33,7 +35,13 @@ const EntryDecimal = (props) => {
 
     return (
         <div className="card border-light mb-3" style={{maxWidth: '30rem'}}>
-            <div className="card-header">{props.label}</div>
+            <div
+                className="card-header"
+                style={{cursor: 'pointer'}}
+                onClick={() => toggle(props.facet)}>
+                {props.label}
+            </div>
+            {isExpanded(props.facet) && (
             <div className="card-body">
                 <span className="card-text">
                     <ul className="list-group">
@@ -55,6 +63,7 @@ const EntryDecimal = (props) => {
                     </ul>
                 </span>
             </div>
+            )}
         </div>
     );
 };

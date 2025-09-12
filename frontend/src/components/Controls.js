@@ -1,10 +1,12 @@
 import React, {useState, useEffect, useContext} from 'react';
 import {IsAlive, LiveDeviceContext} from "../LiveDeviceContext";
+import {useExpandable} from "../ExpandableContext";
 
 const Controls = (props) => {
     const [state, setState] = useState([]);
     const [capabilities, setCapabilities] = useState({})
     const deviceContext = useContext(LiveDeviceContext)
+    const { isExpanded, toggle } = useExpandable();
 
     const sendControl = (event, device, control, value) => {
         // console.log("Device: " + device + ", control: " + control + ", value: "+ value)
@@ -114,7 +116,13 @@ const Controls = (props) => {
 
     return (
         <div className="card border-light mb-3" style={{maxWidth: '30rem'}}>
-            <div className="card-header">Controls</div>
+            <div
+                className="card-header"
+                style={{cursor: 'pointer'}}
+                onClick={() => toggle(props.facet)}>
+                Controls
+            </div>
+            {isExpanded(props.facet) && (
             <div className="card-body">
                 <span className="card-text">
                     <ul className="list-group">
@@ -122,6 +130,7 @@ const Controls = (props) => {
                     </ul>
                 </span>
             </div>
+            )}
         </div>
     );
 };

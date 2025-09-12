@@ -1,9 +1,11 @@
 import React, {useState, useEffect, useContext} from 'react';
 import {LiveDeviceContext} from "../LiveDeviceContext";
+import {useExpandable} from "../ExpandableContext";
 
-const Electricity = () => {
+const Electricity = (props) => {
     const [entries, setEntries] = useState([]);
     const deviceContext = useContext(LiveDeviceContext);
+    const { isExpanded, toggle } = useExpandable();
 
     const isLive = (name) => {
         if (deviceContext && typeof deviceContext.find !== "undefined") {
@@ -34,7 +36,13 @@ const Electricity = () => {
 
     return (
         <div className="card border-light mb-3" style={{maxWidth: '30rem'}}>
-            <div className="card-header">Electricity</div>
+            <div
+                className="card-header"
+                style={{cursor: 'pointer'}}
+                onClick={() => toggle(props.facet)}>
+                Electricity
+            </div>
+            {isExpanded(props.facet) && (
             <div className="card-body">
                 <ul className="list-group">
                     {entries.map((entry, index) => (
@@ -80,6 +88,7 @@ const Electricity = () => {
                     ))}
                 </ul>
             </div>
+            )}
         </div>
     );
 

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import {useExpandable} from "../ExpandableContext";
 
-const Laundry = () => {
+const Laundry = (props) => {
     const [laundry, setLaundry] = useState({});
     const [stats, setStats] = useState(null);
+    const { isExpanded, toggle } = useExpandable();
 
     useEffect(() => {
 
@@ -38,7 +40,14 @@ const Laundry = () => {
 
     return (
         <div className="card border-light mb-3" style={{maxWidth: '30rem'}}>
-            <div className="card-header">Laundry</div>
+            <div
+                className="card-header"
+                style={{cursor: 'pointer'}}
+                onClick={() => toggle(props.facet)}>
+                Laundry
+            </div>
+
+            {isExpanded(props.facet) && (
             <div className="card-body">
                 <ul className="list-group">
                     <li className="list-group-item">
@@ -119,6 +128,7 @@ const Laundry = () => {
                     }
                 </ul>
             </div>
+            )}
         </div>
     );
 }
