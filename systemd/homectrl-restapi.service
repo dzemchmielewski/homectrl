@@ -1,6 +1,7 @@
 [Unit]
 Description=DZEM HomeCtrl REST API Service
-After=homectrl-onair.service
+After=dnsmasq.service homectrl-onair.service
+Requires=dnsmasq.service
 Wants=homectrl-onair.service
 
 [Service]
