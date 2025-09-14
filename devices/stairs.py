@@ -144,7 +144,7 @@ class StairsApplication(BoardApplication):
                     self.light.value = False
                     await self.light.endpoint.fade(0, self._calc_fadeout())
 
-            await asyncio.sleep_ms(100)
+            await asyncio.sleep_ms(50)
 
     async def presence_sensor_task(self, facility: Facility):
         while not self.exit:
@@ -153,7 +153,7 @@ class StairsApplication(BoardApplication):
             else:
                 if facility.value is True:
                     facility.value = False
-            await asyncio.sleep_ms(100)
+            await asyncio.sleep_ms(50)
 
     # async def conditions_task(self):
     #     while not self.exit:
