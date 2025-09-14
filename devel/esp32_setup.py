@@ -92,7 +92,7 @@ class Esp32Setup:
             f.write("cp {} {}/\n".format(os.path.join(src_dir, "esp32/reboot.py"), self.dest_board))
             if self.worker_name:
                 f.write("cp {} {}/{}\n".format(main, self.dest_board, self.dest_main))
-                f.write("cp {} {}/\n".format(os.path.join(src_dir, "esp32/{}.py".format(worker_module)), self.dest_board))
+                f.write("cp {} {}/\n".format(os.path.join(src_dir, "devices/{}.py".format(worker_module)), self.dest_board))
             f.write("cp {} {}/{}\n".format(boot, self.dest_board, self.dest_boot))
 
         rshell_cmd = f"rshell -p {self.port} -f {{}}"
