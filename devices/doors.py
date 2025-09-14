@@ -9,7 +9,7 @@ from board.board_application import BoardApplication, Facility
 from configuration import Configuration
 from pzem import PZEM
 from rms import RMS
-from wavplayer import OneWavPlayer
+# from wavplayer import OneWavPlayer
 
 logging.basicConfig(level=logging.INFO)
 for handler in logging.getLogger().handlers:
@@ -23,35 +23,36 @@ class DoorsApplication(BoardApplication):
 
         self.electricity = Facility("electricity",
                                     PZEM(uart=UART(1, baudrate=9600, tx=1, rx=2)))
-        self.doors = Facility("doors", Pin(4, Pin.IN))
+        self.doors = Facility("doors", Pin(4, Pin.IN, Pin.PULL_DOWN))
         adc = ADC(Pin(9, mode=Pin.IN))
         adc.atten(ADC.ATTN_11DB)
         self.bell = Facility("bell",
                              RMS(lambda: adc.read_uv(), max_samples_count=200, max_measure_time_us=50_000))
-        self.player = OneWavPlayer(
-            id=0, sck_pin=Pin(11), ws_pin=Pin(13), sd_pin=Pin(12),
-            ibuf=2_000, wav_file="example.wav",
-            enable_pin=Pin(3, Pin.OUT))
+        # self.player = OneWavPlayer(
+        #     id=0, sck_pin=Pin(11), ws_pin=Pin(13), sd_pin=Pin(12),
+        #     ibuf=2_000, wav_file="example.wav",
+        #     enable_pin=Pin(3, Pin.OUT))
 
-        self.mqtt_subscriptions[Configuration.TOPIC_ROOT.format("doors") + "/play"] = self.play_message
+        # self.mqtt_subscriptions[Configuration.TOPIC_ROOT.format("doors") + "/play"] = self.play_message
 
     def read(self, to_json = True):
         result = (self.doors.to_dict()
                   | self.bell.to_dict()
                   | self.electricity.to_dict()
-                  | {'play': self.player.isplaying()})
+                  # | {'play': self.player.isplaying()}
+                  )
         return json.dumps(result) if to_json else result
 
-    def play_message(self, topic, msg, retained):
-        self.player.play()
+    # def play_message(self, topic, msg, retained):
+    #     self.player.play()
 
     async def bell_task(self):
         while not self.exit:
             new_value = self.bell.endpoint.get().rms > 200_000 # 0.2V
             if new_value != self.bell.value:
                 self.bell.value = new_value
-                if self.bell.value and not self.player.isplaying():
-                    self.player.play()
+                # if self.bell.value and not self.player.isplaying():
+                #     self.player.play()
                 await self.publish(self.topic_data, self.read(to_json=False), True)
             await asyncio.sleep_ms(100)
 
@@ -94,4 +95,4 @@ class DoorsApplication(BoardApplication):
         self.bell.task.cancel()
         self.doors.task.cancel()
         self.electricity.task.cancel()
-        self.player.deinit()
+        # self.player.deinit()
