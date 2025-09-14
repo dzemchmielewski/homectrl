@@ -10,6 +10,7 @@ import Chart from "./components/Chart";
 import Electricity from "./components/Electricity";
 import Laundry from "./components/Laundry";
 import Controls from "./components/Controls";
+import FrontDoors from "./components/FrontDoors";
 
 function App() {
 
@@ -35,6 +36,7 @@ function App() {
                             <DeviceList facet="devices"/>
                             <EntryBoolean facet="presence" label="Presence" setChartData={setChartData} chartRef={chartRef}/>
                             <EntryBoolean facet="light" label="Lights" setChartData={setChartData} chartRef={chartRef}/>
+                            <FrontDoors facet="frontdoors" setChartData={setChartData} chartRef={chartRef}/>
                         </div>
                         <div className="col">
                             <EntryBoolean facet="darkness" label="Darkness" setChartData={setChartData} chartRef={chartRef}/>

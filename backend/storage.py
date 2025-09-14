@@ -159,6 +159,11 @@ class Darkness(HomeCtrlValueBaseModel):
 class Light(HomeCtrlValueBaseModel):
     value = BooleanField()
 
+class Doors(HomeCtrlValueBaseModel):
+    value = BooleanField()
+
+class Bell(HomeCtrlValueBaseModel):
+    value = BooleanField()
 
 class Presence(HomeCtrlValueBaseModel):
     value = BooleanField()
@@ -387,6 +392,5 @@ if __name__ == "__main__":
     #print(list(query))
     # for p in query:
     #     print(p.create_at.isoformat(), 1 if p.value else 0)
-
 
 #    print("OK")

@@ -77,7 +77,7 @@ class OnAir(Common):
     def data2entries(data: dict) -> [HomeCtrlValueBaseModel]:
         result = [Live(name=data["name"], create_at=data["timestamp"], value=data.get("live") is None or data.get("live"))]
         for key, value in data.items():
-            if key in ["temperature", "humidity", "darkness", "light", "presence", "pressure", "voltage", "error", "moisture"]:
+            if key in ["temperature", "humidity", "darkness", "light", "presence", "pressure", "voltage", "error", "moisture", "doors", "bell"]:
                 if value is not None:
                     clazz = getattr(sys.modules[__name__], key.capitalize())
                     result.append(clazz(name=data["name"], create_at=data["timestamp"], value=value))

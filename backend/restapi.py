@@ -155,8 +155,16 @@ class HomeCtrlAPI(Routable):
         await self.ws_facet(ws, "voltage")
 
     @websocket("/ws/electricity")
-    async def voltage(self, ws: WebSocket):
+    async def electricity(self, ws: WebSocket):
         await self.ws_facet(ws, "electricity")
+
+    @websocket("/ws/doors")
+    async def doors(self, ws: WebSocket):
+        await self.ws_facet(ws, "doors")
+
+    @websocket("/ws/bell")
+    async def bell(self, ws: WebSocket):
+        await self.ws_facet(ws, "bell")
 
     @websocket("/ws/moisture")
     async def moisture(self, ws: WebSocket):
