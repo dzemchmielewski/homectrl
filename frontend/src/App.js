@@ -25,7 +25,10 @@ function App() {
         <div className="App">
 
             <ol className="breadcrumb">
-                <li className="breadcrumb-item active"><h3>DZEM HomeCtrl</h3></li>
+                <li className="breadcrumb-item active">
+                    <img src="/icon-fullsize-white.png" alt="HomeCtrl" style={{height: '40px', verticalAlign: 'top', marginRight: '8px'}} />
+                    <h3 style={{display: 'inline'}}>DZEM HomeCtrl</h3>
+                </li>
             </ol>
 
             <ExpandableProvider>
