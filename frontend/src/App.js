@@ -12,6 +12,7 @@ import Laundry from "./components/Laundry";
 import Controls from "./components/Controls";
 import FrontDoors from "./components/FrontDoors";
 
+
 function App() {
 
     const [chartData, setChartData] = useState({
@@ -33,21 +34,17 @@ function App() {
 
             <ExpandableProvider>
             <LiveDeviceProvider>
-                <div className="container">
+                <div className="container-fluid">
                     <div className="row">
-                        <div className="col">
+                        <div className="col-md-9">
                             <DeviceList facet="devices"/>
                             <EntryBoolean facet="presence" label="Presence" setChartData={setChartData} chartRef={chartRef}/>
                             <EntryBoolean facet="light" label="Lights" setChartData={setChartData} chartRef={chartRef}/>
                             <FrontDoors facet="frontdoors" setChartData={setChartData} chartRef={chartRef}/>
-                        </div>
-                        <div className="col">
                             <EntryBoolean facet="darkness" label="Darkness" setChartData={setChartData} chartRef={chartRef}/>
                             <EntryDecimal facet="temperature" label="Temperature" unit="°C" setChartData={setChartData} chartRef={chartRef}/>
                             <EntryDecimal facet="humidity" label="Humidity" unit="%" setChartData={setChartData} chartRef={chartRef}/>
                             <EntryDecimal facet="pressure" label="Pressure" unit={"hPa"} setChartData={setChartData} chartRef={chartRef}/>
-                        </div>
-                        <div className="col">
                             <Electricity facet="electricity"/>
                             <EntryDecimal facet="moisture" label="Moisture" unit="%" setChartData={setChartData} chartRef={chartRef}/>
                             <Laundry facet="laundry"/>
