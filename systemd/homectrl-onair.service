@@ -1,8 +1,8 @@
 [Unit]
 Description=DZEM HomeCtrl OnAir Service
-After=mosquitto.service postgresql.service
+After=network-online.target mosquitto.service postgresql.service
 Wants=mosquitto.service
-Requires=postgresql.service
+Requires=network-online.target postgresql.service
 
 [Service]
 Type=simple
