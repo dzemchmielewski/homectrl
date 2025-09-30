@@ -8,7 +8,6 @@ class PWMFade:
     Class to control PWM fading with gamma correction.
 
     Attributes:
-        STEP_DELAY (int): Delay between steps in milliseconds.
         pwm (PWM): PWM instance to control.
         gamma (float): Gamma correction factor.
         dmin (float): Minimum duty cycle as a fraction.
@@ -31,6 +30,7 @@ class PWMFade:
         self.gamma = gamma
         self.dmin = dmin
         self.max_duty = max_duty
+        self.value = 0.0 # current brightness in percent
         self.task = None
 
     def to_duty(self, percent: float) -> int:
@@ -74,6 +74,7 @@ class PWMFade:
             to_percent (float): Target percentage (0-100).
             speed (float): Speed in percent per second.
         """
+        self.value = to_percent
         current = self.to_percent(self.pwm.duty())
         target = min(max(to_percent, 0), 100)
         step = (self.STEP_DELAY / 1_000) * speed # percents per step

@@ -64,11 +64,29 @@ class StairsApplication(BoardApplication):
         #                            lambda x: {"temperature": x.value[0], "pressure": x.value[1], "humidity": x.value[2]})
         # self.conditions.value = (None, None, None)
 
-        # self.control = {
-        #     'mode': 'auto'
-        # }
-
-
+        self.capabilities = {
+            "controls": [
+                {
+                    "name": "mode",
+                    "type": "str",
+                    "constraints": {
+                        "type": "enum",
+                        "values": ["on", "auto", "off"]
+                    }
+                },
+                {
+                    "name": "brightness",
+                    "type": "int",
+                    "constraints": {
+                        "type": "range",
+                        "values": {"min": 0, "max": 100}
+                    }
+                }
+            ]}
+        self.control = {
+            'mode': 'auto',
+            'brightness': 40
+        }
 
     def read(self, to_json = True):
         result = (self.light.to_dict()
@@ -77,10 +95,10 @@ class StairsApplication(BoardApplication):
                   | self.presence_up.to_dict()
                   | self.presence_down.to_dict()
                   | self.presence.to_dict()
-                  | self.light.to_dict())
-                  # | {
-                  #     'control': self.control,
-                  # })
+                  | self.light.to_dict()
+                  | {
+                      'brightness': self.light.endpoint.value,
+                  })
         return json.dumps(result) if to_json else result
 
     async def publish_mqtt_task(self):
@@ -107,42 +125,58 @@ class StairsApplication(BoardApplication):
         return max(20/2, brightness / 2)
 
     def _calc_fadeout(self):
-        return self.light.endpoint.to_percent(self.light.endpoint.pwm.duty()) / 5
+        return self.light.endpoint.value / 5
 
     async def light_task(self):
         while not self.exit:
 
-            new_presence = self.presence_up.value or self.presence_down.value
-            if new_presence != self.presence.value:
-                self.presence.value = new_presence
-                self.publish_mqtt.value = True
+            if self.control['mode'] == 'on':
+                if not self.light.value or self.light.endpoint.value != self.control['brightness']:
+                    self.publish_mqtt.value = True
+                    self.light.value = True
+                    # In manual mode, the speed of fade is always such as transition takes 2 seconds
+                    speed = abs(self.light.endpoint.value - self.control['brightness']) / 2
+                    await self.light.endpoint.fade(self.control['brightness'], speed)
 
-            if self.darkness.value:
-                if not self.light.value:
-                    if self.presence.value:
-                        self.publish_mqtt.value = True
-                        self.light.value = True
-                        brightness = self._calc_brightness()
-                        await self.light.endpoint.fade(brightness, self._calc_fadein(brightness))
-
-                else:
-                    # The light is already ACTIVE:
-                    if not self.presence.value:
-                        # but there is no presence. Time to deactivate the light,
-                        # but not immediately - wait for 20 seconds:
-                        if time.ticks_diff(time.ticks_ms(), self.presence.set) > self.CONF_LIGHT_TIMEOUT:
-                            self.publish_mqtt.value = True
-                            self.light.value = False
-                            await self.light.endpoint.fade(0, self._calc_fadeout())
-                    else:
-                        #Keep the light ACTIVE
-                        self.light.value = True
-            else:
-                # It is not dark, so the light must be OFF
+            elif self.control['mode'] == 'off':
                 if self.light.value:
                     self.publish_mqtt.value = True
                     self.light.value = False
-                    await self.light.endpoint.fade(0, self._calc_fadeout())
+                    # Two seconds to fade out
+                    await self.light.endpoint.fade(0, self.light.endpoint.value  / 2)
+
+            elif self.control['mode'] == 'auto':
+                new_presence = self.presence_up.value or self.presence_down.value
+                if new_presence != self.presence.value:
+                    self.presence.value = new_presence
+                    self.publish_mqtt.value = True
+
+                if self.darkness.value:
+                    if not self.light.value:
+                        if self.presence.value:
+                            self.publish_mqtt.value = True
+                            self.light.value = True
+                            brightness = self._calc_brightness()
+                            await self.light.endpoint.fade(brightness, self._calc_fadein(brightness))
+
+                    else:
+                        # The light is already ACTIVE:
+                        if not self.presence.value:
+                            # but there is no presence. Time to deactivate the light,
+                            # but not immediately - wait for 20 seconds:
+                            if time.ticks_diff(time.ticks_ms(), self.presence.set) > self.CONF_LIGHT_TIMEOUT:
+                                self.publish_mqtt.value = True
+                                self.light.value = False
+                                await self.light.endpoint.fade(0, self._calc_fadeout())
+                        else:
+                            #Keep the light ACTIVE
+                            self.light.value = True
+                else:
+                    # It is not dark, so the light must be OFF
+                    if self.light.value:
+                        self.publish_mqtt.value = True
+                        self.light.value = False
+                        await self.light.endpoint.fade(0, self._calc_fadeout())
 
             await asyncio.sleep_ms(50)
 
@@ -154,6 +188,12 @@ class StairsApplication(BoardApplication):
                 if facility.value is True:
                     facility.value = False
             await asyncio.sleep_ms(50)
+
+    async def publish_capabilities_task(self):
+        while self.mqtt is None or not self.mqtt.is_initially_connected:
+            await asyncio.sleep_ms(3000)
+        await self.publish(self.topic_state, self.control, True)
+        await self.publish(self.topic_capabilities, self.capabilities, True)
 
     # async def conditions_task(self):
     #     while not self.exit:
@@ -169,6 +209,7 @@ class StairsApplication(BoardApplication):
         self.presence_up.task = asyncio.create_task(self.presence_sensor_task(self.presence_up))
         self.presence_down.task = asyncio.create_task(self.presence_sensor_task(self.presence_down))
         self.publish_mqtt.task = asyncio.create_task(self.publish_mqtt_task())
+        asyncio.create_task(self.publish_capabilities_task())
         # self.conditions.task = asyncio.create_task(self.conditions_task())
 
     def deinit(self):
