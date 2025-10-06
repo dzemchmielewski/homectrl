@@ -94,13 +94,13 @@ class Facility:
     @value.setter
     def value(self, value):
         if self.register_set:
-            self.set = time.ticks_ms()
+            self.set = time.time_ms()
         self._value = value
 
     @property
     def endpoint(self):
         if self.register_access:
-            self.access = time.ticks_ms()
+            self.access = time.time_ms()
         return self._endpoint
 
     def to_dict(self):
@@ -120,8 +120,9 @@ class BoardApplication(shared.Named, shared.Exitable):
         if not hasattr(self, 'name'):
             shared.Named.__init__(self, name)
         shared.Exitable.__init__(self)
-        self.start_time = time.ticks_ms()
-        self.time_sync = Facility("time_sync", Boot.get_instance(), 0, lambda x: {"time": util.time_str()})
+        self.start_time = time.time_ms()
+        self.time_sync = Facility("time_sync", Boot.get_instance(), 0,
+                                  lambda x: {'time': {'now': util.time_str(), 'sync_index': x.value, 'sync_time': util.time_str_ms(x.set)}})
         self.ws_server = BoardWebSocket({'self': self} | globals())
         self.use_mqtt = use_mqtt
         if self.use_mqtt:
@@ -135,17 +136,29 @@ class BoardApplication(shared.Named, shared.Exitable):
     def info(self):
         boot = Boot.get_instance()
         return json.dumps({
-             'id': ubinascii.hexlify(machine.unique_id()).decode(),
-            'uname': {key: eval('os.uname().' + key) for key in dir(os.uname()) if not key.startswith('__')},
-            'frequency': machine.freq() / 1_000_000,
-            'os_up_time': util.format_uptime(time.ticks_ms() // 1_000),
-            'app_up_time': util.format_uptime((time.ticks_ms() - self.start_time) // 1_000),
-            'mcu_temperature': esp32.mcu_temperature() if hasattr(esp32,'mcu_temperature') else None,
-            'mem_alloc': gc.mem_alloc(),
-            'mem_free': gc.mem_free(),
-            'boot': boot.version,
-            'iftype': boot.iftype(),
-            'ifconfig': boot.ifconfig(),
+            'machine': {
+                'id': ubinascii.hexlify(machine.unique_id()).decode(),
+                'frequency': machine.freq() / 1_000_000,
+                'mcu_temperature': esp32.mcu_temperature() if hasattr(esp32,'mcu_temperature') else None,
+            },
+            'os': {
+                'uname': {key: eval('os.uname().' + key) for key in dir(os.uname()) if not key.startswith('__')},
+                'uptime': util.format_uptime((time.time_ms() - boot.load_time) // 1_000),
+            },
+            'mem': {
+                'alloc': gc.mem_alloc(),
+                'free': gc.mem_free(),
+            },
+            'app_up_time': util.format_uptime((time.time_ms() - self.start_time) // 1_000),
+            'boot': {
+                'version': boot.version,
+                'load_time': util.time_str_ms(boot.load_time),
+                'loaded': boot.loaded,
+            },
+            'network': {
+                'iftype': boot.iftype(),
+                'ifconfig': boot.ifconfig(),
+            }
         } | self.time_sync.to_dict())
 
     async def publish(self, topic, data, retain=False, qos=0, properties=None):

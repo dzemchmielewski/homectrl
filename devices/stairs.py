@@ -164,7 +164,7 @@ class StairsApplication(BoardApplication):
                         if not self.presence.value:
                             # but there is no presence. Time to deactivate the light,
                             # but not immediately - wait for 20 seconds:
-                            if time.ticks_diff(time.ticks_ms(), self.presence.set) > self.CONF_LIGHT_TIMEOUT:
+                            if time.time_ms() - self.presence.set > self.CONF_LIGHT_TIMEOUT:
                                 self.publish_mqtt.value = True
                                 self.light.value = False
                                 await self.light.endpoint.fade(0, self._calc_fadeout())

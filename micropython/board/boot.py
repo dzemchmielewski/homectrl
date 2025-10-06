@@ -1,6 +1,6 @@
 import webrepl, time, machine
 from configuration import Configuration
-
+from time import time_ms
 
 class Boot:
 
@@ -13,6 +13,7 @@ class Boot:
     led_pattern = [0.5, 0.3, 0.2, 0.2, 0.1, 0.1, 0.1, 0.05, 0.05]
     version = '20000101_00_00'
     instance = None
+    load_time = 0
 
     @classmethod
     def get_instance(cls, pin_notify: int = None, pin_notify_on_signal: int | bool = None):
@@ -168,6 +169,8 @@ class Boot:
                 self.loaded['time'] = self.setup_time()
             except Exception as e:
                 print(f"FAILED to load time: {e}")
+
+        self.load_time = time_ms()
 
     # @staticmethod
     # def start_server(worker):

@@ -29,10 +29,9 @@ _MDAY = const(
     )
 )
 
-offset = time() * 1000 - ticks_ms()
 
-def ticks_ms_to_ts(ms: int):
-    return localtime((ms + offset) // 1000)
+def time_ms() -> int:
+    return time() * 1000 + (ticks_ms() % 1000)
 
 def strftime(datefmt, ts):
     from io import StringIO

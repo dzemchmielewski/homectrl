@@ -24,7 +24,11 @@ class Utils:
 
     @staticmethod
     def time_str_ms(ms: int):
-        return Utils.time_str(time.ticks_ms_to_ts(ms))
+        return Utils.time_str(time.localtime(ms // 1_000)) if ms else None
+
+    @staticmethod
+    def time_str_s(sec: int):
+        return Utils.time_str(time.localtime(sec))
 
 class DataEvent(asyncio.Event):
     def __init__(self):

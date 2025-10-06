@@ -55,7 +55,7 @@ class DarknessSensor:
                 self.floating_time = time.ticks_ms()
 
             else:
-                if time.ticks_ms() - self.floating_time > self.max_floating_time:
+                if time.ticks_diff(time.ticks_ms(), self.floating_time) > self.max_floating_time:
                     self.is_floating = False
                     self.floating_time = None
                     self.current_value = value
