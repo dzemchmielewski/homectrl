@@ -1,13 +1,25 @@
+#!/usr/bin/env -S bash -c '"$(dirname $(readlink $0 || echo $0))/env/bin/python" "$0" "$@"'
+# PYTHON_ARGCOMPLETE_OK
+# set environment variable _ARC_DEBUG to debug argcomplete
+
+import argparse, argcomplete
+import logging
 import threading
 import time
 
-import sys
+services = ["onair", "restapi", "charts", "weather"]
 
-if len(sys.argv) != 2:
-    print("USAGE: {} subsystem".format(__file__))
-    raise SystemExit
+parser = argparse.ArgumentParser(description="HomeCtrl service launcher", add_help=True)
+parser.add_argument("service",  choices=services, help="Backend service to start")
+argcomplete.autocomplete(parser)
+args = parser.parse_args()
 
-system = sys.argv[1]
+logging.basicConfig(level=logging.INFO)
+for handler in logging.getLogger().handlers:
+    handler.setFormatter(logging.Formatter("[%(asctime)s][%(levelname)s][%(name)s] %(message)s"))
+
+
+system = args.service
 
 if system == "onair":
 
@@ -56,6 +68,13 @@ elif system == "charts":
     from backend.charts import ChartsGenerator
     try:
         ChartsGenerator().start()
+    except KeyboardInterrupt:
+        pass
+
+elif system == "weather":
+    from backend.weather import Weather
+    try:
+        Weather().start()
     except KeyboardInterrupt:
         pass
 
