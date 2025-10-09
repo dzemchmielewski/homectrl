@@ -15,7 +15,8 @@ import termios, select
 import readline
 
 from time import sleep
-from paho.mqtt.client import Client as PahoMQTTClient, CallbackAPIVersion
+from paho.mqtt.client import Client as PahoMQTTClient, CallbackAPIVersion, MQTTMessageInfo
+
 from common.common import Common
 from common.communication import Communication
 from configuration import Configuration
@@ -347,7 +348,7 @@ class WebREPLClient(webrepl.Webrepl):
 
 
 class MQTTClient(PahoMQTTClient):
-    def __init__(self, on_connect=None, on_disconnect=None, on_message=None, on_publish=None):
+    def __init__(self, on_connect=None, on_disconnect=None, on_message=None, on_publish=None, keepalive:int = None):
         super().__init__(CallbackAPIVersion.VERSION2)
         conf = Configuration.get_mqtt_config()
         self.on_connect = on_connect
@@ -355,7 +356,14 @@ class MQTTClient(PahoMQTTClient):
         self.on_disconnect = on_disconnect
         self.on_publish = on_publish
         self.username_pw_set(conf["username"], conf["password"])
+        if keepalive:
+            self.keepalive = keepalive
         self.connect(conf["host"], conf["port"])
+
+    def publish(self, *args, **kwargs) -> MQTTMessageInfo:
+        if not self.is_connected():
+            self.reconnect()
+        return super().publish(*args, **kwargs)
 
 
 class MQTTMonitor(Common):

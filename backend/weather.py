@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import random
 
 import aiohttp
@@ -12,7 +13,7 @@ class Weather:
     def __init__(self):
         self.umk_weather_url = "https://pogoda.umk.pl/api/weather"
         self.exit = False
-        self.mqtt = MQTTClient()
+        self.mqtt = MQTTClient(keepalive=11 * 60)
 
     async def get_umk_weather(self) -> dict:
         async with aiohttp.ClientSession() as session:
@@ -21,9 +22,9 @@ class Weather:
                     json_resp = await response.json()
                     data = json_resp['data']
                     return {
-                        'temperature': float(data['tempAir200']['value']) + random.randint(-1, 1)*0.1,
-                        'humidity': float(data['airHumidity']['value']),
-                        'pressure': float(data['atmosphericPressure']['value']),
+                        'temperature': round(float(data['tempAir200']['value']), 1),
+                        'humidity': round(float(data['airHumidity']['value']), 1),
+                        'pressure': round(float(data['atmosphericPressure']['value']), 1),
                     }
                 else:
                     raise Exception(f"Error fetching weather data: {response.status}")
@@ -33,11 +34,19 @@ class Weather:
         try:
             while not self.exit:
                 try:
+                    now = datetime.datetime.now()
+                    next_minute = ((now.minute // 10) + 1) * 10
+                    if next_minute >= 60:
+                        next_hour = now.replace(hour=(now.hour + 1) % 24, minute=0, second=0, microsecond=0)
+                    else:
+                        next_hour = now.replace(minute=next_minute, second=0, microsecond=0)
+                    seconds_to_next = (next_hour - now).total_seconds()
+                    await asyncio.sleep(seconds_to_next)
+
                     weather = await self.get_umk_weather()
                     logging.info(weather)
                     self.mqtt.publish(Topic.Device.format('umk', Topic.Device.Facility.data), json_serial(weather), retain=True)
-                    # await asyncio.sleep(10*60) # Sleep for 10 minutes
-                    await asyncio.sleep(10)
+
                 except Exception as e:
                     logging.error(f"Error: {e}")
         except KeyboardInterrupt:
