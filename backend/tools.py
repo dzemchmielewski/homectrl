@@ -3,6 +3,7 @@ import atexit
 import datetime
 import decimal
 import functools
+import logging
 import os
 import json
 import struct
@@ -366,12 +367,12 @@ class MQTTClient(PahoMQTTClient):
         return super().publish(*args, **kwargs)
 
 
-class MQTTMonitor(Common):
+class MQTTMonitor:
 
     TARGET_STATE = ["  ", " M", " S", "MS"]
+    logger = logging.getLogger("MQTT")
 
-    def __init__(self, topic, debug=False):
-        super().__init__("MQTT", debug)
+    def __init__(self, topic):
         self.topic = topic
 
     def target_state(self, ts):
@@ -381,7 +382,7 @@ class MQTTMonitor(Common):
 
     def on_message(self, client, userdata, msg):
         message = msg.payload.decode()
-        self.log("[{}] {}".format(msg.topic, message))
+        self.logger.info("[{}] {}".format(msg.topic, message))
         # for line in traceback.format_stack():
         #     print(line.strip())
 
@@ -389,7 +390,7 @@ class MQTTMonitor(Common):
             if message:
                 data = json_deserial(message)
                 if data.get("radar"):
-                    self.log("[RADAR][{}][{}][{}][{}][{}][MOV: {:03}cm, {:03}%][STA: {:03}cm, {:03}%][DST: {:03}cm] [{}]".format(
+                    self.logger.info("[RADAR][{}][{}][{}][{}][{}][MOV: {:03}cm, {:03}%][STA: {:03}cm, {:03}%][DST: {:03}cm] [{}]".format(
                         msg.topic,
                         " ON" if data["presence"] else "OFF", self.target_state(data["radar"]["target_state"]),
                         ("NIGHT" if data["darkness"] else " DAY ") if data.get("darkness") else " - ",
@@ -398,10 +399,10 @@ class MQTTMonitor(Common):
                         data["radar"]["static"]["distance"], data["radar"]["static"]["energy"],
                         data["radar"]["distance"], data["presence_read_time"]))
         except BaseException as e:
-            self.log("ERROR! {}".format(e))
+            self.logger.error("ERROR! {}".format(e))
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
-        self.log(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}, TOPIC: {self.topic}")
+        self.logger.info(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}, TOPIC: {self.topic}")
         if isinstance(self.topic, str):
             client.subscribe(self.topic)
         elif hasattr(self.topic, '__iter__'):
@@ -409,7 +410,7 @@ class MQTTMonitor(Common):
                 client.subscribe(t)
 
     def on_disconnect(self, *args):
-        self.log("DISCONNECTED!")
+        self.logger.info("DISCONNECTED!")
 
     def start(self):
         client = MQTTClient(on_connect=self.on_connect, on_message=self.on_message, on_disconnect=self.on_disconnect)

@@ -4,18 +4,18 @@ from collections import deque
 import human_readable as hr
 
 from backend.sms import SMS
-from backend.storage import Laundry, model_to_dict, Electricity
+from backend.storage import Laundry, model_to_dict
 from backend.tools import json_deserial, json_serial, MQTTClient
-from common.common import Common
 from configuration import Topic
 
+import logging
+logger = logging.getLogger(__name__)
 
-class LaundryActivity(Common):
+class LaundryActivity:
     INPUT_TOPIC = Topic.OnAir.format("electricity", "bathroom")
     OUTPUT_TOPIC = Topic.OnAir.format(Topic.OnAir.Facet.activity, "laundry")
 
     def __init__(self, mqtt: MQTTClient):
-        super().__init__("Laundry", debug=False)
         self.sms = SMS()
         self.mqtt = mqtt
         self.active_laundry = None
@@ -82,14 +82,13 @@ class LaundryActivity(Common):
             output["energy"] = (self.laundry.end_energy - self.laundry.start_energy) / 1000
 
         message = json_serial(output)
-        self.debug("PUBLISH {} -> {}".format(self.OUTPUT_TOPIC, message))
+        logger.debug("PUBLISH {} -> {}".format(self.OUTPUT_TOPIC, message))
         self.mqtt.publish(self.OUTPUT_TOPIC, message, retain=True)
 
 
-class Activities(Common):
+class Activities:
 
     def __init__(self):
-        super().__init__("Activities")
         self.start_at = datetime.datetime.now()
         self.status = None
         self.exit = False
@@ -97,19 +96,19 @@ class Activities(Common):
         self.activities = [LaundryActivity(self.mqtt)]
 
     def on_message(self, client, userdata, msg):
-        self.debug("[{}]{}".format(msg.topic, msg.payload.decode()))
+        logger.debug("[{}]{}".format(msg.topic, msg.payload.decode()))
         data = json_deserial(msg.payload.decode())
         for activity in self.activities:
             if activity.INPUT_TOPIC == msg.topic:
                 activity.on_message(msg.topic, data)
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
-        self.log(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}")
+        logger.info(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}")
         for activity in self.activities:
             client.subscribe(activity.INPUT_TOPIC)
 
     def on_disconnect(self, *args, **kwargs):
-        self.log("MQTT disconnected!")
+        logger.info("MQTT disconnected!")
 
     def stop(self):
         self.exit = True

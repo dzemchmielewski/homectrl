@@ -27,7 +27,7 @@ if system == "onair":
     from backend.activities import Activities
 
     threads = []
-    print("Starting OnAir...")
+    logging.info("Starting OnAir...")
     onAir = OnAir()
     activities = Activities()
     threads.append(threading.Thread(target=onAir.start))
@@ -35,7 +35,7 @@ if system == "onair":
 
     for t in threads:
         t.start()
-    print("Started OnAir")
+    logging.info("Started OnAir")
 
     try:
         while True:
@@ -43,26 +43,26 @@ if system == "onair":
     except KeyboardInterrupt:
         pass
 
-    print("Stopping OnAir...")
+    logging.info("Stopping OnAir...")
     onAir.stop()
     activities.stop()
     for t in threads:
         if t.is_alive():
             t.join()
-    print("Stopped OnAir")
+    logging.info("Stopped OnAir")
 
 
 elif system == "restapi":
     import uvicorn
     import socket
-    from backend.restapi import app
+    from backend.restapi import app, UVICORN_LOG_CONFIG
 
     if socket.gethostname() == 'pi':
         bind_to = '192.168.0.24'
     else:
         bind_to = 'localhost'
 
-    uvicorn.run("backend.restapi:app", host=bind_to, port=8000, workers=1)
+    uvicorn.run("backend.restapi:app", host=bind_to, port=8000, workers=1, log_config=UVICORN_LOG_CONFIG)
 
 elif system == "charts":
     from backend.charts import ChartsGenerator

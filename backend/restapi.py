@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import json
 import uuid
+from typing import Any
 
 from starlette.responses import JSONResponse
 from starlette.websockets import WebSocketState, WebSocketDisconnect
@@ -14,10 +15,11 @@ from contextlib import asynccontextmanager
 from dateutil.relativedelta import relativedelta
 
 from backend.storage import FigureCache, ChartPeriod, Laundry
-from common.common import Common
-from configuration import Configuration, Topic
+from configuration import Topic
 from backend.tools import json_serial, json_deserial, MQTTClient
 
+import logging
+logger = logging.getLogger(__name__)
 
 class PrettyJSONResponse(JSONResponse):
 
@@ -26,36 +28,35 @@ class PrettyJSONResponse(JSONResponse):
                           indent=2, separators=(",", ":")).encode("utf-8")
 
 
-class ConnectionManager(Common):
+class ConnectionManager:
     MQTT_SUBSCRIPTIONS = [
         Topic.OnAir.format("+", "+")
     ]
 
     def __init__(self) -> None:
-        super().__init__("RESTAPI", debug=False)
         self.connections = {}
         self.mqtt = MQTTClient(on_connect=self.on_connect, on_message=self.on_message, on_disconnect=self.on_disconnect)
         self.onair = {}
 
     def on_start(self):
         self.mqtt.loop_start()
-        self.log("ON START!!!")
+        logger.info("ON START!!!")
 
     def on_stop(self):
         self.mqtt.disconnect()
         self.mqtt.loop_stop()
-        self.log("ON STOP!!!")
+        logger.info("ON STOP!!!")
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
-        self.log(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}")
+        logger.info(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}")
         for topic in self.MQTT_SUBSCRIPTIONS:
             client.subscribe(topic)
 
     def on_disconnect(self, *args, **kwargs):
-        self.log("MQTT disconnected!")
+        logger.info("MQTT disconnected!")
 
     def on_message(self, client, userdata, msg):
-        self.debug("[{}]{}".format(msg.topic, msg.payload.decode()))
+        logger.debug("[{}]{}".format(msg.topic, msg.payload.decode()))
         facet, device = Topic.OnAir.parse(msg.topic)
         message = json_deserial(msg.payload.decode())
         message["name"] = device
@@ -72,7 +73,7 @@ class ConnectionManager(Common):
     async def connect(self, ws: WebSocket, facet: str = None) -> str:
         await ws.accept()
         id = str(uuid.uuid4())
-        self.debug("Client #{} connected".format(id))
+        logger.debug("Client #{} connected".format(id))
         if not self.connections.get(facet):
             self.connections[facet] = {}
         self.connections[facet][id] = ws
@@ -80,23 +81,22 @@ class ConnectionManager(Common):
         return id
 
     async def disconnect(self, id, facet: str = None) -> None:
-        self.debug("Client #{} removed from manager".format(id))
+        logger.debug("Client #{} removed from manager".format(id))
         del self.connections[facet][id]
 
     async def send_message(self, message, facet: str = None) -> None:
-        # self.log("Send Message[{}]. Clients: {}".format(facet, self.connections))
         if self.connections.get(facet):
             for id, ws in self.connections[facet].items():
                 try:
                     await ws.send_text(message)
                 except ConnectionClosed:
-                    self.debug("Client #{} disconnected while send".format(id))
+                    logger.debug("Client #{} disconnected while send".format(id))
                     await self.disconnect(id, facet)
 
     async def send_control_message(self, message: dict) -> None:
         topic = Topic.Device.format(message["name"], Topic.Device.Facility.control)
         msg = json_serial(message)
-        self.log("publish - topic: {}, message: {}".format(topic, msg))
+        logger.info("publish - topic: {}, message: {}".format(topic, msg))
         self.mqtt.publish(topic, msg, retain=True)
 
 
@@ -111,12 +111,12 @@ class HomeCtrlAPI(Routable):
         try:
             while ws.application_state == WebSocketState.CONNECTED:
                 data = await ws.receive_text()
-                self.connection_manager.debug("Client {} recv data: {}".format(id, data))
+                logger.debug("Client {} recv data: {}".format(id, data))
                 await asyncio.sleep(1)
         except WebSocketDisconnect:
-            self.connection_manager.debug("Client {} disconnected while recv".format(id))
+            logger.debug("Client {} disconnected while recv".format(id))
             await self.connection_manager.disconnect(id, facet)
-        self.connection_manager.debug("Client {} has gone".format(id))
+        logger.debug("Client {} has gone".format(id))
 
     @websocket("/ws/humidity")
     async def humidity(self, ws: WebSocket):
@@ -207,7 +207,7 @@ class HomeCtrlAPI(Routable):
 
     @post("/control")
     async def control(self, data: dict):
-        print("CONTROL: {}".format(data))
+        logger.info("CONTROL: {}".format(data))
         name = data["name"]
         capabilities = self.connection_manager.onair.get("capabilities")
         if name in capabilities:
@@ -275,6 +275,41 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+UVICORN_LOG_CONFIG: dict[str, Any] = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "default": {
+            "()": "uvicorn.logging.DefaultFormatter",
+            "fmt": "[%(asctime)s][%(levelname)s][%(name)s] %(message)s",
+            "use_colors": None,
+        },
+        "access": {
+            "()": "uvicorn.logging.AccessFormatter",
+            "fmt": '[%(asctime)s][%(levelname)s][%(name)s] %(client_addr)s - "%(request_line)s" %(status_code)s',  # noqa: E501
+        },
+    },
+    "handlers": {
+        "default": {
+            "formatter": "default",
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stderr",
+        },
+        "access": {
+            "formatter": "access",
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stdout",
+        },
+    },
+    "loggers": {
+        "uvicorn": {"handlers": ["default"], "level": "INFO", "propagate": False},
+        "uvicorn.error": {"level": "INFO"},
+        "uvicorn.access": {"handlers": ["access"], "level": "INFO", "propagate": False},
+    },
+}
+
+
 if __name__ == "__main__":
 
     import uvicorn
@@ -286,4 +321,4 @@ if __name__ == "__main__":
     #     bind_to = 'localhost'
     bind_to = '192.168.0.24'
 
-    uvicorn.run("__main__:app", host=bind_to, port=8000, workers=1)
+    uvicorn.run("__main__:app", host=bind_to, port=8000, workers=1, log_config=UVICORN_LOG_CONFIG)

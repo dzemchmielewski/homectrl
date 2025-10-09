@@ -2,13 +2,15 @@ import traceback
 import sys
 import time
 from backend.storage import *
-from common.common import Common
 from configuration import Topic
 from backend.tools import json_serial, json_deserial, singleton, MQTTClient
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 @singleton
-class OnAir(Common):
+class OnAir:
 
     MQTT_SUBSCRIPTIONS = [
         Topic.Device.format("+", Topic.Device.Facility.live),
@@ -18,7 +20,6 @@ class OnAir(Common):
     ]
 
     def __init__(self):
-        super().__init__("OnAir", debug=False)
         self.start_at = datetime.datetime.now()
         self.status = {}
         # self.capabilities = {}
@@ -28,7 +29,7 @@ class OnAir(Common):
 
     def on_message(self, client, userdata, msg):
         try:
-            self.debug("[{}]{}".format(msg.topic, msg.payload.decode()))
+            logger.debug("[{}]{}".format(msg.topic, msg.payload.decode()))
             data = json_deserial(msg.payload.decode())
             device, facility_str = Topic.Device.parse(msg.topic)
             facility = Topic.Device.Facility(facility_str)
@@ -41,7 +42,7 @@ class OnAir(Common):
                 for entry in self.data2entries(data):
                     current = self.status[type(entry)].get(entry.name.value)
                     if not entry.equals(current):
-                        self.debug("SWITCH {} for {}".format(type(entry), entry.name.value))
+                        logger.debug("SWITCH {} for {}".format(type(entry), entry.name.value))
                         self.process_entry(entry)
 
                 # Some additional data, passed OnAir, but not saved in the database:
@@ -59,16 +60,16 @@ class OnAir(Common):
                                   json_serial(data), retain=True)
 
             else:
-                self.log("ERROR! Topic not recognized: {}".format(msg.topic))
+                logger.error("ERROR! Topic not recognized: {}".format(msg.topic))
 
         except UnicodeError as e:
-            self.log("Unicode error caught! {}".format(e))
-            self.log("On message: [{}]{}".format(msg.topic, msg.payload))
+            logger.fatal("Unicode error caught! {}".format(e))
+            logger.fatal("On message: [{}]{}".format(msg.topic, msg.payload))
             traceback.print_exc()
 
         except Exception as e:
-            self.log("Exception caught! {}".format(e))
-            self.log("On message: [{}]{}".format(msg.topic, msg.payload.decode()))
+            logger.fatal("Exception caught! {}".format(e))
+            logger.fatal("On message: [{}]{}".format(msg.topic, msg.payload.decode()))
             traceback.print_exc()
             # for line in traceback.format_stack():
             #     print(line.strip())
@@ -100,7 +101,7 @@ class OnAir(Common):
     def process_entry(self, entry: HomeCtrlBaseModel, db_save=True):
         self.status[type(entry)][entry.name.value] = entry
         subject = Topic.OnAir.format(type(entry).__name__.lower(), entry.name.value)
-        self.debug("PUBLISH {} -> {}".format(subject, model_to_dict(entry)))
+        logger.debug("PUBLISH {} -> {}".format(subject, model_to_dict(entry)))
         if db_save:
             entry.save_new_value()
         self.mqtt.publish(
@@ -109,12 +110,12 @@ class OnAir(Common):
             retain=True)
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
-        self.log(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}")
+        logger.info(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}")
         for topic in self.MQTT_SUBSCRIPTIONS:
             client.subscribe(topic)
 
     def on_disconnect(self, *args, **kwargs):
-        self.log("MQTT disconnected!")
+        logger.info("MQTT disconnected!")
 
     def stop(self):
         self.exit = True

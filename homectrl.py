@@ -5,14 +5,16 @@
 import argparse, argcomplete
 import os
 import sys
-import time
 
 from backend.tools import WebREPLClient
 from common.common import Common
 from  configuration import Configuration, Topic
-from devel.development import str2bool
 
-DEBUG = False
+import logging
+logging.basicConfig(level=logging.INFO)
+for handler in logging.getLogger().handlers:
+    handler.setFormatter(logging.Formatter("[%(asctime)s][%(name)s] %(message)s"))
+logger = logging.getLogger("HOMECTRL")
 
 # class _HelpAction(argparse._HelpAction):
 #
@@ -113,8 +115,7 @@ class HomeCtrl(Common):
         argcomplete.autocomplete(parser)
         args = parser.parse_args()
 
-        if DEBUG:
-            print("DEBUG ARGS: {}".format(vars(args)))
+        # logger.debug("DEBUG ARGS: {}".format(vars(args)))
         return args
 
     def list_db(self):
@@ -124,7 +125,7 @@ class HomeCtrl(Common):
         for c in storage.entities():
             t = c.get_last()
             if t is not None:
-                self.log("{} \t-> {}".format(type(t).__name__, json_serial(t.__dict__['__data__'])))
+                logger.info("{} \t-> {}".format(type(t).__name__, json_serial(t.__dict__['__data__'])))
 
     def run(self):
         args = self.parse_args()
@@ -133,17 +134,17 @@ class HomeCtrl(Common):
             if args.v1:
                 if args.exit:
                     from backend.tools import Client
-                    self.log("Connecting to: {}".format(args.server_id))
+                    logger.info("Connecting to: {}".format(args.server_id))
                     client = Client(Configuration.get_communication(args.server_id), args.server_id)
-                    self.log(" >>  server_exit")
-                    self.log(f" <<  {client.interact('server_exit')}")
+                    logger.info(" >>  server_exit")
+                    logger.info(f" <<  {client.interact('server_exit')}")
                 else:
                     from backend.tools import CommandLineClient
-                    self.log("Connecting to: {}".format(args.server_id))
+                    logger.info("Connecting to: {}".format(args.server_id))
                     CommandLineClient(Configuration.get_communication(args.server_id), args.server_id, not args.no_format).start()
             else:
                 from backend.tools import WSCommandLineClient
-                self.log("Connecting to: {}".format(args.server_id))
+                logger.info("Connecting to: {}".format(args.server_id))
                 if args.exit:
                     client = WSCommandLineClient(args.server_id, not args.no_format)
                     client.ws.send("shared.Exit.go()")
@@ -214,12 +215,12 @@ class HomeCtrl(Common):
         elif args.command == "sms":
             from backend.sms import SMS
             if args.sms_action == "balance":
-                print(SMS().balance())
+                logger.info(SMS().balance())
             elif args.sms_action == "parts":
                 message = args.message
-                print("Checking number of parts for message: {}".format(message))
+                logger.info("Checking number of parts for message: {}".format(message))
                 result = SMS().parts_count(message)
-                print("RESULT: {}".format(result))
+                logger.info("RESULT: {}".format(result))
 
         elif args.command == "devel":
             dev_cls = next((cls for cls in self.devel if cls.argparser.prog == args.devel_command), None)
