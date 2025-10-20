@@ -275,29 +275,30 @@ class Electricity(HomeCtrlBaseModel):
 
 
 class ChartPeriod(Enum):
-    hours24 = "24 hours"
-    days7 = "7 days"
-    month1 = "1 month"
+    hours24 = 'hours24'
+    days7 = 'days7'
+    month1 = 'month1'
 
-    @classmethod
-    def from_str(cls, name: str):
-        return cls.__getitem__(name)
+class ChartStatus(Enum):
+    pending = 'pending'
+    ready = 'ready'
 
-
-class FigureCache(BaseModel):
+class Chart(BaseModel):
     name = ForeignKeyField(Name, on_update='CASCADE')
     model = TextField()
     period = EnumField(ChartPeriod, max_length=8)
-    data = BlobField()
+    status = EnumField(ChartStatus, max_length=8)
     create_at = DateTimeField()
+    type = TextField()
+    data = BlobField()
 
     @classmethod
     def get_last(cls, model: Any, period: ChartPeriod, name: str):
         if not isinstance(model, str):
             model = model.__name__
-        return (FigureCache
+        return (Chart
                 .select()
-                .where(FigureCache.model == model, FigureCache.period == period, FigureCache.name == name)
+                .where(Chart.model == model, Chart.period == period, Chart.name == name)
                 .get_or_none())
 
     def getvalue(self):

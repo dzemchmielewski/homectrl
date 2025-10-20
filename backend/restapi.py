@@ -14,7 +14,7 @@ from fastapi.responses import Response
 from contextlib import asynccontextmanager
 from dateutil.relativedelta import relativedelta
 
-from backend.storage import FigureCache, ChartPeriod, Laundry
+from backend.storage import Chart, ChartPeriod, Laundry
 from configuration import Topic
 from backend.tools import json_serial, json_deserial, MQTTClient
 
@@ -176,7 +176,7 @@ class HomeCtrlAPI(Routable):
 
     @get("/chart/{period}/{facet}/{device}")
     async def get_basic_chart(self, period: str, facet: str, device: str):
-        cache = FigureCache.get_last(facet[0].upper() + facet[1:], ChartPeriod.from_str(period), device)
+        cache = Chart.get_last(facet[0].upper() + facet[1:], ChartPeriod.from_str(period), device)
         if not cache:
             return Response(status_code=status.HTTP_404_NOT_FOUND)
         return Response(content=cache.getvalue(), media_type="image/png", status_code=status.HTTP_200_OK)
