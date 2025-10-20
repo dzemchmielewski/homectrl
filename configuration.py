@@ -40,6 +40,9 @@ class _Topic:
             return m.groups()
         return None
 
+    def is_topic(self, topic: str) -> bool:
+        return self.topic_re.match(topic) is not None
+
 
 class Topic:
 
@@ -50,6 +53,7 @@ class Topic:
         _topic = _Topic("homectrl/device", 2)
         parse = _topic.parse
         format = _topic.format
+        is_topic = _topic.is_topic
 
         class Facility(Enum):
             live = "live"
@@ -66,6 +70,7 @@ class Topic:
         _topic = _Topic("homectrl/onair", 2)
         format = _topic.format
         parse = _topic.parse
+        is_topic = _topic.is_topic
 
         class Facet(Enum):
             # There are some more dynamic facets here, like light, presence, live, etc...

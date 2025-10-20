@@ -4,10 +4,9 @@
 
 import argparse, argcomplete
 import logging
-import threading
 import time
 
-services = ["onair", "restapi", "charts", "weather"]
+services = ["onair", "restapi", "charts"]
 
 parser = argparse.ArgumentParser(description="HomeCtrl service launcher", add_help=True)
 parser.add_argument("service",  choices=services, help="Backend service to start")
@@ -24,32 +23,17 @@ system = args.service
 if system == "onair":
 
     from backend.onair import OnAir
-    from backend.activities import Activities
 
-    threads = []
     logging.info("Starting OnAir...")
     onAir = OnAir()
-    activities = Activities()
-    threads.append(threading.Thread(target=onAir.start))
-    threads.append(threading.Thread(target=activities.start))
-
-    for t in threads:
-        t.start()
-    logging.info("Started OnAir")
-
     try:
+        onAir.start()
         while True:
             time.sleep(100)
     except KeyboardInterrupt:
-        pass
-
-    logging.info("Stopping OnAir...")
-    onAir.stop()
-    activities.stop()
-    for t in threads:
-        if t.is_alive():
-            t.join()
-    logging.info("Stopped OnAir")
+        logging.info("Stopping OnAir...")
+        onAir.stop()
+        logging.info("Stopped OnAir")
 
 
 elif system == "restapi":
@@ -68,13 +52,6 @@ elif system == "charts":
     from backend.charts import ChartsGenerator
     try:
         ChartsGenerator().start()
-    except KeyboardInterrupt:
-        pass
-
-elif system == "weather":
-    from backend.weather import Weather
-    try:
-        Weather().start()
     except KeyboardInterrupt:
         pass
 

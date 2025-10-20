@@ -35,7 +35,7 @@ class SMS:
             logger.fatal("Error sending SMS: " + str(e))
 
     def laundry(self):
-        self.log("Sending laundry SMS...")
+        logger.info("Sending laundry SMS...")
         msg = "Pranie trzeba ogarnąć. Godzina: {} ref: http://status.home/".format(datetime.datetime.now().strftime("%H:%M"))
         result = self._smsplanet_post("sms", {"from": self.sender, "to": self.recipients, "msg": msg})
         logger.info("Sending laundry SMS: {}".format(result))

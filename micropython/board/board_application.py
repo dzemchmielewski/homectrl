@@ -104,10 +104,11 @@ class Facility:
         return self._endpoint
 
     def to_dict(self):
-        return (
-                ({self.name + "_set": util.time_str_ms(self.set)} if self.set else {})
-                | ({self.name + "_access": util.time_str_ms(self.access)} if self.access else {})
-                | self._to_dict(self))
+        return ({self.name + "_time":
+            ({"set": util.time_str_ms(self.set)} if self.set else {})
+            | ({"access": util.time_str_ms(self.access)} if self.access else {})
+        }
+        | self._to_dict(self))
 
     def __iter__(self):
         return iter(self.to_dict().items())
