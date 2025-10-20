@@ -68,7 +68,7 @@ def run():
     amps = [0, 0.75,0.81, 0.825, 0.945]
     # Drill  results: [[28.65095, 81.99622, 94.87803, 110.9846, 154.6735, 154.2422], [22.05063, 108.2657, 128.179, 148.4483, 208.0938, 215.2003]]
 
-    volts_pp = gather_pp_values([lambda: ads.read(0), lambda: ads.read(1)], amps)
+    volts_pp = gather_pp_values([lambda: ads.index(0), lambda: ads.index(1)], amps)
     print (f"Gather results: {volts_pp}")
     print ("Analysis:")
     # for sensor in range(2):
@@ -159,7 +159,7 @@ def run8():
 
 def run9():
     def fread():
-        return ads.read(1)
+        return ads.index(1)
     def espread():
         return adc.read_uv() / 1_000
 

@@ -5,23 +5,28 @@ import sys
 from machine import Pin, SoftI2C
 from ina3221 import *
 
-bus  = SoftI2C(scl=Pin(11), sda=Pin(12), freq=400000)
+bus  = SoftI2C(scl=Pin(3), sda=Pin(4), freq=400000)
 
 # INA3221.IS_FULL_API = False
-size = 1
-ina = [INA3221(bus, i2c_addr=0x40 + i) for i in range(size)]
-for i in range(size):
-    if INA3221.IS_FULL_API:
-        ina[i].update(reg=C_REG_CONFIG,
-                           mask=C_AVERAGING_MASK | C_VBUS_CONV_TIME_MASK | C_SHUNT_CONV_TIME_MASK | C_MODE_MASK,
-                           value=C_AVERAGING_128_SAMPLES | C_VBUS_CONV_TIME_8MS | C_SHUNT_CONV_TIME_8MS | C_MODE_SHUNT_AND_BUS_CONTINOUS)
-    for c in range(3):
-        ina[i].enable_channel(c + 1)
+ina = INA3221(bus, i2c_addr=0x40)
+if INA3221.IS_FULL_API:
+    ina.update(reg=C_REG_CONFIG,
+                       mask=C_AVERAGING_MASK | C_VBUS_CONV_TIME_MASK | C_SHUNT_CONV_TIME_MASK | C_MODE_MASK,
+                       value=C_AVERAGING_128_SAMPLES | C_VBUS_CONV_TIME_8MS | C_SHUNT_CONV_TIME_8MS | C_MODE_SHUNT_AND_BUS_CONTINOUS)
 
-ina3221 = ina[0]
+channels = [1,2,3]
+#channels = [3]
+for c in channels:
+    ina.enable_channel(c)
+
+time.sleep(2)
+
+for i in range(3):
+    print("Channel {:d} enabled: {}".format(i+1, ina.is_channel_enabled(i+1)))
+
 while True:
     if INA3221.IS_FULL_API: # is_ready available only in "full" variant
-        while not ina3221.is_ready:
+        while not ina.is_ready:
             print(".",end='')
             time.sleep(0.1)
         print("")
@@ -33,12 +38,12 @@ while True:
     line_shunt_voltage = "Shunt voltage "
     line_current =       "Current       "
 
-    for chan in range(1,4):
+    for chan in channels:
         #if ina3221.is_channel_enabled(chan):
             #
-            bus_voltage = ina3221.bus_voltage(chan)
-            shunt_voltage = ina3221.shunt_voltage(chan)
-            current = ina3221.current(chan)
+            bus_voltage = ina.bus_voltage(chan)
+            shunt_voltage = ina.shunt_voltage(chan)
+            current = ina.current(chan)
             #
             line_title +=         "| Chan#{:d}      ".format(chan)
             line_psu_voltage +=   "| {:6.3f}    V ".format(bus_voltage + shunt_voltage)

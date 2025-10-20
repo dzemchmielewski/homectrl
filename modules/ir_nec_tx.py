@@ -24,6 +24,14 @@ class PWMCarrier(TxCarrier):
     def deinit(self):
         self.pwm.deinit()
 
+class PinCarrier(TxCarrier):
+    def __init__(self, pin: Pin):
+        self.pin = pin
+
+    def pulse(self, duration_us: int):
+        self.pin.on()
+        time.sleep_us(duration_us)
+        self.pin.off()
 
 class IrNecTx:
 
@@ -57,10 +65,13 @@ class IrNecTx:
             self.times[2 + (2 * i) + 1] = IrNecTx.ONE if (value >> i) & 1 == 1 else IrNecTx.ZERO
         self.times[IrNecTx.SIZE - 1] = IrNecTx.BURST
 
+        start_time = time.ticks_us()
         for i in range(0,  IrNecTx.SIZE - 1, 2):
             self.carrier.pulse(self.times[i])
             time.sleep_us(self.times[i + 1])
         self.carrier.pulse(self.times[IrNecTx.SIZE - 1])
+        end_time = time.ticks_us()
+        logging.debug("Sending time: {}us".format(end_time - start_time))
 
         # Repeat
         if repeat > 0:
@@ -79,7 +90,7 @@ if __name__ == "__main__":
         handler.setFormatter(logging.Formatter("%(message)s"))
 
     pin = Pin(3, Pin.OUT, value = 0)
-    tx = IrNecTx(PWMCarrier(pin))
+    tx = IrNecTx(PinCarrier(pin))
     try:
         tx.send(0x0080, 0x01)
     finally:

@@ -61,7 +61,7 @@ class SegmentLCD8:
 
     def set(self, text: str):
         chars, dot_positions = self.parser.parse(text.upper())
-        logging.info(f"chars and dot positions: '{chars}', {dot_positions}")
+        logging.debug(f"chars and dot positions: '{chars}', {dot_positions}")
         for (i, char) in enumerate(chars):
             self.matrix.set_row(self.matrix.rows - i - 1, self.SEGMENTS.get(char, 0))
         for pos in dot_positions:
@@ -98,6 +98,15 @@ if __name__ == "__main__":
     #     logging.info(f"Setting LCD to: {num}")
     #     lcd.set(num)
     #     time.sleep(0.5)
+
+    try:
+        i = 0
+        while True:
+            lcd.set(str(i))
+            i = (i + 1) % 10_000
+            time.sleep_ms(10)
+    except KeyboardInterrupt:
+        pass
 
     while True:
         chars = input("Enter text:").upper()
