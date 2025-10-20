@@ -1,5 +1,7 @@
 import asyncio
 import datetime
+import math
+
 import aiohttp
 import logging
 
@@ -41,14 +43,12 @@ class Weather(OnAirService):
                     self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "weather"), message, retain=True)
 
                     now = datetime.datetime.now()
-                    # next_minute = ((now.minute // 10) + 1) * 10
-                    next_minute = ((now.minute // 5) + 1) * 5
-
+                    next_minute = math.ceil((now.minute + 1) / 5) * 5
                     if next_minute >= 60:
-                        next_hour = now.replace(hour=(now.hour + 1) % 24, minute=0, second=0, microsecond=0)
+                        next_run = (now.replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=1))
                     else:
-                        next_hour = now.replace(minute=next_minute, second=0, microsecond=0)
-                    seconds_to_next = (next_hour - now).total_seconds()
+                        next_run = now.replace(minute=next_minute, second=0, microsecond=0)
+                    seconds_to_next = (next_run - now).total_seconds()
                     await asyncio.sleep(seconds_to_next)
 
                 except Exception as e:
