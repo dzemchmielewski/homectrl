@@ -9,9 +9,9 @@ from backend.services.onairservice import OnAirService
 from configuration import Topic
 from backend.tools import json_serial, MQTTClient
 
-logger = logging.getLogger("onair.weather")
+logger = logging.getLogger("onair.meteo")
 
-class Weather(OnAirService):
+class Meteo(OnAirService):
 
     def __init__(self):
         self.umk_weather_url = "https://pogoda.umk.pl/api/weather"
@@ -22,11 +22,15 @@ class Weather(OnAirService):
             async with session.get(self.umk_weather_url) as response:
                 if response.status == 200:
                     json_resp = await response.json()
+                    logger.debug(await response.text())
                     data = json_resp['data']
                     return {
                         'temperature': round(float(data['tempAir200']['value']), 1),
                         'humidity': round(float(data['airHumidity']['value']), 1),
                         'pressure': round(float(data['atmosphericPressure']['value']), 1),
+                        'precipitation': round(float(data['precipitation1']['value']), 1),
+                        'wind': round(float(data['windSpeed']['value']), 1),
+                       'date': datetime.datetime.fromisoformat(json_resp['dateUTC']).astimezone(),
                         'create_at': datetime.datetime.now(),
                     }
                 else:
@@ -39,8 +43,8 @@ class Weather(OnAirService):
                 try:
                     weather = await self.get_umk_weather()
                     message = json_serial(weather)
-                    logger.info(message)
-                    self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "weather"), message, retain=True)
+                    logger.debug(message)
+                    self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo"), message, retain=True)
 
                     now = datetime.datetime.now()
                     next_minute = math.ceil((now.minute + 1) / 5) * 5

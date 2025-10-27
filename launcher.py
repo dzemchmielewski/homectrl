@@ -6,7 +6,7 @@ import argparse, argcomplete
 import logging
 import time
 
-services = ["onair", "restapi", "charts"]
+services = ["onair", "restapi", "charts", "devel"]
 
 parser = argparse.ArgumentParser(description="HomeCtrl service launcher", add_help=True)
 parser.add_argument("service",  choices=services, help="Backend service to start")
@@ -54,6 +54,11 @@ elif system == "charts":
         ChartsGenerator().start()
     except KeyboardInterrupt:
         pass
+
+elif system == "devel":
+    # put your devel code here
+    # that will run with proper python environment
+    pass
 
 else:
     print("Unknown subsystem: {}".format(system))
