@@ -68,7 +68,6 @@ class HomeCtrl(Common):
 
         webrepl = subparsers.add_parser("webrepl", help="Connect to specified WEBREPL server", formatter_class=self.Formatter)
         webrepl.add_argument("server_id", choices=boards, help="Available boards")
-        # webrepl.add_argument("--no-homectrl-exit", "-ne", help="Skip the exit HomeCtrl server on the board", default=False, action="store_true")
         webrepl_file_group = webrepl.add_mutually_exclusive_group()
         webrepl_file_group.add_argument("--file", "-f",  help="Transfer file TO the board")
         webrepl_file_group.add_argument("--get", "-g",  help="Transfer file FROM the board")
@@ -76,6 +75,7 @@ class HomeCtrl(Common):
                                         help="Send sys.exit() command, aka soft reset")
         webrepl_file_group.add_argument("--reboot", "-r", default=False, action="store_true",
                                         help="Send machine.reset() command aka hard reset/reboot")
+        webrepl_file_group.add_argument("--statement", "-s",  help="Execute a single statement and exit")
         webrepl.set_defaults(command="webrepl")
 
         ping = subparsers.add_parser("ping", help="Ping to specified host", formatter_class=self.Formatter)
@@ -168,6 +168,8 @@ class HomeCtrl(Common):
                     repl.put_file(args.file, args.file)
                 elif args.get:
                     repl.get_file(args.get, args.get)
+                elif args.statement:
+                    repl.repl([args.statement])
                 else:
                     repl.do_repl()
 
