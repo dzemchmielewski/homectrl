@@ -389,7 +389,8 @@ class MQTTMonitor:
         try:
             if message:
                 data = json_deserial(message)
-                if data.get("radar"):
+                if hasattr(data, 'get') and callable(getattr(data, 'get')) and data.get("radar"):
+
                     self.logger.info("[RADAR][{}][{}][{}][{}][{}][MOV: {:03}cm, {:03}%][STA: {:03}cm, {:03}%][DST: {:03}cm] [{}]".format(
                         msg.topic,
                         " ON" if data["presence"] else "OFF", self.target_state(data["radar"]["target_state"]),
@@ -428,14 +429,14 @@ class MQTTMonitor:
 
 class HomeCtrlJsonEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, datetime.datetime):
+        if isinstance(obj, datetime.datetime) or isinstance(obj, datetime.date) or isinstance(obj, datetime.time):
             return obj.isoformat()
         elif isinstance(obj, decimal.Decimal):
             return float(obj)
         return json.JSONEncoder.default(self, obj)
 
 
-def json_serial(obj, indent=None, sort_keys=False):
+def json_serial(obj, indent:int = None, sort_keys: bool = False):
     return json.dumps(obj, cls=HomeCtrlJsonEncoder, indent=indent, sort_keys=sort_keys)
 
 
