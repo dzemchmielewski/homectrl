@@ -4,8 +4,8 @@ import inspect
 import pathlib
 
 import logging
-import signal
 import threading
+import traceback
 
 from backend.storage import *
 from backend.tools import MQTTClient
@@ -23,19 +23,42 @@ class OnAir:
         self.services = self._load_services()
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
-        logger.info(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}")
-        for service in self.services:
-            service.on_connect(client, userdata, flags, reason_code, properties)
+        try:
+            logger.info(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}")
+            for service in self.services:
+                service.on_connect(client, userdata, flags, reason_code, properties)
+        except UnicodeError as e:
+            logger.fatal("Unicode error caught! {}".format(e))
+            traceback.print_exc()
+        except Exception as e:
+            logger.fatal("Exception caught! {}".format(e))
+            traceback.print_exc()
 
     def on_message(self, client, userdata, msg):
-        logger.debug(f"[{msg.topic}]{msg.payload.decode()}")
-        for service in self.services:
-            service.on_message(client, userdata, msg)
+        try:
+            logger.debug(f"[{msg.topic}]{msg.payload.decode()}")
+            for service in self.services:
+                service.on_message(client, userdata, msg)
+        except UnicodeError as e:
+            logger.fatal("Unicode error caught! {}".format(e))
+            logger.fatal("On message: [{}]{}".format(msg.topic, msg.payload))
+            traceback.print_exc()
+        except Exception as e:
+            logger.fatal("Exception caught! {}".format(e))
+            logger.fatal("On message: [{}]{}".format(msg.topic, msg.payload.decode()))
+            traceback.print_exc()
 
     def on_disconnect(self, *args, **kwargs):
-        logger.info("MQTT disconnected!")
-        for service in self.services:
-            service.on_disconnect(*args, **kwargs)
+        try:
+            logger.info("MQTT disconnected!")
+            for service in self.services:
+                service.on_disconnect(*args, **kwargs)
+        except UnicodeError as e:
+            logger.fatal("Unicode error caught! {}".format(e))
+            traceback.print_exc()
+        except Exception as e:
+            logger.fatal("Exception caught! {}".format(e))
+            traceback.print_exc()
 
     @staticmethod
     def _load_services():
@@ -63,20 +86,6 @@ class OnAir:
 
         tasks = [asyncio.create_task(p.run()) for p in self.services]
 
-        # def handle_exit():
-        #     for p in self.services:
-        #         p.exit = True
-        #     for p in tasks:
-        #         p.cancel()
-        #
-        #     self.mqtt.disconnect()
-        #     self.mqtt.loop_stop()
-        #     self.stop_event.set()
-        #
-        # loop = asyncio.get_running_loop()
-        # loop.add_signal_handler(signal.SIGINT, handle_exit)
-        # loop.add_signal_handler(signal.SIGTERM, handle_exit)
-
         await self.stop_event.wait()
         await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -97,4 +106,4 @@ class OnAir:
         self.stop_event.set()
 
 if __name__ == "__main__":
-    OnAirServices().start()
+    OnAir().start()
