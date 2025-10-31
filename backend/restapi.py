@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import json
+import traceback
 import uuid
 from typing import Any
 
@@ -20,7 +21,7 @@ from backend.tools import json_serial, json_deserial, MQTTClient
 
 import logging
 logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 class PrettyJSONResponse(JSONResponse):
 
@@ -57,17 +58,24 @@ class ConnectionManager:
         logger.info("MQTT disconnected!")
 
     def on_message(self, client, userdata, msg):
-        logger.debug("[{}]{}".format(msg.topic, msg.payload.decode()))
-        facet, device = Topic.OnAir.parse(msg.topic)
-        message = json_deserial(msg.payload.decode())
-        if isinstance(message, dict):
-            message["name"] = device
-        #if facet != "live":
-         #   message["live"] = self.onair.get("live") and self.onair["live"].get(device) and self.onair["live"][device]["value"]
-        if not self.onair.get(facet):
-            self.onair[facet] = {}
-        self.onair[facet][device] = message
-        asyncio.run(self.send_message(self.prepare_response(facet), facet))
+        try:
+            decoded = msg.payload.decode()
+            if decoded:
+                logger.debug("[{}]{}".format(msg.topic, decoded))
+                facet, device = Topic.OnAir.parse(msg.topic)
+                message = json_deserial(decoded)
+                if isinstance(message, dict):
+                    message["name"] = device
+                #if facet != "live":
+                 #   message["live"] = self.onair.get("live") and self.onair["live"].get(device) and self.onair["live"][device]["value"]
+                if not self.onair.get(facet):
+                    self.onair[facet] = {}
+                self.onair[facet][device] = message
+                asyncio.run(self.send_message(self.prepare_response(facet), facet))
+        except Exception as e:
+            logger.fatal("Exception caught! {}".format(e))
+            logger.fatal("On message: [{}]{}".format(msg.topic, msg.payload.decode()))
+            traceback.print_exc()
 
     def prepare_response(self, facet: str):
         return json_serial({"status": "OK", "result": list(self.onair[facet].values())})
