@@ -21,7 +21,7 @@ from backend.tools import json_serial, json_deserial, MQTTClient
 
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.DEBUG)
 
 class PrettyJSONResponse(JSONResponse):
 
