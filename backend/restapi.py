@@ -20,6 +20,7 @@ from backend.tools import json_serial, json_deserial, MQTTClient
 
 import logging
 logger = logging.getLogger(__name__)
+# logger.setLevel(logging.DEBUG)
 
 class PrettyJSONResponse(JSONResponse):
 
@@ -59,7 +60,8 @@ class ConnectionManager:
         logger.debug("[{}]{}".format(msg.topic, msg.payload.decode()))
         facet, device = Topic.OnAir.parse(msg.topic)
         message = json_deserial(msg.payload.decode())
-        message["name"] = device
+        if isinstance(message, dict):
+            message["name"] = device
         #if facet != "live":
          #   message["live"] = self.onair.get("live") and self.onair["live"].get(device) and self.onair["live"][device]["value"]
         if not self.onair.get(facet):

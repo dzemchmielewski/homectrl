@@ -52,7 +52,10 @@ class Astro(OnAirService):
                             },
                         }
                         astro_data.append(astro_day)
-                    return astro_data
+                    return {
+                        'name': 'astro',
+                        'data': astro_data,
+                    }
                 else:
                     raise Exception(f"Error fetching astro data: {response.status}")
 
