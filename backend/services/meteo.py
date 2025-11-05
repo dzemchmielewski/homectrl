@@ -17,6 +17,12 @@ class Meteo(OnAirService):
         self.umk_weather_url = "https://pogoda.umk.pl/api/weather"
         self.exit = False
 
+    @staticmethod
+    def desc_direction(degree: int) -> str:
+        directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+        idx = round(degree / 45) % 8
+        return directions[idx]
+
     async def get_umk_weather(self) -> dict:
         async with aiohttp.ClientSession() as session:
             async with session.get(self.umk_weather_url) as response:
@@ -40,13 +46,15 @@ class Meteo(OnAirService):
                             'wind': {
                                 'speed': round(float(data['windSpeed']['value']), 1),
                                 'direction': int(data['windDegree']['value']),
+                                'direction_desc': self.desc_direction(int(data['windDegree']['value'])),
                                 'max': {
                                     'speed': round(float(data['maxWindSpeed10']['value']), 1),
                                     'direction': int(data['maxWindDegree10']['value']),
+                                    'direction_desc': self.desc_direction(int(data['maxWindDegree10']['value'])),
                                 }
                             },
                             'solar_radiation': round(float(data['totalSolarRadiation']['value']), 1),
-                           'date': datetime.datetime.fromisoformat(json_resp['dateUTC']).astimezone(),
+                            'date': datetime.datetime.fromisoformat(json_resp['dateUTC']).astimezone(),
                             'create_at': datetime.datetime.now(),
                         }
                     else:

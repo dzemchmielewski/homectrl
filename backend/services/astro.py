@@ -54,7 +54,7 @@ class Astro(OnAirService):
                         astro_data.append(astro_day)
                     return {
                         'name': 'astro',
-                        'data': astro_data,
+                        'astro': astro_data,
                     }
                 else:
                     raise Exception(f"Error fetching astro data: {response.status}")
@@ -65,6 +65,11 @@ class Astro(OnAirService):
             while not self.exit:
                 try:
                     astro_data = await self.get_data(date.today())
+                    astro_data['datetime'] = {
+                        'date': date.today(),
+                        'time': datetime.now().time(),
+                        'weekday': datetime.now().strftime("%A"),
+                    }
                     astro_data_json = json_serial(astro_data)
 
                     logger.info(astro_data_json)
