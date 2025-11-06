@@ -7,7 +7,10 @@ class Configuration:
     MQTT_PASSWORD = None
 
     MQTT_SERVER = "192.168.0.24"
-    TOPIC_ROOT = "homectrl/device/{}"
+    TOPIC_HOMECTRL = "homectrl"
+    TOPIC_HOMECTRL_ONAIR = TOPIC_HOMECTRL + "/onair"
+    TOPIC_HOMECTRL_ONAIR_ACTIVITY = TOPIC_HOMECTRL_ONAIR + "/activity"
+    TOPIC_ROOT = TOPIC_HOMECTRL + "/device/{}"
 
     NTP_SERVER = "status.home"
 
