@@ -48,7 +48,8 @@ class HomeCtrl(Common):
         super().__init__("HOMECTRL")
         from devel.esp32_setup import Esp32Setup
         from devel.firmware import Firmware
-        self.devel = [Esp32Setup, Firmware]
+        from devel.fontconv import FontConverter
+        self.devel = [Esp32Setup, Firmware, FontConverter]
 
     def parse_args(self):
         boards = list(Configuration.MAP["board"].keys())
