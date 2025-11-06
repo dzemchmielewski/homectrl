@@ -70,7 +70,7 @@ class HomeCtrl(Common):
         webrepl = subparsers.add_parser("webrepl", help="Connect to specified WEBREPL server", formatter_class=self.Formatter)
         webrepl.add_argument("server_id", choices=boards, help="Available boards")
         webrepl_file_group = webrepl.add_mutually_exclusive_group()
-        webrepl_file_group.add_argument("--file", "-f",  help="Transfer file TO the board")
+        webrepl_file_group.add_argument("--file", "-f",  help="Transfer file(s) TO the board", nargs="+")
         webrepl_file_group.add_argument("--get", "-g",  help="Transfer file FROM the board")
         webrepl_file_group.add_argument("--exit", "--reset", "-e", default=False, action="store_true",
                                         help="Send sys.exit() command, aka soft reset")
@@ -166,7 +166,8 @@ class HomeCtrl(Common):
                 elif args.reboot:
                     repl.ws.writetext("import machine; machine.reset()".encode("utf-8") + b"\r\n")
                 elif args.file:
-                    repl.put_file(args.file, args.file)
+                    for file in args.file:
+                        repl.put_file(file, file)
                 elif args.get:
                     repl.get_file(args.get, args.get)
                 elif args.statement:
