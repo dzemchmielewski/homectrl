@@ -250,7 +250,6 @@ class BoardApplication(shared.Named, shared.Exitable):
             asyncio.get_event_loop().run_until_complete(nothing())
             self.log.info("END")
 
-
     @staticmethod
     def validate_controls(capabilities, input: dict) -> dict:
         result = {}
@@ -258,8 +257,6 @@ class BoardApplication(shared.Named, shared.Exitable):
 
             for control in capabilities["controls"]:
                 name = control["name"]
-                constraints = control["constraints"]
-
                 if name in input:
                     value = input[name]
 
@@ -267,14 +264,19 @@ class BoardApplication(shared.Named, shared.Exitable):
                     if not isinstance(value, eval(control["type"])):
                         continue  # Invalid type, skip this entry
 
-                    # Validate constraints
-                    if constraints["type"] == "enum":
-                        if value in constraints["values"]:
-                            result[name] = value  # Valid enum value
+                    constraints = control.get("constraints")
+                    if isinstance(constraints, dict) and constraints:
 
-                    elif constraints["type"] == "range":
-                        if constraints["values"]["min"] <= value <= constraints["values"]["max"]:
-                            result[name] = value  # Valid range value
+                        # Validate constraints
+                        if constraints["type"] == "enum":
+                            if value in constraints["values"]:
+                                result[name] = value  # Valid enum value
+
+                        elif constraints["type"] == "range":
+                            if constraints["values"]["min"] <= value <= constraints["values"]["max"]:
+                                result[name] = value  # Valid range value
+                    else:
+                        result[name] = value  # No constraints, accept the value
 
         return result
 

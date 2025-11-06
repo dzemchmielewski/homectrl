@@ -39,10 +39,19 @@ class Devices(OnAirService):
                     data["timestamp"] = datetime.datetime.now()
 
                     for entry in self.data2entries(data):
-                        current = self.status[type(entry)].get(entry.name.value)
-                        if not entry.equals(current):
-                            logger.debug("SWITCH {} for {}".format(type(entry), entry.name.value))
-                            self.process_entry(entry)
+                        status_current = self.status.get(type(entry))
+                        if status_current is not None:
+
+                            try :
+                                the_name = entry.name.value
+                            except Exception:
+                                the_name = None
+
+                            if the_name:
+                                current = status_current.get(the_name)
+                                if not entry.equals(current):
+                                    logger.debug("SWITCH {} for {}".format(type(entry), entry.name.value))
+                                    self.process_entry(entry)
 
                     # Some additional data, passed OnAir, but not saved in the database:
                     for key, value in data.items():
