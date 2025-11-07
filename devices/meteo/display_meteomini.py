@@ -75,6 +75,10 @@ class MeteoMiniDisplay:
         x,y = self.font_topbottom.size(wind)
         self.fb.textf(wind, self.fb.width - x - 10, self.fb.height - (self.font_topbottom.height + 8), self.font_topbottom, key=self.background, palette=self.palette)
 
+        #debug lines:
+        # self.fb.line(0, 0, self.fb.width - 1, self.fb.height - 1, self.foreground)
+        # self.fb.line(0, self.fb.height - 1, self.fb.width - 1, 0, self.foreground)
+
     def clear(self):
         self.fb.fill(self.background)
 

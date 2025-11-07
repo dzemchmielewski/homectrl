@@ -1,6 +1,8 @@
 import asyncio
 import json
 import logging
+
+import time
 from board.board_application import BoardApplication, Facility
 from configuration import Configuration
 from display_meteomini import MeteoMiniDisplay
@@ -18,7 +20,8 @@ class MeteoMiniApplication(BoardApplication):
         BoardApplication.__init__(self, 'meteomini')
         (_, self.topic_data, _, _, _) = Configuration.topics(self.name)
 
-        self.SLEEP_TIME_SEC = 60 * 5  # 5 minutes
+        self.SLEEP_TIME_SEC = None
+        # self.SLEEP_TIME_SEC = 15
 
         cs, dc, rst, busy = Pin(1, Pin.OUT), Pin(2, Pin.OUT), Pin(3, Pin.OUT), Pin(4, Pin.IN)
         spi = SPI(1, baudrate=1_000_000, sck=Pin(0), mosi=Pin(21))
@@ -92,10 +95,17 @@ class MeteoMiniApplication(BoardApplication):
                     await asyncio.sleep(1)
 
                     if self.control['sleep']:
-                        self.log.info("Going to sleep now.")
+                        if self.SLEEP_TIME_SEC:
+                            seconds_to_next = self.SLEEP_TIME_SEC
+                        else:
+                            _, _, _, _, min, sec, _, _ = time.localtime()
+                            next_minute = ((min + 5) // 5) * 5
+                            seconds_to_next = ((next_minute - min) * 60 - sec) + 30
+
+                        self.log.info(f"Going to sleep now. Seconds to wakeup: {seconds_to_next}")
                         self.indicator.endpoint.off()
                         # Put into the deep sleep:
-                        deepsleep(self.SLEEP_TIME_SEC * 1_000)
+                        deepsleep(seconds_to_next * 1_000)
 
             await asyncio.sleep(1)
 
@@ -106,6 +116,7 @@ class MeteoMiniApplication(BoardApplication):
             if value != last_value:
                 last_value = value
                 self.log.info(f"Push button changed: {value}")
+                self.indicator.endpoint.toggle()
                 if value == 1:
                     self.push.value = True
                     await asyncio.sleep_ms(1_000)

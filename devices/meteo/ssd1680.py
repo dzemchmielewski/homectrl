@@ -60,7 +60,7 @@ class SSD1680:
         while self.busy_pin.value() == 1:
             sleep_ms(100)
 
-    def display(self, fb: FrameBufferExtension):
+    def display(self, fb: FrameBufferExtension, padding_byte: bytes = b'\xFF'):
         if self.busy_pin.value() == 1:
             self.reset_hw()
 
@@ -69,9 +69,9 @@ class SSD1680:
         # Therefore, for landscape mode, I making some additional
         # computing to rotate the framebuffer data before sending it to the display.
         # Only MONO_HLSB mode is supported for now.
-        padding_byte = (self.width != fb.width) if fb.mode == framebuf.MONO_HLSB else (self.height != fb.height)
+        add_padding_byte = (self.width != fb.width) if fb.mode == framebuf.MONO_HLSB else (self.height != fb.height)
 
-        print(f"Framebuffer mode: {fb.mode}, size: {fb.width} x {fb.height}, padding_byte={padding_byte}")
+        print(f"Framebuffer mode: {fb.mode}, size: {fb.width} x {fb.height}, padding_byte={add_padding_byte}")
         print(f"Display mode: {self.width} x {self.height}, orientation: {self.orientation}")
 
         if self.orientation == 'landscape':
@@ -97,8 +97,8 @@ class SSD1680:
             end = start + bytes_per_row
             # print(f"R{row+1}/{h}({start}-{end}) ", end='')
             self.data(buf[start:end])
-            if padding_byte:
-                self.data(b'\x00')
+            if add_padding_byte:
+                self.data(padding_byte)
                 if self.debug:
                     print(".", end='')
 
