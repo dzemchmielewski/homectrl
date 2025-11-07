@@ -10,7 +10,7 @@ from toolbox.framebufext import FrameBufferExtension, FrameBufferFont
 
 class MeteoMiniDisplay:
 
-    def __init__(self, width: int, height: int, fb_mode: framebuf.MONO_HLSB):
+    def __init__(self, width: int, height: int, fb_mode: int = framebuf.MONO_HLSB):
         self.fb = FrameBufferExtension(width, height, fb_mode)
         self.fonts_middle = FrameBufferFont("LiberationSerif-Bold.52.mfnt")
         self.font_topbottom = FrameBufferFont("LiberationSans-Bold.18.mfnt")

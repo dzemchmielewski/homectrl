@@ -7,13 +7,14 @@ import logging
 
 from backend.services.onairservice import OnAirService
 from configuration import Topic
-from backend.tools import json_serial, MQTTClient
+from backend.tools import json_serial
 
 logger = logging.getLogger("onair.meteo")
 
 class Meteo(OnAirService):
 
     def __init__(self):
+        super().__init__()
         self.umk_weather_url = "https://pogoda.umk.pl/api/weather"
         self.exit = False
 

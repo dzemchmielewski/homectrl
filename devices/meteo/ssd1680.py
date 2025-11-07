@@ -109,7 +109,7 @@ class SSD1680:
         self.wait_until_ready()
 
         # Enter deep sleep
-        self.command(b'\x10', 'b\x01')
+        self.command(b'\x10', b'\x01')
         sleep_ms(100)
         if self.debug:
             print(" done")
