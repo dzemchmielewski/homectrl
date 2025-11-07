@@ -29,7 +29,7 @@ class MeteoMiniDisplay:
             self.palette = None
         self.foreground = self.background ^ 1
 
-    def _temperature(self, temperature: float) -> (int, int):
+    def _temperature(self, temperature: float) -> tuple[int, int]:
         font = self.fonts_middle
 
         # Render temperature
