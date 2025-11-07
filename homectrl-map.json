@@ -141,6 +141,9 @@
     "sms_token": "${sms_token}",
     "sms_recipients": "${sms_recipients}",
     "sms_sender": "${sms_sender}"
-  }
+  },
+	"visualcrossing": {
+		"api_key": "${visualcrossing_api_key}"
+	}
 
 }

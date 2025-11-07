@@ -5,7 +5,7 @@ import aiohttp
 import logging
 
 from backend.services.onairservice import OnAirService
-from configuration import Topic
+from configuration import Topic, Configuration
 from backend.tools import json_serial
 
 logger = logging.getLogger("onair.astro")
@@ -14,7 +14,7 @@ class Astro(OnAirService):
 
     def __init__(self):
         self.url = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/Toru%C5%84"
-        self.token = "5N9S8EP7U3XQC6PVVEV4G5XV4"
+        self.token = Configuration.get("visualcrossing").get("api_key")
         self.exit = False
 
     async def get_data(self, day: date) -> dict:

@@ -120,3 +120,7 @@ class Configuration:
     @staticmethod
     def get_sms_config():
         return Configuration.MAP["sms"]
+
+    @staticmethod
+    def get(name: str):
+        return Configuration.MAP.get(name, None)
