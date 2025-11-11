@@ -34,6 +34,7 @@ class MeteoMiniApplication(BoardApplication):
         self.push = Facility("push", PinIO(10, pull=Pin.PULL_DOWN), False)
         self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteo"] = self.meteo_message
         self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/astro"] = self.astro_message
+        self.mqtt_custom_config['keepalive'] = 400
         self.capabilities = {
             "controls": [
                 {
@@ -100,7 +101,7 @@ class MeteoMiniApplication(BoardApplication):
                         else:
                             _, _, _, _, min, sec, _, _ = time.localtime()
                             next_minute = ((min + 5) // 5) * 5
-                            seconds_to_next = ((next_minute - min) * 60 - sec) + 30
+                            seconds_to_next = ((next_minute - min) * 60 - sec) + 45
 
                         self.log.info(f"Going to sleep now. Seconds to wakeup: {seconds_to_next}")
                         self.indicator.endpoint.off()

@@ -18,7 +18,7 @@ class MQTT(shared.Exitable, shared.Named):
     LAST_WILL = json.dumps({"live": False, 'message': "last will"})
     END_OF_LIVE = json.dumps({"live": False, 'message': "goodbye"})
 
-    def __init__(self, app_name, subscriptions={}):
+    def __init__(self, app_name, subscriptions: dict ={}, mqtt_custom_config: dict = {}):
         shared.Exitable.__init__(self)
         shared.Named.__init__(self, 'mqtt')
         self.subscriptions = subscriptions
@@ -33,6 +33,7 @@ class MQTT(shared.Exitable, shared.Named):
         mqttconfig["will"] = (self.topic_live, MQTT.LAST_WILL, True, 0)
         mqttconfig["iftype"] = Boot.get_instance().iftype()
         mqttconfig["ifnetwork"] = Boot.get_instance().ifnetwork()
+        mqttconfig.update(mqtt_custom_config)
 
         self.is_initially_connected = False
 
@@ -130,6 +131,7 @@ class BoardApplication(shared.Named, shared.Exitable):
             self.mqtt = None
             (self.topic_live, _, self.topic_state, self.topic_capabilities, topic_control) = Configuration.topics(name)
             self.mqtt_subscriptions = {topic_control: None}
+            self.mqtt_custom_config = {}
 
         self.control = {}
         self.capabilities = {'controls': []}
@@ -168,7 +170,7 @@ class BoardApplication(shared.Named, shared.Exitable):
 
     async def start(self):
         if self.use_mqtt:
-            self.mqtt = MQTT(self.name, self.mqtt_subscriptions)
+            self.mqtt = MQTT(self.name, self.mqtt_subscriptions, self.mqtt_custom_config)
             await self.mqtt.connect()
             # await self.publish(self.topic_state, self.control, True)
             # await self.publish(self.topic_capabilities, self.capabilities, True)
