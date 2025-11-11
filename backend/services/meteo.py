@@ -77,10 +77,11 @@ class Meteo(OnAirService):
                     now = datetime.datetime.now()
                     next_minute = math.ceil((now.minute + 1) / 5) * 5
                     if next_minute >= 60:
-                        next_run = (now.replace(minute=0, second=10, microsecond=0) + datetime.timedelta(hours=1))
+                        next_run = (now.replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=1))
                     else:
-                        next_run = now.replace(minute=next_minute, second=10, microsecond=0)
-                    seconds_to_next = (next_run - now).total_seconds()
+                        next_run = now.replace(minute=next_minute, second=0, microsecond=0)
+                    seconds_to_next = (next_run - now).total_seconds() + 40  # add 40 seconds to make
+                    # sure the minute returned by the API is 0 mod 5
                     await asyncio.sleep(seconds_to_next)
 
                 except Exception as e:

@@ -58,6 +58,10 @@ elif system == "charts":
 elif system == "devel":
     # put your devel code here
     # that will run with proper python environment
+    from backend.services.astro import Astro
+    astro_service = Astro()
+    # astro_service.mqtt.publish = lambda topic, message, retain: print(f"Mock publish to {topic}: {message} (retain={retain})")
+    astro_service.start()
     pass
 
 else:
