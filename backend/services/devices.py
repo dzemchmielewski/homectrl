@@ -1,13 +1,11 @@
 import traceback
-import sys
 import logging
 import datetime
 
 from backend.services.onairservice import OnAirService
 from backend.tools import json_serial, json_deserial
 from configuration import Topic
-from backend.storage import *
-backend_storage_name = 'backend.storage'
+from backend import storage
 
 logger = logging.getLogger("onair.devices")
 
@@ -84,46 +82,45 @@ class Devices(OnAirService):
                 #     print(line.strip())
 
     @staticmethod
-    def data2entries(data: dict) -> [HomeCtrlValueBaseModel]:
-        result = [Live(name=data["name"], create_at=data["timestamp"], value=data.get("live") is None or data.get("live"))]
+    def data2entries(data: dict) -> [storage.HomeCtrlValueBaseModel]:
+        result = [storage.Live(name=data["name"], create_at=data["timestamp"], value=data.get("live") is None or data.get("live"))]
         for key, value in data.items():
             if key in ["temperature", "humidity", "darkness", "light", "presence", "pressure", "voltage", "error", "moisture", "doors", "bell"]:
                 if value is not None:
-                    clazz = getattr(sys.modules[backend_storage_name], key.capitalize())
-                    # clazz = getattr(sys.modules[__name__], key.capitalize())
+                    clazz = getattr(storage, key.capitalize(), None)
                     result.append(clazz(name=data["name"], create_at=data["timestamp"], value=value))
             elif key == "radar" and value is not None:
-                result.append(Radar(name=data["name"], create_at=data["timestamp"],
+                result.append(storage.Radar(name=data["name"], create_at=data["timestamp"],
                                     presence=value["presence"], target_state=value["target_state"],
                                     # move_distance=value["move"]["distance"], move_energy=value["move"]["energy"],
                                     # static_distance=value["static"]["distance"], static_energy=value["static"]["energy"],
                                     distance=value["distance"]))
             elif key == "radio" and value is not None:
-                result.append(Radio(name=data["name"], create_at=data["timestamp"],
+                result.append(storage.Radio(name=data["name"], create_at=data["timestamp"],
                                     station_name=value["station"]["name"], station_code=value["station"]["code"],
                                     volume=value["volume"]["volume"], muted=value["volume"]["is_muted"], playinfo=value["playinfo"]))
             elif key == "electricity" and value is not None:
-                result.append(Electricity(name=data["name"], create_at=data["timestamp"],
+                result.append(storage.Electricity(name=data["name"], create_at=data["timestamp"],
                                           voltage=value["voltage"], current=value["current"], active_power=value["active_power"],
                                           active_energy=value["active_energy"], power_factor=value["power_factor"]))
         return result
 
-    def process_entry(self, entry: HomeCtrlBaseModel, db_save=True):
+    def process_entry(self, entry: storage.HomeCtrlBaseModel, db_save=True):
         self.status[type(entry)][entry.name.value] = entry
         subject = Topic.OnAir.format(type(entry).__name__.lower(), entry.name.value)
-        logger.debug("PUBLISH {} -> {}".format(subject, model_to_dict(entry)))
+        logger.debug("PUBLISH {} -> {}".format(subject, storage.model_to_dict(entry)))
         if db_save:
             entry.save_new_value()
         self.mqtt.publish(
             subject,
-            json_serial(model_to_dict(entry)),
+            json_serial(storage.model_to_dict(entry)),
             retain=True)
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
         logger.info(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}")
         for topic in self.MQTT_SUBSCRIPTIONS:
             client.subscribe(topic)
-        for entity in device_entities():
+        for entity in storage.device_entities():
             self.status[entity] = {}
             for entry in entity.get_currents():
                 self.process_entry(entry, False)
