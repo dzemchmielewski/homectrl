@@ -50,7 +50,7 @@ class WardrobeApplication(BoardApplication):
             elif self.control['mode'] == "off":
                 light = 0
             else:
-                raise ValueError(f"Unknown mode: {self.mode}")
+                raise ValueError(f"Unknown mode: {self.control['mode']}")
 
             if light != self.light.value:
                 self.light.value = light
