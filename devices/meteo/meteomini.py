@@ -4,6 +4,7 @@ import logging
 
 import time
 from board.board_application import BoardApplication, Facility
+from board.boot import Boot
 from configuration import Configuration
 from display_meteomini import MeteoMiniDisplay
 from machine import Pin, SPI, deepsleep
@@ -43,7 +44,7 @@ class MeteoMiniApplication(BoardApplication):
                 }
             ]}
         self.control = {
-            'sleep': False
+            'sleep': True
         }
 
     def read(self, to_json = True):
@@ -96,19 +97,15 @@ class MeteoMiniApplication(BoardApplication):
                     await asyncio.sleep(1)
 
                     if self.control['sleep']:
-                        if self.SLEEP_TIME_SEC:
-                            seconds_to_next = self.SLEEP_TIME_SEC
-                        else:
-                            _, _, _, _, min, sec, _, _ = time.localtime()
-                            next_minute = ((min + 5) // 5) * 5
-                            seconds_to_next = ((next_minute - min) * 60 - sec) + 45
-
-                        self.log.info(f"Going to sleep now. Seconds to wakeup: {seconds_to_next}")
-                        self.indicator.endpoint.off()
-                        # Put into the deep sleep:
-                        deepsleep(seconds_to_next * 1_000)
+                        self.go_sleep()
 
             await asyncio.sleep(1)
+            if self.control['sleep'] and (time.time_ms() - Boot.get_instance().load_time)  > 60 * 5 * 1_000:
+                # After 5 minutes  there was no screen update
+                # - probably the issue with receiving MQTT messages
+                # Therefore go to sleep and try again later
+                self.go_sleep()
+
 
     async def push_task(self):
         last_value = self.push.endpoint.get()
@@ -122,6 +119,19 @@ class MeteoMiniApplication(BoardApplication):
                     self.push.value = True
                     await asyncio.sleep_ms(1_000)
             await asyncio.sleep_ms(100)
+
+    def go_sleep(self):
+        if self.SLEEP_TIME_SEC:
+            seconds_to_next = self.SLEEP_TIME_SEC
+        else:
+            _, _, _, _, min, sec, _, _ = time.localtime()
+            next_minute = ((min + 5) // 5) * 5
+            seconds_to_next = ((next_minute - min) * 60 - sec) + 45
+
+        self.log.info(f"Going to sleep now. Seconds to wakeup: {seconds_to_next}")
+        self.indicator.endpoint.off()
+        # Put into the deep sleep:
+        deepsleep(seconds_to_next * 1_000)
 
     async def start(self):
         await super().start()

@@ -14,7 +14,7 @@ class WardrobeApplication(BoardApplication):
     def __init__(self):
         BoardApplication.__init__(self, 'wardrobe')
         (_, self.topic_data, _, _, _) = Configuration.topics(self.name)
-        self.door = Facility("door", endpoint=Pin(3, Pin.IN), to_dict=lambda x : {})
+        self.door = Facility("door", endpoint=Pin(2, Pin.IN), to_dict=lambda x : {})
         self.light = Facility("light", Pin(4, Pin.OUT), value=False, register_access=False)
 
         self.capabilities = {
