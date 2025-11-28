@@ -101,8 +101,8 @@ class Devices(OnAirService):
                                     volume=value["volume"]["volume"], muted=value["volume"]["is_muted"], playinfo=value["playinfo"]))
             elif key == "electricity" and value is not None:
                 result.append(storage.Electricity(name=data["name"], create_at=data["timestamp"],
-                                          voltage=value["voltage"], current=value["current"], active_power=value["active_power"],
-                                          active_energy=value["active_energy"], power_factor=value["power_factor"]))
+                                          voltage=value.get('voltage'), current=value.get('current'), active_power=value.get('active_power'),
+                                          active_energy=value.get('active_energy'), power_factor=value.get('power_factor')))
         return result
 
     def process_entry(self, entry: storage.HomeCtrlBaseModel, db_save=True):
