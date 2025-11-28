@@ -5,7 +5,7 @@ import sys
 from machine import Pin, SoftI2C
 from ina3221 import *
 
-bus  = SoftI2C(scl=Pin(3), sda=Pin(4), freq=400000)
+bus  = SoftI2C(scl=Pin(3), sda=Pin(2), freq=400000)
 
 # INA3221.IS_FULL_API = False
 ina = INA3221(bus, i2c_addr=0x40)
