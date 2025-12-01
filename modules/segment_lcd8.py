@@ -1,4 +1,4 @@
-import logging
+#import logging
 import time
 from SR74HC595 import SR74HC595_Sync as SR74HC595
 from bit_matrix import BitMatrix
@@ -46,6 +46,7 @@ class ParseForSegments:
 
 class SegmentLCD8:
 
+    logger = logging.getLogger()
     SEGMENTS = {
         ' ': 0b00000000, '0': 0b11111100, '1': 0b01100000, '2': 0b11011010,
         '3': 0b11110010, '4': 0b01100110, '5': 0b10110110, '6': 0b10111110,
@@ -69,6 +70,9 @@ class SegmentLCD8:
         logging.debug("\n" + str(self.matrix))
         self.shift_register.set(self.matrix.to_int(True))
 
+    def clear(self):
+        self.set('')
+
     def flow(self):
         bit = 0
         self.matrix.number = 0
@@ -82,8 +86,8 @@ class SegmentLCD8:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    lcd = SegmentLCD8(SR74HC595(8*4, 10, 20, 21), segments=4)
+    logging.getLogger().setLevel(logging.DEBUG)
+    lcd = SegmentLCD8(SR74HC595(8*4, 7, 8, 9), segments=4)
 
     # text = deque([], 4)
     # while True:

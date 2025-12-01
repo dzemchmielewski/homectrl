@@ -181,6 +181,10 @@ class Moisture(HomeCtrlValueBaseModel):
     value = IntegerField()
 
 
+class Lux(HomeCtrlValueBaseModel):
+    value = IntegerField()
+
+
 class Error(HomeCtrlValueBaseModel):
     value = TextField()
 

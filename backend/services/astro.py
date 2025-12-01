@@ -137,6 +137,7 @@ class Astro(OnAirService):
                     astro_data_json = json_serial(astro_data)
                     logger.info(astro_data_json)
                     self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "astro"), astro_data_json, retain=True)
+                    await asyncio.sleep(5)  # short sleep to ensure the time has passed new day
 
                     await asyncio.sleep(self._sleep_seconds())
 
