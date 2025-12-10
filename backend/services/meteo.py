@@ -1,21 +1,23 @@
 import asyncio
 import datetime
-import math
-
 import aiohttp
 import logging
 
 from backend.services.onairservice import OnAirService
 from configuration import Topic
 from backend.tools import json_serial
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 logger = logging.getLogger("onair.meteo")
 
 class Meteo(OnAirService):
 
+
     def __init__(self):
         super().__init__()
-        self.umk_weather_url = "https://pogoda.umk.pl/api/weather"
+        self.weather_url = "https://pogoda.umk.pl/api/weather"
+        self.data_url = "https://pogoda.umk.pl/api/last?type="
         self.exit = False
 
     @staticmethod
@@ -24,9 +26,10 @@ class Meteo(OnAirService):
         idx = round(degree / 45) % 8
         return directions[idx]
 
-    async def get_umk_weather(self) -> dict:
+
+    async def _get_weather(self) -> dict:
         async with aiohttp.ClientSession() as session:
-            async with session.get(self.umk_weather_url) as response:
+            async with session.get(self.weather_url) as response:
                 if response.status == 200:
                     json_resp = await response.json()
                     # Debugging error: list indices must be integers or slices, not str
@@ -59,36 +62,57 @@ class Meteo(OnAirService):
                             'create_at': datetime.datetime.now(),
                         }
                     else:
-                        raise Exception(f"Unexpected response format: expected dict, got {type(json_resp)}")
+                        raise Exception(f"[weather] Unexpected response format: expected dict, got {type(json_resp)}")
                 else:
-                    raise Exception(f"Error fetching weather data: {response.status}")
+                    raise Exception(f"[weather] Error fetching data: {response.status}")
+
+
+    async def meteo(self) -> None:
+        try:
+            weather = await self._get_weather()
+            message = json_serial(weather)
+            logger.debug(message)
+            self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo"), message, retain=True)
+        except Exception as e:
+            logger.error(f"Error: {e}")
+
+
+    async def _data(self, name: str, data_type: str) -> None:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(self.data_url + data_type) as response:
+                if response.status == 200:
+                    json_resp = await response.json()
+                    if isinstance(json_resp, dict):
+                        logger.debug(f"[{name}] {await response.text()}")
+                        data = json_serial([(datetime.datetime.fromtimestamp(item['date']), item['value']) for item in json_resp['data']])
+                        logger.debug(f"[{name}] Data: {data}")
+                        self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo/" + name), data, retain=True)
+                    else:
+                            logger.error(f"[{name}] Unexpected response format: expected dict, got {type(json_resp)}")
+                else:
+                    logger.error(f"[{name}] Error fetching data: {response.status}")
+
+    async def temperature(self) -> None:
+        return await self._data('temperature', 'tempAir200')
+    async def precipitation(self) -> None:
+        return await self._data('precipitation', 'precipitation1')
+    async def pressure(self) -> None:
+        return await self._data('pressure', 'atmosphericPressureSL')
 
 
     async def run(self) -> None:
-        logger.info(f"URL: {self.umk_weather_url}")
-        try:
-            while not self.exit:
-                try:
-                    weather = await self.get_umk_weather()
-                    message = json_serial(weather)
-                    logger.debug(message)
-                    self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo"), message, retain=True)
+        scheduler = AsyncIOScheduler()
+        scheduler.add_job(self.meteo, CronTrigger.from_crontab("*/5 * * * *"))  # every 5 minutes
 
-                    now = datetime.datetime.now()
-                    next_minute = math.ceil((now.minute + 1) / 5) * 5
-                    if next_minute >= 60:
-                        next_run = (now.replace(minute=0, second=0, microsecond=0) + datetime.timedelta(hours=1))
-                    else:
-                        next_run = now.replace(minute=next_minute, second=0, microsecond=0)
-                    seconds_to_next = (next_run - now).total_seconds() + 40  # add 40 seconds to make
-                    # sure the minute returned by the API is 0 mod 5
-                    await asyncio.sleep(seconds_to_next)
+        every_hour_trigger = CronTrigger.from_crontab("4 * * * *")  # every hour at minute 4
+        scheduler.add_job(self.temperature, every_hour_trigger)
+        scheduler.add_job(self.precipitation, every_hour_trigger)
+        scheduler.add_job(self.pressure, every_hour_trigger)
 
-                except Exception as e:
-                    logger.error(f"Error: {e}")
-                    await asyncio.sleep(60)  # Wait 1 minute before retrying
-        except KeyboardInterrupt:
-            logger.info("Exit...")
+        scheduler.start()
+        await asyncio.Event().wait()
+        scheduler.shutdown()
+
 
 
 

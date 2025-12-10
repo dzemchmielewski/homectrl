@@ -7,6 +7,8 @@ import logging
 from backend.services.onairservice import OnAirService
 from configuration import Topic, Configuration
 from backend.tools import json_serial
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 logger = logging.getLogger("onair.astro")
 logger.setLevel(logging.INFO)
@@ -117,38 +119,30 @@ class Astro(OnAirService):
                 events.append({'type': 'phase', 'name': name})
         return astro_data
 
-    @staticmethod
-    def _sleep_seconds() -> int:
-        now = datetime.now()
-        tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-        logger.info(f"Sleeping until next day: {tomorrow} (in {(tomorrow - now).total_seconds()} seconds)")
-        return int((tomorrow - now).total_seconds())
+    async def astro(self) -> None:
+        logger.info(f"URL: {self.url}")
+        done = False
+        while not done:
+            try:
+                astro_data = await self.get_data(date.today())
+                astro_data = await self._add_datetime(astro_data)
+                astro_data = await self._add_moon_phase_events(astro_data)
+                logger.debug(f"{astro_data}")
+
+                astro_data_json = json_serial(astro_data)
+                logger.info(astro_data_json)
+                self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "astro"), astro_data_json, retain=True)
+                done = True
+            except Exception as e:
+                logger.error(f"Error: {e}")
+                await asyncio.sleep(60 * 60)  # Wait 1 hour before retrying
 
     async def run(self) -> None:
-        logger.info(f"URL: {self.url}")
-        try:
-            while not self.exit:
-                try:
-                    astro_data = await self.get_data(date.today())
-                    astro_data = await self._add_datetime(astro_data)
-                    astro_data = await self._add_moon_phase_events(astro_data)
-                    logger.debug(f"{astro_data}")
+        scheduler = AsyncIOScheduler()
 
-                    astro_data_json = json_serial(astro_data)
-                    logger.info(astro_data_json)
-                    self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "astro"), astro_data_json, retain=True)
-                    await asyncio.sleep(5)  # short sleep to ensure the time has passed new day
+        # every day at midnight
+        scheduler.add_job(self.astro, CronTrigger.from_crontab("1 0 * * *"))
 
-                    await asyncio.sleep(self._sleep_seconds())
-
-                except Exception as e:
-                    logger.error(f"Error: {e}")
-                    await asyncio.sleep(60 * 60)  # Wait 1 hour before retrying
-
-        except KeyboardInterrupt:
-            logger.info("Exit...")
-
-    def start(self) -> None:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.run())
-        loop.close()
+        scheduler.start()
+        await asyncio.Event().wait()
+        scheduler.shutdown()

@@ -3,6 +3,7 @@
 # set environment variable _ARC_DEBUG to debug argcomplete
 
 import argparse, argcomplete
+import asyncio
 import logging
 import time
 
@@ -58,10 +59,12 @@ elif system == "charts":
 elif system == "devel":
     # put your devel code here
     # that will run with proper python environment
-    from backend.services.astro import Astro
-    astro_service = Astro()
-    # astro_service.mqtt.publish = lambda topic, message, retain: print(f"Mock publish to {topic}: {message} (retain={retain})")
-    astro_service.start()
+    logger = logging.getLogger("onair.meteo")
+    logger.setLevel(logging.DEBUG)
+    from backend.services.meteo import Meteo
+    service = Meteo()
+    asyncio.run(service.precipitation())
+
     pass
 
 else:

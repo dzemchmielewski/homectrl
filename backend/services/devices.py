@@ -85,7 +85,7 @@ class Devices(OnAirService):
     def data2entries(data: dict) -> [storage.HomeCtrlValueBaseModel]:
         result = [storage.Live(name=data["name"], create_at=data["timestamp"], value=data.get("live") is None or data.get("live"))]
         for key, value in data.items():
-            if key in ["temperature", "humidity", "darkness", "light", "presence", "pressure", "voltage", "error", "moisture", "doors", "bell", "lu"]:
+            if key in ["temperature", "humidity", "darkness", "light", "presence", "pressure", "voltage", "error", "moisture", "doors", "bell", "lux"]:
                 if value is not None:
                     clazz = getattr(storage, key.capitalize(), None)
                     result.append(clazz(name=data["name"], create_at=data["timestamp"], value=value))
