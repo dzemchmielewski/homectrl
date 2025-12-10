@@ -43,7 +43,7 @@ class OutletApplication(BoardApplication):
 
         self.switch = Facility("switch", PinIO(10, pull=Pin.PULL_DOWN), 0, register_access=False)
         self.touch = Facility("touch", PinIO(20, pull=Pin.PULL_DOWN), 0, register_access=False)
-        self.relay = Relay("relay", PinIO(6), 0, register_access=True)
+        self.relay = Relay("relay", PinIO(6), None, register_access=True)
         self.lcd.value = 'helo'
 
     def read(self, to_json = True):
@@ -60,6 +60,7 @@ class OutletApplication(BoardApplication):
             'darkness': self.lux.value[0],
             'lux': self.lux.value[1],
             'relay': self.relay.value,
+            'light': self.relay.value,
         }
 
     async def lcd_task(self):
@@ -118,6 +119,7 @@ class OutletApplication(BoardApplication):
 
     async def relay_task(self):
         initial = True
+        self.relay.off()
         while not self.exit:
             publish = False
             if self.switch.value == 1:  # switch is ON
@@ -136,13 +138,16 @@ class OutletApplication(BoardApplication):
                         self.lcd.value = 'off'
                         publish = True
 
-            else:  # switch is OFF
+            elif self.switch.value == 0:  # switch is OFF
                 value = self.relay.endpoint.get()
                 if value != self.relay.value:
                     self.log.info(f"Relay changed: {value}")
                     self.relay.value = value
                     self.lcd.value = 'off' if value == 0 else 'on'
                     publish = True
+
+            else:
+                pass
 
             if publish or initial:
                 initial = False
