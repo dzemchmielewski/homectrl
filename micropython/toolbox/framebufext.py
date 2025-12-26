@@ -18,6 +18,7 @@ class _FrameBufferExtension(framebuf.FrameBuffer):
         else:
             raise ValueError("Unsupported framebuf mode")
         self.buffer = memoryview(bytearray(size))
+        log.debug("framebuf size: %d, %d, number of bytes: %d", self.width, self.height, size)
         super().__init__(self.buffer, self.width, self.height, self.mode)
 
     def deinit(self):
@@ -167,7 +168,105 @@ class FrameBufferExtension(_FrameBufferExtension):
                 result.pixel(x, y, (self.width - 1) - self.pixel(x, y))
         return result
 
+    def convert(self, dst_mode: int, palette: "FrameBufferExtension") -> "FrameBufferExtension":
+        if self.mode == framebuf.GS2_HMSB and (dst_mode == framebuf.MONO_HLSB or dst_mode == framebuf.MONO_HMSB):
+            w, h = self.width, self.height
+            result = FrameBufferExtension(w, h, dst_mode)
+            dst_buf = result.buffer
+
+            src_row_bytes = (w + 3) // 4  # 2bpp: 4 pixels per byte
+            dst_row_bytes = (w + 7) // 8  # 1bpp: 8 pixels per byte
+
+            for y in range(h):
+                for x in range(w):
+                    # Extract 2-bit pixel from source
+                    src_byte = self.buffer[y * src_row_bytes + (x // 4)]
+
+                    # NOTE: Although the mode is named GS2_HMSB, MicroPython's framebuf
+                    # stores 2-bit pixels LSB-first inside each byte (pixel 0 in bits 1–0).
+                    # Using the "theoretical" HMSB layout:
+                    #     (3 - (x % 4)) * 2
+                    # produces a mirrored image. The expression below matches the actual
+                    # in-memory layout used by framebuf.
+
+                    shift = (x % 4) * 2
+                    gs = (src_byte >> shift) & 0x03
+
+                    # Get 1-bit value from palette
+                    bit = palette.pixel(gs, 0)
+
+                    if bit:
+                        dst_index = y * dst_row_bytes + (x // 8)
+                        if dst_mode == framebuf.MONO_HMSB:
+                            # LSB mode: Writes to bit 0, then 1, then 2...
+                            dst_buf[dst_index] |= 1 << (x % 8)
+                        else:
+                            dst_buf[dst_index] |= 0x80 >> (x % 8)
+
+            return result
+        else:
+            raise ValueError(f"Unsupported conversion from {self.mode} with palette {palette.mode}")
+
+    def seg_line(self, x0, y0, x1, y1, color, dash = (5, 3)):
+        (segment_on, segment_off) = dash
+        dx, dy = x1 - x0, y1 - y0
+        xsign = 1 if dx > 0 else -1
+        ysign = 1 if dy > 0 else -1
+        dx, dy = abs(dx), abs(dy)
+
+        if dx > dy:
+            xx, xy, yx, yy = xsign, 0, 0, ysign
+        else:
+            dx, dy = dy, dx
+            xx, xy, yx, yy = 0, ysign, xsign, 0
+
+        decision = 2*dy - dx
+        y = 0
+
+        pattern_len, segment_count = segment_on + segment_off, 0
+
+        for x in range(dx + 1):
+            # Draw only if we are in the 'on' segment
+            # Use modulo to cycle the count, and check if it's less than the 'on' length
+            if segment_count % pattern_len < segment_on:
+                self.pixel(x0 + x*xx + y*yx, y0 + x*xy + y*yy, color)
+            if decision >= 0:
+                y += 1
+                decision -= 2*dx
+            decision += 2*dy
+            segment_count += 1
+
+    def seg_vline(self, x, y, h, c, **kwargs):
+        self.seg_line(x, y, x, y + h - 1, c, **kwargs)
+
+    def seg_hline(self, x, y, h, c, **kwargs):
+        self.seg_line(x, y, x + h - 1, y, c, **kwargs)
+
+    def cross_corners(self, color, x=None, y=None, width=None, height=None, dash = (5, 3)):
+        if x is None:
+            x = 0
+        if y is None:
+            y = 0
+        if width is None:
+            width = self.width
+        if height is None:
+            height = self.height
+        self.seg_line(x, y, x + width - 1, y + height - 1, color, dash=dash)
+        self.seg_line(x + width - 1, y, x, y + height - 1, color, dash=dash)
+
+
+
 class FrameBufferOffset:
+    """
+    A wrapper for FrameBufferExtension that applies an (x, y) offset to all drawing operations.
+
+    Attributes:
+        fb (FrameBufferExtension): The underlying framebuffer to draw on.
+        x (int): The horizontal offset applied to all operations.
+        y (int): The vertical offset applied to all operations.
+        width (int): The width of the offset region (defaults to fb.width).
+        height (int): The height of the offset region (defaults to fb.height).
+    """
 
     def __init__(self, fb: FrameBufferExtension, x: int = 0, y: int = 0, width: int = None, height: int = None):
         self.fb = fb
@@ -227,3 +326,25 @@ class FrameBufferOffset:
 
     def triangle(self, x1, y1, x2, y2, x3, y3, color, f=False):
         self.fb.triangle(x1 + self.x, y1 + self.y, x2 + self.x, y2 + self.y, x3 + self.x, y3 + self.y, color, f)
+
+    def invert(self) -> "FrameBufferExtension":
+        return self.fb.invert()
+
+    def convert(self, dst_mode: int, palette: "FrameBufferExtension") -> "FrameBufferExtension":
+        return self.fb.convert(dst_mode, palette)
+
+    def seg_line(self, x1, y1, x2, y2, color, **kwargs):
+        self.fb.seg_line(x1 + self.x, y1 + self.y, x2 + self.x, y2 + self.y, color, **kwargs)
+
+    def seg_vline(self, x, y, h, c, **kwargs):
+        self.fb.seg_vline(x + self.x, y + self.y, h, c, **kwargs)
+
+    def seg_hline(self, x, y, h, c, **kwargs):
+        self.fb.seg_hline(x + self.x, y + self.y, h, c, **kwargs)
+
+    def cross_corners(self, color, **kwargs):
+        kwargs['x'] = self.x + (kwargs['x'] if 'x' in kwargs else 0)
+        kwargs['y'] = self.y + (kwargs['y'] if 'y' in kwargs else 0)
+        kwargs['width'] = self.width if 'width' not in kwargs else kwargs['width']
+        kwargs['height'] = self.height if 'height' not in kwargs else kwargs['height']
+        self.fb.cross_corners(color, **kwargs)
