@@ -56,7 +56,9 @@ class HomeCtrl(Common):
                     "homectrl/onair/activity/": {
                         "homectrl/onair/activity/#": None,
                         "homectrl/onair/activity/laundry": None,
+                        "homectrl/onair/activity/astro": None,
                         "homectrl/onair/activity/meteo": {
+                            "homectrl/onair/activity/meteo": None,
                             "homectrl/onair/activity/meteo/#": None,
                             "homectrl/onair/activity/meteo/temperature": None,
                             "homectrl/onair/activity/meteo/precipitation": None,
