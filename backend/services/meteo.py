@@ -3,13 +3,15 @@ import datetime
 import aiohttp
 import logging
 
-from backend.services.onairservice import OnAirService
+from backend.services.onairservice import OnAirService, noexception
 from configuration import Topic
 from backend.tools import json_serial
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 logger = logging.getLogger("onair.meteo")
+
+logging.getLogger('apscheduler.executors.default').setLevel(logging.WARNING)
 
 class Meteo(OnAirService):
 
@@ -66,17 +68,6 @@ class Meteo(OnAirService):
                 else:
                     raise Exception(f"[weather] Error fetching data: {response.status}")
 
-
-    async def meteo(self) -> None:
-        try:
-            weather = await self._get_weather()
-            message = json_serial(weather)
-            logger.debug(message)
-            self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo"), message, retain=True)
-        except Exception as e:
-            logger.error(f"Error: {e}")
-
-
     async def _data(self, name: str, data_type: str) -> None:
         async with aiohttp.ClientSession() as session:
             async with session.get(self.data_url + data_type) as response:
@@ -88,14 +79,24 @@ class Meteo(OnAirService):
                         logger.debug(f"[{name}] Data: {data}")
                         self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo/" + name), data, retain=True)
                     else:
-                            logger.error(f"[{name}] Unexpected response format: expected dict, got {type(json_resp)}")
+                            raise Exception(f"[{name}] Unexpected response format: expected dict, got {type(json_resp)}")
                 else:
-                    logger.error(f"[{name}] Error fetching data: {response.status}")
+                    raise Exception(f"[{name}] Error fetching data: {response.status}")
 
+    @noexception(logger=logger)
+    async def meteo(self) -> None:
+        weather = await self._get_weather()
+        message = json_serial(weather)
+        logger.debug(message)
+        self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo"), message, retain=True)
+
+    @noexception(logger=logger)
     async def temperature(self) -> None:
         return await self._data('temperature', 'tempAir200')
+    @noexception(logger=logger)
     async def precipitation(self) -> None:
         return await self._data('precipitation', 'precipitation1')
+    @noexception(logger=logger)
     async def pressure(self) -> None:
         return await self._data('pressure', 'atmosphericPressureSL')
 

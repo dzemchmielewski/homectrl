@@ -7,7 +7,7 @@ import asyncio
 import logging
 import time
 
-services = ["onair", "restapi", "charts", "devel"]
+services = ["onair", "restapi", "charts", "devel", "devel-mqtt"]
 
 parser = argparse.ArgumentParser(description="HomeCtrl service launcher", add_help=True)
 parser.add_argument("service",  choices=services, help="Backend service to start")
@@ -59,13 +59,17 @@ elif system == "charts":
 elif system == "devel":
     # put your devel code here
     # that will run with proper python environment
-    logger = logging.getLogger("onair.meteo")
+    logger = logging.getLogger("onair.meteofcst")
     logger.setLevel(logging.DEBUG)
-    from backend.services.meteo import Meteo
-    service = Meteo()
-    asyncio.run(service.precipitation())
+    from backend.services.meteofcst import MeteoForcast
+    service = MeteoForcast()
+    asyncio.run(service.lauch())
 
-    pass
+elif system == "devel-mqtt":
+    logger = logging.getLogger("devel.getmqtt")
+    logger.setLevel(logging.DEBUG)
+    from devel.getmqtt import GetMQTT
+    asyncio.run(GetMQTT().main())
 
 else:
     print("Unknown subsystem: {}".format(system))
