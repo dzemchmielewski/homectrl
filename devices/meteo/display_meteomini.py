@@ -12,9 +12,6 @@ class MeteoMiniDisplay:
 
     def __init__(self, width: int, height: int, fb_mode: int = framebuf.MONO_HLSB):
         self.fb = FrameBufferExtension(width, height, fb_mode)
-        self.fonts_middle = FrameBufferFont("LiberationSerif-Bold.52.mfnt")
-        self.font_topbottom = FrameBufferFont("LiberationSans-Bold.18.mfnt")
-        self.font_hour = FrameBufferFont("LiberationMono-Italic.12.mfnt")
 
         self.background = 1  # white
         # self.background = 0  # black
@@ -28,6 +25,10 @@ class MeteoMiniDisplay:
             # Also, creating an identity palette seems  not to work correctly.
             self.palette = None
         self.foreground = self.background ^ 1
+
+        self.fonts_middle = FrameBufferFont("LiberationSerif-Bold.52.mfnt", palette=self.palette)
+        self.font_topbottom = FrameBufferFont("LiberationSans-Bold.18.mfnt", palette=self.palette)
+        self.font_hour = FrameBufferFont("LiberationMono-Italic.12.mfnt", palette=self.palette)
 
     def _temperature(self, temperature: float) -> tuple[int, int]:
         font = self.fonts_middle
@@ -55,7 +56,7 @@ class MeteoMiniDisplay:
         self.fb.fill(self.background)
         self._temperature(meteo_data['temperature'])
 
-        self.fb.textf(f"{meteo_data['pressure']['real']:.1f} hPa", 10, 8, self.font_topbottom, key=self.background, palette=self.palette)
+        self.fb.textf(f"{meteo_data['pressure']['real']:.1f} hPa", 10, 8, self.font_topbottom, key=self.background)
 
         time_str = f"{meteo_data['date'][11:13]}:{meteo_data['date'][14:16]}"
         time_str_len, _ = self.font_hour.size(time_str)
@@ -69,11 +70,11 @@ class MeteoMiniDisplay:
                              self.font_topbottom, key=self.background, palette=self.palette)
 
         precipitation = f"{meteo_data['precipitation']:.1f}mm ({meteo_data['humidity']:.0f}%)"
-        self.fb.textf(precipitation, 10, self.fb.height - (self.font_topbottom.height + 8), self.font_topbottom, key=self.background, palette=self.palette)
+        self.fb.textf(precipitation, 10, self.fb.height - (self.font_topbottom.height + 8), self.font_topbottom, key=self.background)
 
         wind = f"{meteo_data['wind']['speed']:.1f}m/s {meteo_data['wind']['direction_desc']}"
         x,y = self.font_topbottom.size(wind)
-        self.fb.textf(wind, self.fb.width - x - 10, self.fb.height - (self.font_topbottom.height + 8), self.font_topbottom, key=self.background, palette=self.palette)
+        self.fb.textf(wind, self.fb.width - x - 10, self.fb.height - (self.font_topbottom.height + 8), self.font_topbottom, key=self.background)
 
         #debug lines:
         # self.fb.line(0, 0, self.fb.width - 1, self.fb.height - 1, self.foreground)
@@ -93,31 +94,5 @@ if __name__ == "__main__":
     print(meteo_data)
     meteo.update(meteo_data, astro_data)
 
-    width, height, buffer, vlsb = meteo.fb.width, meteo.fb.height, meteo.fb.buffer, False
-
-    with open('/tmp/output.pgm', 'w') as f:
-        # Write PGM header
-        f.write(f"P2\n{width} {height}\n2\n")
-        if not vlsb:
-            idx = 0
-            for y in range(height):
-                row = ""
-                for x in range(width):
-                    byte = buffer[idx // 8]
-                    bit = 7 - (idx % 8)
-                    pixel = "1" if (byte >> bit) & 1 else "0"
-                    row += pixel + " "
-                    idx += 1
-                f.write(row + "\n")
-        else:
-            # VLSB: bits are stored column-wise
-            for y in range(height):
-                row = ""
-                for x in range(width):
-                    byte_idx = x + (y // 8) * width
-                    bit_idx = y % 8
-                    byte = buffer[byte_idx]
-                    pixel = "1" if (byte >> bit_idx) & 1 else "0"
-                    row += pixel + " "
-                f.write(row + "\n")
-    print("Output written to /tmp/output.pgm")
+    from pgmexporter import PGMExporter
+    PGMExporter('/tmp/output.pgm').export_fbext(meteo.fb)
