@@ -53,7 +53,7 @@ class Firmware:
     commit.set_defaults(ota_command="commit")
 
     build = subparsers.add_parser("build", help="Build micropython firmware", formatter_class=RawTextArgumentDefaultsHelpFormatter)
-    build.add_argument("--port", "-p", choices=["C3", "S3", "GENERIC"], help="Available ports", required=True)
+    build.add_argument("--port", "-p", choices=["C3", "S3", "GENERIC", "C6"], help="Available ports", required=True)
     build.add_argument("--version", "-v", help="Version number to put into the firmware",
                        default=datetime.datetime.now().strftime("%Y%m%d_%H_%M"))
     build.add_argument("--src-micropython", help="Micropython ESP32 source directory",
