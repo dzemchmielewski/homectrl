@@ -35,13 +35,21 @@ class MeteoForcast:
     async def transform(self, data: dict) -> dict:
         return {
             'name': 'meteofcst',
-            'forecast': {
-                'temperature': [round(value, 1) for value in data['data']['airtmp_point']['data']],
+            'meteofcst': {
+                'time': data['fstart'],
+                'temperature': {
+                    'air': [round(value, 1) for value in data['data']['airtmp_point']['data']],
+                    'apparent': [round(value, 1) for value in data['data']['dwptmp_point']['data']],
+                },
                 'humidity': [],
                 'pressure': [],
                 'wind_speed': [],
                 'wind_direction': [],
-                'precipitation': []
+                'precipitation': {
+                    'average': [round(value, 1) for value in data['data']['pcpttl_aver']['data']],
+                    'probability': [int(round(value, 0)) for value in data['data']['pcpttlprob_point']['data']],
+                    'type': [],  # TODO
+                },
             }
         }
 
@@ -66,4 +74,4 @@ class MeteoForcast:
             json.dump(transformed_data, f, indent=4)
 
         logger.info("Transformed meteo forecast data saved to meteofcst.json")
-        logger.info(f"{json.dumps(transformed_data, indent=4)}")
+        logger.info(f"{json.dumps(transformed_data)}")

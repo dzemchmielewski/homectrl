@@ -254,6 +254,27 @@ class FrameBufferExtension(_FrameBufferExtension):
         self.seg_line(x, y, x + width - 1, y + height - 1, color, dash=dash)
         self.seg_line(x + width - 1, y, x, y + height - 1, color, dash=dash)
 
+    def rectround(self, x, y, w, h, c, radius, f=False):
+        # draw rounded rectangle
+        if f:
+            # filled
+            self.rect(x + radius, y, w - 2 * radius, h, c, True)
+            self.rect(x, y + radius, radius, h - 2 * radius, c, True)
+            self.rect(x + w - radius, y + radius, radius, h - 2 * radius, c, True)
+            self.ellipse(x + radius, y + radius, radius, radius, c, True)
+            self.ellipse(x + w - radius - 1, y + radius, radius, radius, c, True)
+            self.ellipse(x + radius, y + h - radius - 1, radius, radius, c, True)
+            self.ellipse(x + w - radius - 1, y + h - radius - 1, radius, radius, c, True)
+        else:
+            # outline
+            self.hline(x + radius, y, w - 2 * radius, c)
+            self.hline(x + radius, y + h - 1, w - 2 * radius, c)
+            self.vline(x, y + radius, h - 2 * radius, c)
+            self.vline(x + w - 1, y + radius, h - 2 * radius, c)
+            self.ellipse(x + radius, y + radius, radius, radius, c, False, 0b0010)
+            self.ellipse(x + w - radius - 1, y + radius, radius, radius, c, False, 0b0001)
+            self.ellipse(x + radius, y + h - radius - 1, radius, radius, c, False, 0b0100)
+            self.ellipse(x + w - radius - 1, y + h - radius - 1, radius, radius, c, False, 0b1000)
 
 
 class FrameBufferOffset:
@@ -348,3 +369,6 @@ class FrameBufferOffset:
         kwargs['width'] = self.width if 'width' not in kwargs else kwargs['width']
         kwargs['height'] = self.height if 'height' not in kwargs else kwargs['height']
         self.fb.cross_corners(color, **kwargs)
+
+    def rectround(self, x, y, w, h, c, radius, f=False):
+        self.rectround(x + self.x, y + self.y, w, h, c, radius, f)

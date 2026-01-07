@@ -253,32 +253,49 @@ class EPD7in5V2:
         self.sleep()
 
 if __name__ == "__main__":
-    import gc
-    gc.collect()
-
     logging.basicConfig(level=logging.DEBUG)
 
-    from display_meteo import MeteoDisplay
+    import gc
+    gc.collect()
+    print(f"Memory before display test: {gc.mem_free()} bytes free")
+
+
     #dev:
     # spi = SoftSPI(sck=Pin(7), mosi=Pin(6), miso=Pin(0))
-    spi = SPI(1, baudrate=4_000_000, sck=Pin(7), mosi=Pin(6))
-    cs = Pin(8, Pin.OUT)
-    dc = Pin(9, Pin.OUT)
-    rst = Pin(10, Pin.OUT)
-    busy = Pin(20, Pin.IN, Pin.PULL_DOWN)
-    pwr = Pin(21, Pin.OUT)
+    spi = SPI(1, baudrate=4_000_000, sck=Pin(5), mosi=Pin(4))
+    cs = Pin(6, Pin.OUT)
+    dc = Pin(7, Pin.OUT)
+    rst = Pin(0, Pin.OUT)
+    busy = Pin(1, Pin.IN, Pin.PULL_DOWN)
+    pwr = Pin(8, Pin.OUT)
+
+
+    from display_meteo import MeteoDisplay
+    import json
+    import random
+
+    data = {
+        'astro': json.loads(open("astro.json").read()),
+        'meteo': json.loads(open("meteo.json").read()),
+        'precipitation': json.loads(open("precipitation.json").read()),
+    }
+    data['astro']['astro'] = [astro_data for astro_data in data['astro']['astro'] if astro_data['day']['day_offset'] in range(-1, 4)]
+    data['precipitation'] = [[record[0], record[1] if record[1] else 0] for record in data['precipitation']]
+    data['precipitation'] = [[record[0], random.randint(0, 50) / 10] for record in data['precipitation']]
+
+    print(f"Memory before display init: {gc.mem_free()} bytes free")
 
     w, h = 800, 480
+    gc.collect()
+    gc.threshold(gc.mem_free() // 4)
 
-    # import time
-    # meteo = MeteoDisplay(w, h, framebuf.GS2_HMSB)
-    # meteo.devel_screen(str(round(time.localtime()[4] + (time.localtime()[5]/100), 1)))
-    # fb = meteo.fb
+    meteo = MeteoDisplay(w, h, framebuf.GS2_HMSB)
+    meteo.update(data)
+    fb = meteo.fb
 
-    fb = FrameBufferExtension(w, h, framebuf.GS2_HMSB)
-    with open('morderczka-2bits.gray', 'rb') as f:
-        f.readinto(fb.buffer)
-
+    # fb = FrameBufferExtension(w, h, framebuf.GS2_HMSB)
+    # with open('morderczka-2bits.gray', 'rb') as f:
+    #     f.readinto(fb.buffer)
 
     epd = EPD7in5V2(w, h, spi, cs, dc, rst, busy, pwr)
     try:

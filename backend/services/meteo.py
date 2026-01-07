@@ -75,7 +75,10 @@ class Meteo(OnAirService):
                     json_resp = await response.json()
                     if isinstance(json_resp, dict):
                         logger.debug(f"[{name}] {await response.text()}")
-                        data = json_serial([(datetime.datetime.fromtimestamp(item['date']), item['value']) for item in json_resp['data']])
+                        data = json_serial({
+                            'time': datetime.datetime.fromtimestamp(json_resp['data'][0]['date']),
+                            'values': [item['value'] for item in json_resp['data']],
+                        })
                         logger.debug(f"[{name}] Data: {data}")
                         self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo/" + name), data, retain=True)
                     else:

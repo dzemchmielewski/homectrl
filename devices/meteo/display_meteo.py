@@ -1,12 +1,14 @@
 import framebuf
 import json
+import time
 
 if __name__ == "__main__":
     import sys
     sys.path.append('../../micropython')
     sys.path.append('../../devel')
 
-from astro_widgets import AstroWidgets
+from meteoparts.astropart import AstroPart
+from meteoparts.precipitationpart import PrecipitationPart
 from plot import *
 from toolbox.framebufext import FrameBufferExtension, FrameBufferFont, FrameBufferOffset
 from colors import Colors
@@ -18,6 +20,14 @@ class MeteoDisplay:
         self.fb = FrameBufferExtension(width, height, fb_mode)
 
         self.colors = Colors([0, 1, 2, 3])  # 4-level scale
+        self.colors.map = self.colors.map | {
+            'axis': self.colors.BLACK,
+            'grid': self.colors.LIGHT,
+            'bars': self.colors.DARK,
+            'frame': self.colors.LIGHT,
+            'labels': self.colors.BLACK,
+            'ticks': self.colors.BLACK,
+        }
 
         self.background = self.colors.WHITE
         self.foreground = self.colors.BLACK
@@ -86,7 +96,7 @@ class MeteoDisplay:
         # x,y = self.font_topbottom.size(wind)
         # self.fb.textf(wind, self.fb.width - x - 10, self.fb.height - (self.font_topbottom.height + 8), self.font_topbottom, key=self.background)
 
-        astro_widgets = AstroWidgets(data['astro'], self.colors)
+        astro_widgets = AstroPart(data['astro'], self.colors)
         #astro_widgets_width = self.fb.width - 10
         astro_widgets_width = 780
 
@@ -112,62 +122,44 @@ class MeteoDisplay:
             FrameBufferFont("fonts/LiberationSans-Bold.14.mfnt", palette=self.font_palette),
             x_padding=2)
 
-        self.colors.map = self.colors.map | {
-            'axis': self.colors.BLACK,
-            'grid': self.colors.LIGHT,
-            'bars': self.colors.DARK,
-            'frame': self.colors.LIGHT,
-            'labels': self.colors.BLACK,
-        }
 
-        # Precipitation chart widget:
+        # Precipitation part:
         x, y = x, 330
-        width = 157
-        chart_widget = BarPlot(self.colors, self.font_small)
-        chart_widget.margin_bottom = 10
-        chart_widget.margin_left = 0
-        chart_widget.ticks_count = (7, 6)
-        chart_widget.grid_dash = (None, (3, 2))
-        chart_widget.ticks_pos = (TICK_CENTER, TICK_CENTER)
-        chart_widget.ticks_x_labels = ["0", "4", "8", "12", "16", "20"]
-        chart_widget.ticks_y_labels = [0, 1, 2, 3, 4, 5]
+        width, height = 785, 60,
+        PrecipitationPart(data['astro'], self.colors).draw(
+            FrameBufferOffset(self.fb, x, y, width, height),
+            self.font_small,
+            data['precipitation']['time'],
+            data['precipitation']['values'],
+            data['meteofcst']['time'],
+            data['meteofcst']['precipitation']['average'])
 
-        for i, day in enumerate(data['astro']['astro']):
-            date = day['day']['date']
-            logger.debug(f"I: {i} Date: {date}, day: {day['day']['weekday']}")
-            ys = [value[1] for value in data['precipitation'] if value[0].startswith(date)]
-            if 0 < len(ys) < 24:
-                for _ in range(24 - len(ys)):
-                    ys.append(0)
-                ys[-1] = 5  #TODO: remove test value
-            chart_widget.draw(FrameBufferOffset(self.fb, x, y, width, 60), None, ys)
-            x = x + width - 1
-            chart_widget.ticks_y_labels = []  # no Y labels for next charts
-
-
+        # Nothing so far:
         logger.debug(" ============================== ")
-        chart_widget = BarPlot(self.colors, self.font_small)
+        chart_widget = LinePlot(self.colors.map | {'line': self.colors.BLACK, 'dot': self.colors.DARK}, self.font_small)
         chart_widget.frame = True
+        chart_widget.axes(left=True, top=True, right=True, bottom=True)
         chart_widget.axis_y_max = 15
-        chart_widget.ticks_y_count = 7
-        chart_widget.ticks_x_count = 13
-        chart_widget.grid_y_count = 4
-        chart_widget.grid_dash = ((3, 2), (3, 2))
-        chart_widget.margin_left = 30
-        chart_widget.margin_bottom = 20
-        chart_widget.ticks_y_pos = TICK_CENTER
-        chart_widget.ticks_x_pos = TICK_CENTER
-        chart_widget.ticks_x_per_label = 2
-        chart_widget.ticks_y_per_label = 2
-
+        chart_widget.ticks_count(bottom=13, left=7, top=13, right=7)
+        chart_widget.grid_count(horiz=4, vert=7)
+        chart_widget.grid_dash(vert=(3, 2), horiz=(3, 2))
+        chart_widget.margins(left=30, bottom=20, right=7, top=7)
+        chart_widget.ticks_per_label(bottom=2, left=2, top=2, right=2)
+        chart_widget.ticks_length(bottom=5, left=5, top=5, right=5)
+        chart_widget.dot_size = 3
+        import random
         multi = 1
         chart_widget.draw(FrameBufferOffset(self.fb, 10, 50, 301, 150),
             ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"] * multi,
-            [4.8, 12, 10, 7, 1.2, 9] * multi
+            [random.randint(0,150)/10 for _ in range(6)] * multi
             # [0] * 6 * multi
         )
 
-    def test_screen(self):
+        logger.debug(" ============================== ")
+        self.fb.rectround(350, 50, 200, 100, self.colors.LIGHT, 10,True)
+
+
+def test_screen(self):
         self.fb.fill(self.background)
         for i in range(0, self.fb.width, 50):
             self.fb.vline(i, 0, self.fb.height, self.foreground)
@@ -186,22 +178,31 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)
     logger = logging.getLogger("meteo_display")
+    logging.getLogger('plot').setLevel(logging.INFO)
+    logging.getLogger('toolbox.framebufext').setLevel(logging.INFO)
 
     data = {
         'astro': json.loads(open("astro.json").read()),
         'meteo': json.loads(open("meteo.json").read()),
         'precipitation': json.loads(open("precipitation.json").read()),
+        'meteofcst': json.loads(open("meteofcst.json").read())['meteofcst']
     }
 
+    # Mangling data:
+    from_day_offset = -1
+    to_day_offset = 4
+
+    # Astro:
     # Pick only 5 days of astro data:
-    data['astro']['astro'] = [astro_data for astro_data in data['astro']['astro'] if astro_data['day']['day_offset'] in range(-1, 4)]
+    data['astro']['astro'] = [astro_data for astro_data in data['astro']['astro'] if astro_data['day']['day_offset'] in range(from_day_offset, to_day_offset)]
+    logger.debug(f"Astro data: {data['astro']}")
 
-    # Fill missing precipitation values with 0:
-    data['precipitation'] = [[record[0], record[1] if record[1] else 0] for record in data['precipitation']]
+    # # Precipitation:
+    # #TODO: remove random test data
+    # import random
+    # data['precipitation']['values'] = [random.randint(0, 48) / 10 for _ in range(0, len(data['precipitation']['values']))]
+    # data['meteofcst']['precipitation']['average'] = [random.randint(0, 48) / 10 for _ in range(0, len(data['meteofcst']['precipitation']['average']))]
 
-    # Test precipitation with random data:
-    import random
-    data['precipitation'] = [[record[0], random.randint(0, 50) / 10] for record in data['precipitation']]
 
     meteo = MeteoDisplay(800, 480, framebuf.GS2_HMSB)
     meteo.update(data)

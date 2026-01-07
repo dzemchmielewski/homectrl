@@ -6,7 +6,7 @@ from toolbox.framebufext import FrameBufferExtension, FrameBufferFont
 
 log = logging.getLogger(__name__)
 
-class AstroWidgets:
+class AstroPart:
 
     def __init__(self, astro: dict, monochrome_scale: Colors):
         self.astro = astro
