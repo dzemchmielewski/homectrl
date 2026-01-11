@@ -27,7 +27,17 @@ class GetMQTT:
                 'topic': Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo/precipitation"),
                 'data': None,
                 'filename': 'precipitation.json'
-            }
+            },
+            'temperature': {
+                'topic': Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo/temperature"),
+                'data': None,
+                'filename': 'temperature.json'
+            },
+            'pressure': {
+                'topic': Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo/pressure"),
+                'data': None,
+                'filename': 'pressure.json'
+            },
         }
 
     def on_connect(self, client, userdata, flags, reason_code, properties):

@@ -3,8 +3,10 @@ import datetime
 import aiohttp
 import logging
 
+from backend.services.meteoproviders.openmeteo import OpenMeteoProvider
+from backend.services.meteoproviders.umk import UMKProvider
 from backend.services.onairservice import OnAirService, noexception
-from configuration import Topic
+from configuration import Topic, Configuration
 from backend.tools import json_serial
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -13,60 +15,20 @@ logger = logging.getLogger("onair.meteo")
 
 logging.getLogger('apscheduler.executors.default').setLevel(logging.WARNING)
 
-class Meteo(OnAirService):
 
+class Meteo(OnAirService):
 
     def __init__(self):
         super().__init__()
-        self.weather_url = "https://pogoda.umk.pl/api/weather"
         self.data_url = "https://pogoda.umk.pl/api/last?type="
         self.exit = False
+        self.providers = [UMKProvider(), OpenMeteoProvider(*Configuration.location())]
 
     @staticmethod
     def desc_direction(degree: int) -> str:
         directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
         idx = round(degree / 45) % 8
         return directions[idx]
-
-
-    async def _get_weather(self) -> dict:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(self.weather_url) as response:
-                if response.status == 200:
-                    json_resp = await response.json()
-                    # Debugging error: list indices must be integers or slices, not str
-                    # now = datetime.datetime.now()
-                    # if now.hour == 1:
-                    #     logger.info(f"Full response: {json_resp}")
-                    if isinstance(json_resp, dict):
-                        logger.debug(await response.text())
-                        data = json_resp['data']
-                        return {
-                            'temperature': round(float(data['tempAir200']['value']), 1),
-                            'humidity': round(float(data['airHumidity']['value']), 1),
-                            'pressure': {
-                                'real': round(float(data['atmosphericPressure']['value']), 1),
-                                'sea_level': round(float(data['atmosphericPressureSL']['value']), 1),
-                            },
-                            'precipitation': round(float(data['precipitation1']['value']), 1),
-                            'wind': {
-                                'speed': round(float(data['windSpeed']['value']), 1),
-                                'direction': int(data['windDegree']['value']),
-                                'direction_desc': self.desc_direction(int(data['windDegree']['value'])),
-                                'max': {
-                                    'speed': round(float(data['maxWindSpeed10']['value']), 1),
-                                    'direction': int(data['maxWindDegree10']['value']),
-                                    'direction_desc': self.desc_direction(int(data['maxWindDegree10']['value'])),
-                                }
-                            },
-                            'solar_radiation': round(float(data['totalSolarRadiation']['value']), 1),
-                            'date': datetime.datetime.fromisoformat(json_resp['dateUTC']).astimezone(),
-                            'create_at': datetime.datetime.now(),
-                        }
-                    else:
-                        raise Exception(f"[weather] Unexpected response format: expected dict, got {type(json_resp)}")
-                else:
-                    raise Exception(f"[weather] Error fetching data: {response.status}")
 
     async def _data(self, name: str, data_type: str) -> None:
         async with aiohttp.ClientSession() as session:
@@ -88,10 +50,20 @@ class Meteo(OnAirService):
 
     @noexception(logger=logger)
     async def meteo(self) -> None:
-        weather = await self._get_weather()
-        message = json_serial(weather)
-        logger.debug(message)
-        self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo"), message, retain=True)
+        for provider in self.providers:
+            try:
+                weather = await provider.get_weather()
+                if weather:
+                    break
+            except Exception as e:
+                logger.error(f"Error fetching weather from {provider.__class__.__name__}: {e}")
+
+        if weather:
+            message = json_serial(weather)
+            logger.debug(message)
+            self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo"), message, retain=True)
+        else:
+            logger.error("All providers failed to fetch weather data.")
 
     @noexception(logger=logger)
     async def temperature(self) -> None:

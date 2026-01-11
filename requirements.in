@@ -1,0 +1,45 @@
+# Web / API
+# !!! Uncomment the following lines to use FastAPI
+# on production
+# fastapi>=0.115,<1
+# uvicorn>=0.30,<1
+# classy-fastapi>=0.6
+
+# Async / networking
+aiohttp>=3.9
+websockets>=13
+websocket-client>=1.7
+
+# MQTT
+paho-mqtt>=2.0
+
+# Scheduling
+APScheduler>=3.10
+
+# CLI / UX
+click>=8
+argcomplete>=3
+rich>=13
+
+# Database
+peewee>=3.17
+psycopg2>=2.9
+
+# Time / dates
+python-dateutil
+tzlocal
+pytz
+
+# Serial / devices
+pyserial
+
+# MicroPython tooling
+mpy_cross>=1.24
+webrepl>=0.2
+
+# Plotting / rendering
+numpy>=1.26
+matplotlib>=3.8
+pillow
+freetype-py
+pycairo

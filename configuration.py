@@ -124,3 +124,7 @@ class Configuration:
     @staticmethod
     def get(name: str):
         return Configuration.MAP.get(name, None)
+
+    @staticmethod
+    def location() -> tuple:
+        return 53.0102721, 18.6048094
