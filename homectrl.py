@@ -100,7 +100,8 @@ class HomeCtrl(Common):
         from devel.esp32_setup import Esp32Setup
         from devel.firmware import Firmware
         from devel.fontconv import FontConverter
-        self.devel = [Esp32Setup, Firmware, FontConverter]
+        from devel.fbimage import FBImage
+        self.devel = [Esp32Setup, Firmware, FontConverter, FBImage]
 
     def parse_args(self):
         boards = list(Configuration.MAP["board"].keys())

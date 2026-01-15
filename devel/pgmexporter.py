@@ -25,7 +25,7 @@ class PGMExporter:
 
     def export_fb(self, fb: framebuf.FrameBuffer, width: int, height: int, mode: int):
         fbext = FrameBufferExtension(width, height, mode)
-        fbext.blit(fb)
+        fbext.blit(fb, 0, 0)
         self.export_fbext(fbext)
 
     @staticmethod
