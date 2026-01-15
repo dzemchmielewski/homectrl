@@ -50,6 +50,7 @@ class Meteo(OnAirService):
 
     @noexception(logger=logger)
     async def meteo(self) -> None:
+        weather = None
         for provider in self.providers:
             try:
                 weather = await provider.get_weather()

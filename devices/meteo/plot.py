@@ -1,6 +1,5 @@
 import logging
 
-from colors import Colors
 from toolbox.framebufext import FrameBufferExtension, FrameBufferFont, FrameBufferOffset
 
 logger = logging.getLogger(__name__)
@@ -380,14 +379,22 @@ class LinePlot(Plot):
 
     def draw_series(self, fb: FrameBufferExtension, ys: list):
         upper_value = self.axis_y_max if self.axis_y_max is not None else max(ys)
+        lower_value = self.axis_y_min if self.axis_y_min is not None else min(ys)
+        value_range = upper_value - lower_value or 1  # avoid div by zero
+
         n = len(ys)
         logger.debug(f"Drawing line: n={n}, upper_value={upper_value}, fb=({fb.width}x{fb.height})")
         if n == 0:
             return
         x, y = None, None
+
         for i in range(n):
             y_value = ys[i]
-            y_pos = fb.height - int((y_value / upper_value) * fb.height) if upper_value > 0 else fb.height - 1
+            y_norm = (y_value - lower_value) / value_range
+            y_pos = fb.height - 1 - int(y_norm * (fb.height - 1))
+
+            # y_pos = fb.height - int((y_value / upper_value) * fb.height) if upper_value > 0 else fb.height - 1
+
             x_pos = int((i / (n - 1)) * (fb.width - 1)) if n > 1 else 0
             logger.debug(f"  Point #{i}: value={y_value}, pos=({x_pos},{y_pos})")
             if x is not None and y is not None:

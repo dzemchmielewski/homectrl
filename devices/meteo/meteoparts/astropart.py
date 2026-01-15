@@ -34,7 +34,7 @@ class AstroPart:
             x = astro_day_index * day_length + (day_length // 2) - (size_x // 2)
             y = (fb.height // 2) - (size_y // 2)
             if day_name == today:
-                x, y = fb.textf(day_name, x, y, font, key=self.colors.BLACK, invert_colors=True)
+                x, y = fb.textf(day_name, x, y, font, key=self.colors.BLACK, palette=font.palette.invert())
             else:
                 x, y = fb.textf(day_name, x, y, font, key=self.colors.WHITE)
         return x, y
@@ -184,7 +184,7 @@ class AstroPart:
             if event:
                 x, _ = fb.textf(illumination, x, y, font, self.colors.WHITE)
             else:
-                x, _ = fb.textf(illumination, x, y, font, self.colors.BLACK, invert_colors=True)
+                x, _ = fb.textf(illumination, x, y, font, self.colors.BLACK, palette=font.palette.invert())
             self.draw_moon_phase_event(fb, x + 6, (fb.height - 3)// 2, event_size, event, phase)
 
 
