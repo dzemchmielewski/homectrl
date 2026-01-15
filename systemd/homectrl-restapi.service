@@ -9,9 +9,11 @@ Type=simple
 User=dzem
 Environment="XDG_RUNTIME_DIR=/run/user/1000"
 WorkingDirectory=/home/dzem/HOMECTRL/
+ExecStartPre=/bin/sh -c 'until getent hosts status.home; do sleep 1; done'
 ExecStart=/home/dzem/HOMECTRL/env/bin/python /home/dzem/HOMECTRL/launcher.py restapi
 KillSignal=SIGINT
 Restart=always
+RestartSec=5
 StandardOutput=append:/home/dzem/HOMECTRL/logs/restapi.log
 StandardError=append:/home/dzem/HOMECTRL/logs/restapi.log
 
