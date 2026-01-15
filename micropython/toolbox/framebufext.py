@@ -7,7 +7,7 @@ import framebuf
 log = logging.getLogger(__name__)
 
 class _FrameBufferExtension(framebuf.FrameBuffer):
-    def __init__(self, width: int, height: int, mode):
+    def __init__(self, width: int, height: int, mode, buffer = None):
         self.width, self.height, self.mode = width, height, mode
         if mode == framebuf.MONO_HLSB or mode == framebuf.MONO_VLSB:
             size = self.width * self.height // 8
@@ -17,7 +17,11 @@ class _FrameBufferExtension(framebuf.FrameBuffer):
             size = self.width * self.height  // 2
         else:
             raise ValueError("Unsupported framebuf mode")
-        self.buffer = memoryview(bytearray(size))
+
+        if buffer and len(buffer) != size:
+            raise ValueError("Buffer size does not match")
+
+        self.buffer = buffer if buffer else memoryview(bytearray(size))
         log.debug("framebuf size: %d, %d, number of bytes: %d", self.width, self.height, size)
         super().__init__(self.buffer, self.width, self.height, self.mode)
 
@@ -134,22 +138,91 @@ class FrameBufferFont:
 
 class FrameBufferExtension(_FrameBufferExtension):
 
-    def __init__(self, width: int, height: int, mode):
-        super().__init__(width, height, mode)
+    def __init__(self, width: int, height: int, mode, buffer = None):
+        super().__init__(width, height, mode, buffer)
+
+    @classmethod
+    def fromfile(cls, file):
+        with open(file, "rb") as f:
+            buf = bytearray(f.read())
+            w, h, format, _, data = buf[0], buf[1], buf[2], buf[3], buf[4:]
+            log.debug(f"Reading framebuf from file {file}: width: {w}, height: {h}, format: {format}, buf len: {len(data)}")
+            return FrameBufferExtension(w, h, format, data)
+
+    @staticmethod
+    def palette(colors: list, mode: int):
+        # index 0 - background, index 1 - foreground, others - shades
+        result = FrameBufferExtension(len(colors), 1, mode)
+        for i, c in enumerate(colors):
+            result.pixel(i, 0, c)
+        return result
 
     def textf(self, text, x, y, font: FrameBufferFont, key: int = -1,
-                  y_spacing: int = 0, x_spacing: int = 0, invert_colors: bool = False):
+                  y_spacing: int = 0, x_spacing: int = 0, palette: FrameBufferExtension = None):
         off_x, off_y = 0, 0
-        palette = font.palette.invert() if invert_colors and font.palette else font.palette
-        for char in text:
+        palette = palette if palette else font.palette
+        for idx, char in enumerate(text):
             if char == '\n':
                 off_x, off_y = 0, off_y + font.height + y_spacing
+            elif char == "°":
+                # degree symbol
+                _, char_height, char_width = font.get_char('I')
+                size =  (char_width - 1) //2
+                int_size = int(size * (6/10))
+                y_deg = y + off_y +  round(char_height * (2/10))
+                # self.pixel(x + off_x, y_deg, palette.pixel(1, 0) if palette else key)
+                self.ellipse(x + off_x + size, y_deg, size, size, palette.pixel(1, 0), True)
+                self.ellipse(x+ off_x + size, y_deg, int_size, int_size, palette.pixel(0, 0), True)
+                off_x += x_spacing + char_width
+
             else:
                 glyph, char_height, char_width = font.get_char(char)
                 if glyph is not None:
                     self.blit(glyph, x + off_x, y + off_y, key, palette)
+                else:
+                    self.rect(x + off_x, y + off_y, char_width, char_height, palette.pixel(0, 0) if palette else key, True)
+                if x_spacing > 0 and idx < len(text) - 1:
+                    self.rect(x + off_x + char_width, y + off_y, char_width, char_height, palette.pixel(0, 0) if palette else key, True)
                 off_x += x_spacing + char_width
         return x + off_x, y + off_y + font.height
+
+    @staticmethod
+    def textposition(text, width, height, font: FrameBufferFont,
+                     align_horiz='center', align_vert='center',
+                     left_margin=0, top_margin=0, right_margin=0, bottom_margin=0,
+                     **kwargs):
+        size_x, size_y = font.size(text, kwargs.get('x_spacing', 0), kwargs.get('y_spacing', 0))
+
+        if align_horiz == 'left':
+            x = left_margin
+        elif align_horiz == 'center':
+            x = ((width - size_x) // 2) + (left_margin - right_margin) // 2
+        elif align_horiz == 'right':
+            x = width - size_x - right_margin
+        else:
+            raise ValueError(f"Invalid horizontal alignment: {align_horiz}. Possible values are 'left', 'center', 'right'.")
+
+        if align_vert == 'top':
+            y = top_margin
+        elif align_vert == 'center':
+            y = (height - size_y) // 2 + (top_margin - bottom_margin) // 2
+        elif align_vert == 'bottom':
+            y = height - size_y - bottom_margin
+        else:
+            raise ValueError(f"Invalid vertical alignment: {align_vert}. Possible values are 'top', 'center', 'bottom'.")
+
+        return x, y
+
+    def textfalign(self, text, font: FrameBufferFont,
+                   align_horiz='center', align_vert='center',
+                   left_margin=0, top_margin=0, right_margin=0, bottom_margin=0,
+                   **kwargs):
+        x, y = self.textposition(text,
+                                 self.width, self.height, font,
+                                 align_horiz, align_vert,
+                                 left_margin=left_margin, top_margin=top_margin, right_margin=right_margin, bottom_margin=bottom_margin,
+                                 **kwargs)
+        return self.textf(text, x, y, font, **kwargs)
 
     def triangle(self, x1, y1, x2, y2, x3, y3, color, f=False):
         if f:
@@ -275,6 +348,7 @@ class FrameBufferExtension(_FrameBufferExtension):
             self.ellipse(x + w - radius - 1, y + radius, radius, radius, c, False, 0b0001)
             self.ellipse(x + radius, y + h - radius - 1, radius, radius, c, False, 0b0100)
             self.ellipse(x + w - radius - 1, y + h - radius - 1, radius, radius, c, False, 0b1000)
+        return FrameBufferOffset(self, x, y, w, h)
 
 
 class FrameBufferOffset:
@@ -336,14 +410,25 @@ class FrameBufferOffset:
         self.fb.hline(x + self.x, y + self.y, w, c)
 
     def fill(self, c):
-        self.fb.fill(c)
+        self.fb.rect(self.x, self.y, self.width, self.height, c, True)
 
     def fill_rect(self, *args, **kwargs):
         return self.fb.fill_rect(*args, **kwargs)
 
     def textf(self, text, x, y, font: FrameBufferFont, key: int = -1,
-              y_spacing: int = 0, x_spacing: int = 0, invert_colors: bool = False):
-        return self.fb.textf(text, x + self.x, y + self.y, font, key, y_spacing, x_spacing, invert_colors)
+              y_spacing: int = 0, x_spacing: int = 0, palette: FrameBufferExtension = None):
+        return self.fb.textf(text, x + self.x, y + self.y, font, key, y_spacing, x_spacing, palette)
+
+    def textfalign(self, text, font: FrameBufferFont,
+                   align_horiz='center', align_vert='center',
+                   left_margin=0, top_margin=0, right_margin=0, bottom_margin=0,
+                   **kwargs):
+        x, y = FrameBufferExtension.textposition(text,
+                                                 self.width, self.height, font,
+                                                 align_horiz, align_vert,
+                                                 left_margin=left_margin, top_margin=top_margin, right_margin=right_margin, bottom_margin=bottom_margin,
+                                                 **kwargs)
+        return self.textf(text, x, y, font, **kwargs)
 
     def triangle(self, x1, y1, x2, y2, x3, y3, color, f=False):
         self.fb.triangle(x1 + self.x, y1 + self.y, x2 + self.x, y2 + self.y, x3 + self.x, y3 + self.y, color, f)
@@ -371,4 +456,5 @@ class FrameBufferOffset:
         self.fb.cross_corners(color, **kwargs)
 
     def rectround(self, x, y, w, h, c, radius, f=False):
-        self.rectround(x + self.x, y + self.y, w, h, c, radius, f)
+        return self.fb.rectround(x + self.x, y + self.y, w, h, c, radius, f)
+
