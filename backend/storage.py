@@ -19,7 +19,7 @@ def on_start():
     with database:
         database.create_tables(entities())
     with database:
-        for name in [["kitchen", "Kitchen"], ["radio", "Radio"], ["pantry", "Pantry"], ["wardrobe", "Wardrobe"], ["dev", "Dev"], ["bathroom", "Bathroom"], ["socket", "Power Socket"]]:
+        for name in [["kitchen", "Kitchen"], ["radio", "Radio"], ["pantry", "Pantry"], ["wardrobe", "Wardrobe"], ["dev", "Dev"], ["bathroom", "Bathroom"], ["socket", "Power Socket"], ['meteo', 'Meteo Display']]:
             try:
                 Name.get_or_create(value=name[0], description=name[1])
             except BaseException as e:
@@ -147,14 +147,11 @@ class HomeCtrlValueBaseModel(HomeCtrlBaseModel):
 class Temperature(HomeCtrlValueBaseModel):
     value = DecimalField(decimal_places=2)
 
-
 class Humidity(HomeCtrlValueBaseModel):
     value = DecimalField(decimal_places=2)
 
-
 class Darkness(HomeCtrlValueBaseModel):
     value = BooleanField()
-
 
 class Light(HomeCtrlValueBaseModel):
     value = BooleanField()
@@ -168,20 +165,19 @@ class Bell(HomeCtrlValueBaseModel):
 class Presence(HomeCtrlValueBaseModel):
     value = BooleanField()
 
-
 class Pressure(HomeCtrlValueBaseModel):
     value = DecimalField(decimal_places=2)
-
 
 class Voltage(HomeCtrlValueBaseModel):
     value = DecimalField(decimal_places=2)
 
-
 class Moisture(HomeCtrlValueBaseModel):
     value = IntegerField()
 
-
 class Lux(HomeCtrlValueBaseModel):
+    value = IntegerField()
+
+class Battery(HomeCtrlValueBaseModel):
     value = IntegerField()
 
 
