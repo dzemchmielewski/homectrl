@@ -23,6 +23,12 @@ class UMKProvider(MeteoProvider):
                     #     logger.info(f"Full response: {json_resp}")
                     if isinstance(json_resp, dict):
                         logger.debug(await response.text())
+                        datereceived = datetime.datetime.fromisoformat(json_resp['dateUTC']).astimezone()
+
+                        # throws error if the date is older then 20 minutes:
+                        if (datetime.datetime.now(datetime.timezone.utc) - datereceived).total_seconds() > 20 * 60:
+                            raise Exception(f"[weather] UMK data is outdated: received at {datereceived.isoformat()}")
+
                         data = json_resp['data']
                         return {
                             'temperature': round(float(data['tempAir200']['value']), 1),
