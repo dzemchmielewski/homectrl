@@ -1,11 +1,19 @@
-import aiohttp
+import asyncio
+from datetime import date
+
 import logging
-import json
-import os
+
+import aiohttp
+
+from backend.services.onairservice import OnAirService
+from configuration import Topic
+from backend.tools import json_serial
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 logger = logging.getLogger("onair.meteofcst")
 
-class MeteoForcast:
+class MeteoForcast(OnAirService):
 
     def __init__(self):
         self.available_url = "https://devmgramapi.meteo.pl/meteorograms/available"
@@ -32,10 +40,9 @@ class MeteoForcast:
                 else:
                     raise Exception(f"Error fetching data: {response.status}")
 
-    async def transform(self, data: dict) -> dict:
+    @staticmethod
+    def transform(data: dict) -> dict:
         return {
-            'name': 'meteofcst',
-            'meteofcst': {
                 'time': data['fstart'],
                 'temperature': {
                     'air': [round(value, 1) for value in data['data']['airtmp_point']['data']],
@@ -51,27 +58,34 @@ class MeteoForcast:
                     'type': [],  # TODO
                 },
             }
-        }
 
+    async def dojob(self) -> None:
+        done = False
+        while not done:
+            try:
+                today = date.today()
+                result = {
+                    'name': 'meteofcst',
+                    'date': today,
+                    'meteofcst': self.transform(await self.data()),
+                }
+                logger.debug(f"{result}")
+                result_json = json_serial(result)
+                logger.debug(result_json)
+                self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteofcst"), result_json, retain=True)
+                done = True
+            except Exception as e:
+                logger.error(f"Error: {e}")
+                await asyncio.sleep(5 * 60)  # Wait 5 minutes  before retrying
 
-    async def lauch(self) -> None:
-        script_path = os.path.abspath(__file__)
+    async def run(self) -> None:
+        scheduler = AsyncIOScheduler()
+        every_hour_trigger = CronTrigger.from_crontab("4 * * * *")  # every hour at minute 4
+        scheduler.add_job(self.dojob, every_hour_trigger)
 
-        load_new = True
+        # run once at startup:
+        scheduler.add_job(self.dojob)
 
-        if load_new:
-            meteo_data = await self.data()
-            with open(os.path.join(os.path.dirname(script_path), 'meteofcst_meteopl.json'), 'w') as f:
-                json.dump(meteo_data, f, indent=4)
-            logger.info("Meteo forecast data saved to meteofcst_meteopl.json")
-        else:
-            with open(os.path.join(os.path.dirname(script_path), 'meteofcst_meteopl.json'), 'r') as f:
-                meteo_data = json.load(f)
-            logger.info("Meteo forecast data loaded from meteofcst_meteopl.json")
-
-        transformed_data = await self.transform(meteo_data)
-        with open(os.path.join(os.path.dirname(script_path), 'meteofcst.json'), 'w') as f:
-            json.dump(transformed_data, f, indent=4)
-
-        logger.info("Transformed meteo forecast data saved to meteofcst.json")
-        logger.info(f"{json.dumps(transformed_data)}")
+        scheduler.start()
+        await asyncio.Event().wait()
+        scheduler.shutdown()
