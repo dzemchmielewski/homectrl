@@ -23,6 +23,7 @@ class TemperatureStrip(DayChartStrip):
         plot.margins(bottom=15)
         plot.ticks_count(bottom=25, left=ticks + 1)
         plot.ticks_per_label(bottom=4, left=1)
+        plot.dot_size = 2
 
         plot.grid_dash(None, (3, 2))
         plot.ticks_labels_list(bottom = ["0", "4", "8", "12", "16", "20"], left = [num for num in range(plot.axis_y_min, plot.axis_y_max + 1, 5)])

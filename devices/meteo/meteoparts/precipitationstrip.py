@@ -9,6 +9,7 @@ class PrecipitationStrip(DayChartStrip):
 
     def begin_draw(self, font: FrameBufferFont, max_y: float, min_y: float) -> Plot:
         plot = BarPlot(self.colors.map, font)
+        max_y = max(max_y, self.max_value())
         plot.margins(bottom=15)
         # plot.ticks_count(bottom=7, left=max_y + 1)
         plot.ticks_count(bottom=25, left=max_y + 1)

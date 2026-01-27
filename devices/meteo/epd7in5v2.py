@@ -1,9 +1,14 @@
 import framebuf
+import time
 import logging
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+
 from machine import SPI, Pin, SoftSPI
 from time import sleep_ms
 
-from toolbox.framebufext import FrameBufferExtension, FrameBufferOffset
+from toolbox.framebufext import FrameBufferExtension
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +60,7 @@ class EPD7in5V2:
     def isbusy(self):
         self.send_command(0x71)
         return self.busy_pin.value() == 0 # 0: busy, 1: idle
+        # return self.busy_pin.value() == 1
 
     def wait_until_ready(self, sleepms: int = None):
         if sleepms:
@@ -68,16 +74,20 @@ class EPD7in5V2:
         sleep_ms(20)
 
     def sleep(self):
+        logger.debug(f"Busy before sleep: {self.isbusy()}")
         logger.debug("Putting display to sleep...")
         self.command(b'\x02') # POWER_OFF
         self.data(b'\x00')
+        logger.debug(f"Busy after power off command: {self.isbusy()}")
         sleep_ms(100)
 
         self.command(b'\x07') # DEEP_SLEEP
         self.data(b'\xA5')
+        logger.debug(f"Busy after deep sleep command: {self.isbusy()}")
 
         sleep_ms(2000)
         logger.debug("Display sleep done")
+        logger.debug(f"Busy after sleep: {self.isbusy()}")
 
     def init(self, mode: int):
         logger.debug(f"Initializing display... Mode: {mode}")
@@ -202,9 +212,10 @@ class EPD7in5V2:
             # Send the optimized batch
             self.data(out_buf)
 
-    def deinit(self):
+    def deinit(self, deinit_spi: bool = True):
         logger.debug("Deinitializing display...")
-        self.spi.deinit()
+        if deinit_spi:
+            self.spi.deinit()
         self.rst_pin.off()
         self.dc_pin.off()
         self.pwr_pin.off()
@@ -236,15 +247,20 @@ class EPD7in5V2:
 
         elif fb.mode == framebuf.GS2_HMSB:
             # Pass 1: Light/White component (Command 0x10)
+            logger.debug("pass 1 - Light/White component...")
             self.send_command(0x10)
             self._send_plane(buf, self._lut_v1)
+            logger.debug("pass 1 - Light/White component DONE")
 
             # Pass 2: Dark/Black component (Command 0x13)
+            logger.debug("pass 2 - Dark/Black component...")
             self.send_command(0x13)
             self._send_plane(buf, self._lut_v2)
+            logger.debug("pass 2 - Dark/Black component DONE")
 
             # Refresh command sequence
             self.send_command(0x12) # Refresh
+            logger.debug("Refresh command sent, waiting for display to be ready...")
             self.wait_until_ready(100)
 
         else:
@@ -253,8 +269,6 @@ class EPD7in5V2:
         self.sleep()
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-
     import gc
     gc.collect()
     print(f"Memory before display test: {gc.mem_free()} bytes free")
@@ -266,22 +280,32 @@ if __name__ == "__main__":
     cs = Pin(6, Pin.OUT)
     dc = Pin(7, Pin.OUT)
     rst = Pin(0, Pin.OUT)
-    busy = Pin(1, Pin.IN, Pin.PULL_DOWN)
+    busy = Pin(1, Pin.IN, Pin.PULL_UP)
     pwr = Pin(8, Pin.OUT)
 
+    # blue LED - 11
+    # yellow - 20
+    # 21 - pull it down. When 1 - do not sleep
 
     from display_meteo import MeteoDisplay
     import json
-    import random
 
     data = {
         'astro': json.loads(open("astro.json").read()),
         'meteo': json.loads(open("meteo.json").read()),
         'precipitation': json.loads(open("precipitation.json").read()),
+        'temperature': json.loads(open("temperature.json").read()),
+        'meteofcst': json.loads(open("meteofcst.json").read())['meteofcst'],
+        'holidays': json.loads(open("holidays.json").read()),
+        'battery': time.localtime()[4],
     }
-    data['astro']['astro'] = [astro_data for astro_data in data['astro']['astro'] if astro_data['day']['day_offset'] in range(-1, 4)]
-    data['precipitation'] = [[record[0], record[1] if record[1] else 0] for record in data['precipitation']]
-    data['precipitation'] = [[record[0], random.randint(0, 50) / 10] for record in data['precipitation']]
+    # Mangling data:
+    from_day_offset = -1
+    to_day_offset = 4
+
+    # Astro:
+    # Pick only 5 days of astro data:
+    data['astro']['astro'] = [astro_data for astro_data in data['astro']['astro'] if astro_data['day']['day_offset'] in range(from_day_offset, to_day_offset)]
 
     print(f"Memory before display init: {gc.mem_free()} bytes free")
 

@@ -10,22 +10,14 @@ class DayChartStrip:
 
     def __init__(self, astro: dict, colors: Colors):
         self.colors = colors
-        self.days_count = len(astro['astro'])
+        # self.days_count = len(astro['astro'])
+        self.days_count = 3
         self.start_day = min(astro['astro'], key=lambda i: i['day']['day_offset'])['day']['date']
         logger.debug(f"Start Date: {self.start_day}, Days count: {self.days_count}")
 
     @staticmethod
-    def parse_iso(s):
-        # "YYYY-MM-DDTHH:MM:SS" or "YYYY-MM-DD"
-        y = int(s[0:4])
-        m = int(s[5:7])
-        d = int(s[8:10])
-        h = int(s[11:13]) if 'T' in s else 0
-        return y, m, d, h
-
-    @staticmethod
     def split_by_days(data, start_date):
-        sy, sm, sd, sh = DayChartStrip.parse_iso(start_date)
+        sy, sm, sd, sh = time.localtime(time.fromisostrict(start_date))[0:4]
         result = []
         i, n = 0, len(data)
 
@@ -44,8 +36,8 @@ class DayChartStrip:
 
     @staticmethod
     def cut_before(data: list, start_date: str, cut_date: str) -> list:
-        sy, sm, sd, sh = DayChartStrip.parse_iso(start_date)
-        ty, tm, td, th  = DayChartStrip.parse_iso(cut_date)
+        sy, sm, sd, sh = time.localtime(time.fromisostrict(start_date))[0:4]
+        ty, tm, td, th  = time.localtime(time.fromisostrict(cut_date))[0:4]
         t_start = time.mktime((sy, sm, sd, sh, 0, 0, 0, 0))
         t_target = time.mktime((ty, tm, td, th, 0, 0, 0, 0))
         index = 0 if t_start > t_target else (t_target - t_start) // 3600

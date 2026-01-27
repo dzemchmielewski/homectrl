@@ -1,2 +1,2 @@
-from meteomini import MeteoMiniApplication
-MeteoMiniApplication().run()
+from meteo import MeteoApplication
+MeteoApplication().run()

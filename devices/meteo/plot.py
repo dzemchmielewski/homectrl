@@ -351,7 +351,7 @@ class BarPlot(Plot):
     def draw_series(self, fb: FrameBufferExtension, ys: list):
         upper_value = self.axis_y_max if self.axis_y_max is not None else max(ys)
         n = len(ys)
-        logger.debug(f"Drawing bars: n={n}, upper_value={upper_value}, fb=({fb.width}x{fb.height})")
+        logger.debug(f"BAR PLOT: n={n}, upper_value={upper_value}, fb=({fb.width}x{fb.height})")
         if n == 0:
             return
         for i in range(n):
@@ -382,8 +382,12 @@ class LinePlot(Plot):
         lower_value = self.axis_y_min if self.axis_y_min is not None else min(ys)
         value_range = upper_value - lower_value or 1  # avoid div by zero
 
+        # For line plot, we have to cut the frame buffer on the right by the size of one tick.
+        # This way, the plot points will match the ticks below.
+        arena = FrameBufferOffset(fb, 0, 0, fb.width - (fb.width // (len(ys) if len(ys) > 1 else 1)), fb.height)
+
         n = len(ys)
-        logger.debug(f"Drawing line: n={n}, upper_value={upper_value}, fb=({fb.width}x{fb.height})")
+        logger.debug(f"LINE PLOT: n={n}, upper_value={upper_value}, fb=({arena.width}x{arena.height})")
         if n == 0:
             return
         x, y = None, None
@@ -391,15 +395,15 @@ class LinePlot(Plot):
         for i in range(n):
             y_value = ys[i]
             y_norm = (y_value - lower_value) / value_range
-            y_pos = fb.height - 1 - int(y_norm * (fb.height - 1))
+            y_pos = arena.height - 1 - int(y_norm * (arena.height - 1))
 
             # y_pos = fb.height - int((y_value / upper_value) * fb.height) if upper_value > 0 else fb.height - 1
 
-            x_pos = int((i / (n - 1)) * (fb.width - 1)) if n > 1 else 0
+            x_pos = int((i / (n - 1)) * (arena.width - 1)) if n > 1 else 0
             logger.debug(f"  Point #{i}: value={y_value}, pos=({x_pos},{y_pos})")
             if x is not None and y is not None:
-                fb.line(x, y, x_pos, y_pos, self.colormap['line'])
-                fb.ellipse(x, y, self.dot_size, self.dot_size, self.colormap['dot'], True)
+                arena.line(x, y, x_pos, y_pos, self.colormap['line'])
+                arena.ellipse(x, y, self.dot_size, self.dot_size, self.colormap['dot'], True)
             if self.dot_size > 0:
-                fb.ellipse(x_pos, y_pos, self.dot_size, self.dot_size, self.colormap['dot'], True)
+                arena.ellipse(x_pos, y_pos, self.dot_size, self.dot_size, self.colormap['dot'], True)
             x, y = x_pos, y_pos

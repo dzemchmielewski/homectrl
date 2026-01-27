@@ -1,47 +1,24 @@
-import framebuf
-import json
-
 if __name__ == "__main__":
     import sys
     sys.path.append('../../micropython')
     sys.path.append('../../devel')
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
 
+import random
+import framebuf
+import json
+import time
 from meteoparts.astropart import AstroPart
 from meteoparts.temperaturestrip import TemperatureStrip
 from meteoparts.precipitationstrip import PrecipitationStrip
 from plot import *
-from toolbox.framebufext import FrameBufferExtension, FrameBufferFont, FrameBufferOffset
+from toolbox.framebufext import FrameBufferExtension, FrameBufferFont, FrameBufferOffset, FM
 from colors import Colors
 
-class FontManager:
-
-    FAMILY_LIBERATION = "Liberation"
-    CLASSIFICATION_SANS = "Sans"
-    CLASSIFICATION_SERIF = "Serif"
-    CLASSIFICATION_MONO = "Mono"
-    WEIGHT_REGULAR = "Regular"
-    WEIGHT_BOLD = "Bold"
-
-    def __init__(self, default_palette: FrameBufferExtension = None):
-        self.default_palette = default_palette
-        self.fonts = {}
-
-    def _get(self, family: str = FAMILY_LIBERATION, classification: str = CLASSIFICATION_SANS, weight: str = WEIGHT_BOLD, size: int = 14, palette: FrameBufferExtension = None):
-        font_file = f"fonts/{family}{classification}-{weight}.{size}.mfnt"
-        if not self.fonts.get(font_file):
-            self.fonts[font_file] = FrameBufferFont(font_file, palette=palette if palette else self.default_palette)
-        return self.fonts[font_file]
-
-    def get_sans_bold(self, size: int, palette: FrameBufferExtension = None):
-        return self._get(classification=self.CLASSIFICATION_SANS, weight=self.WEIGHT_BOLD, size=size, palette=palette)
-    def get_sans_regular(self, size: int, palette: FrameBufferExtension = None):
-        return self._get(classification=self.CLASSIFICATION_SANS, weight=self.WEIGHT_REGULAR, size=size, palette=palette)
-    def get_serif_bold(self, size: int, palette: FrameBufferExtension = None):
-        return self._get(classification=self.CLASSIFICATION_SERIF, weight=self.WEIGHT_BOLD, size=size, palette=palette)
-    def get_serif_regular(self, size: int, palette: FrameBufferExtension = None):
-        return self._get(classification=self.CLASSIFICATION_SERIF, weight=self.WEIGHT_REGULAR, size=size, palette=palette)
-
 class MeteoDisplay:
+
+    FRAME_THICKNESS = 5
 
     def __init__(self, width: int, height: int, fb_mode: framebuf.MONO_HLSB):
         self.fb = FrameBufferExtension(width, height, fb_mode)
@@ -66,172 +43,269 @@ class MeteoDisplay:
         self.palette_dark = self.palette([1, 0, 2, 3])
         self.palette_black = self.palette([0, 3, 0, 3])
 
-        self.FM = FontManager(self.palette_white)
-
         # self.font_battery = FrameBufferFont("fonts/LiberationSans-Bold.14.mfnt", palette=self.palette_light)
         # self.font_serif_bold_52 = FrameBufferFont("fonts/LiberationSerif-Bold.52.mfnt", palette=self.palette_white)
         # self.font_sans_bold_26 = FrameBufferFont("fonts/LiberationSans-Bold.26.mfnt", palette=self.palette_white)
 
-        self.fonts_middle = FrameBufferFont("fonts/LiberationSerif-Bold.52.mfnt", palette=self.palette_white)
-        self.font_topbottom = FrameBufferFont("fonts/LiberationSans-Bold.18.mfnt", palette=self.palette_white)
-        self.font_hour = FrameBufferFont("fonts/LiberationMono-Italic.12.mfnt", palette=self.palette_white)
-        self.font_small = FrameBufferFont("fonts/LiberationSans-Bold.12.mfnt", palette=self.palette_white)
+        # self.fonts_middle = FrameBufferFont("fonts/LiberationSerif-Bold.52.mfnt", palette=self.palette_white)
+        # self.font_topbottom = FrameBufferFont("fonts/LiberationSans-Bold.18.mfnt", palette=self.palette_white)
+        # self.font_hour = FrameBufferFont("fonts/LiberationMono-Italic.12.mfnt", palette=self.palette_white)
+        # self.font_small = FrameBufferFont("fonts/LiberationSans-Bold.12.mfnt", palette=self.palette_white)
 
-    def text_center(self, text: str, font: FrameBufferFont, y: int, x_spacing=0) -> (int, int):
-        size_x, size_y = font.size(text, x_spacing=x_spacing)
-        print(MeteoDisplay.FM)
-        x = self.fb.width // 2 - (size_x // 2)
-        return self.fb.textf(text, x, y, font, x_spacing=x_spacing)
 
     def palette(self, colors: list):
         # index 0 - background, index 1 - foreground, others - shades
         return FrameBufferExtension.palette(colors, self.fb.mode)
 
-    @staticmethod
-    def frame(fb: FrameBufferExtension, border: int, background: int):
-        thickness, radius = 5, [12, 9]
+    def frame(self, fb: FrameBufferExtension, border = None, background = None):
+        if border is None:
+            border = self.colors.LIGHT
+        if background is None:
+            background = self.colors.WHITE
+        thickness, radius = MeteoDisplay.FRAME_THICKNESS, [12, 9]
         fb.rectround(0, 0, fb.width, fb.height, border, radius[0], True)
         fb.rectround(thickness, thickness, fb.width - 2 * thickness, fb.height - 2 * thickness, background, radius[1], True)
         return FrameBufferOffset(fb, thickness, thickness, fb.width - 2 * thickness, fb.height - 2 * thickness)
 
-    def battery(self, fb, x, y, level_percent: int):
-        w, h = 65, 22
+    def _small_item(self, fb, x, y, w, h, image, text: str):
         fb = FrameBufferOffset(fb, x, y, w, h)
-        fb.rectround(0, 0, w, h, self.colors.LIGHT, 4, True)
-        if level_percent <= 25:
-            image = 'images/battery-quarter.fb'
-        elif level_percent <= 50:
-            image = 'images/battery-half.fb'
-        elif level_percent <= 75:
-            image = 'images/battery-three-quarters.fb'
-        else:
-            image = 'images/battery-full.fb'
-        fb.blit(FrameBufferExtension.fromfile(image), 5, 3, self.colors.WHITE)
-        FrameBufferOffset(fb, 25, 0, w - 25, h).textfalign(str(level_percent) + "%", self.FM.get_sans_bold(14), top_margin=2, palette=self.palette_light)
+        fb.rectround(0, 0, w, h, self.colors.LIGHT, 6, True)
+        gap = 10
+        fb.blit(FrameBufferExtension.fromfile(image), gap, 3, self.colors.WHITE)
+        gap += 16
+        f = FrameBufferOffset(fb, gap, 0, w - gap, h)
+        #f.fill(self.colors.LIGHT)
+        f.textfalign(text, FM.get_sans_bold(16), top_margin=-2, palette=self.palette_light)
         return x + w, y + h
 
-    def _meteo_item(self, fb, x, y, image_file: str, text: str, font: FrameBufferFont, width: int, top_margin: int = 11):
+    def battery(self, fb, x, y, w, h, level_percent: int):
+        return self._small_item(fb, x, y, w, h,
+                                'images/battery-quarter.fb' if level_percent <= 25 else (
+                                    'images/battery-half.fb' if level_percent <= 50 else (
+                                        'images/battery-three-quarters.fb' if level_percent <= 75 else 'images/battery-full.fb')),
+                                str(level_percent) + "%")
+
+    def source(self, fb, x, y, w, h, source: str):
+        return self._small_item(fb, x, y, w, h, 'images/source.fb', source)
+
+    def time(self, fb, x, y, w, h, time_str: str):
+        return self._small_item(fb, x, y, w, h, 'images/time.fb', time_str)
+
+    def _meteo_item(self, fb, x, y, image_file: str, text: str, font: FrameBufferFont, width: int, top_margin: int = 11, left_margin: int = 0, unit: str = None):
         image = FrameBufferExtension.fromfile(image_file)
         w, h = width, image.height + 2*10 + 2*5
         window = FrameBufferOffset(fb, x, y, w, h)
-        window = self.frame(window, self.colors.DARK, self.colors.WHITE)
+        window = self.frame(window)
         window.blit(image, 5, 10, self.colors.WHITE)
-        textframe = FrameBufferOffset(window,  image.width + 2*5, 0, window.width - (image.width + 2*5), window.height)
-        textframe.textfalign(text, font, top_margin=top_margin)
+
+        # tw, th = font.size(text)
+        # tw, th = tw + 6, th + 10
+        # textframe = window.rectround(image.width + 2*5, (window.height - th) // 2, tw, th, self.colors.LIGHT, 8, True)
+
+        textframe = FrameBufferOffset(window,  image.width, window.height // 4, window.width - (image.width + 2*5), window.height//2)
+        if unit is not None:
+            top_margin = -3
+        textframe.textfalign(text, font, top_margin=top_margin, left_margin=left_margin, palette=self.palette_white)
+
+        if unit:
+            textframe = FrameBufferOffset(window,  image.width, textframe.height + 5, window.width - (image.width + 2*5), 25)
+            textframe.textfalign(unit, FM.get_sans_bold(14), left_margin=left_margin)
+
         return x + w, y + h
 
     def temperature(self, fb, x, y, temperature: float):
-        return self._meteo_item(fb, x, y, "images/temperature.fb", str(temperature) + "°C", self.FM.get_serif_bold(52), 285)
+        return self._meteo_item(fb, x, y, "images/temperature.fb", "{:2.1f}".format(temperature) + "°C", FM.get_serif_bold(52), 285)
 
     def humidity(self, fb, x, y, humidity: int):
-        return self._meteo_item(fb, x, y, "images/humidity.fb", str(humidity) + "%", self.FM.get_sans_bold(26), 140)
+        return self._meteo_item(fb, x, y, "images/humidity.fb", str(humidity), FM.get_sans_bold(26), 140, unit="%")
 
     def pressure(self, fb, x, y, pressure: float):
-        x, y = self._meteo_item(fb, x, y, "images/pressure.fb", str(pressure), self.FM.get_sans_bold(26), 140, top_margin=0)
-        fb.textf("hPa", x - 40, y - 20, self.FM.get_sans_bold(14))
+        x, y = self._meteo_item(fb, x, y, "images/pressure.fb", "{:4.1f}".format(pressure), FM.get_sans_bold(26), 140, unit="hPa", left_margin=14)
+#        fb.textf("hPa", x - 40, y - 20, FM.get_sans_bold(14))
         return x, y
 
     def wind(self, fb, x, y, speed: float):
-        x, y = self._meteo_item(fb, x, y, "images/wind.fb", f"{speed}", self.FM.get_sans_bold(26), 140, top_margin=0)
-        fb.textf("m/s", x - 35, y - 20, self.FM.get_sans_bold(14))
+        x, y = self._meteo_item(fb, x, y, "images/wind.fb", "{:4.1f}".format(speed), FM.get_sans_bold(26), 140, unit="m/s")
         return x, y
 
-    def direction(self, fb, x, y, direction: str):
-        return self._meteo_item(fb, x, y, "images/compass.fb", direction, self.FM.get_sans_bold(26), 140)
+    def direction(self, fb, x, y, direction: str, angle: int):
+        return self._meteo_item(fb, x, y, "images/compass.fb", direction, FM.get_sans_bold(26), 140, unit=str(angle) + "°")
 
-    def update(self, data: dict):
-        self.fb.fill(self.background)
-        x, y = self.battery(self.fb, 2, 2, 77)
+    def calendar(self, fb, _x, _y, _w, _h, date: str, weekday: str):
+        image = FrameBufferExtension.fromfile("images/weekday.fb")
+        window = FrameBufferOffset(fb, _x, _y, _w, _h)
+        window = self.frame(window)
+        window.blit(image, 10, 19, self.colors.WHITE)
 
-        w = 305
-        x, y = self.fb.width - 5 - w, 5
-        window = self.fb.rectround(x, y, w, 248, self.colors.BLACK, 10, True)
-        x, y = 10, 10
-        x, y = self.temperature(window, x, y, -25.7)
-        x, y =  10, y + 5
-        x, _ = self.humidity(window, x, y, 95)
-        x += 5
-        x, y = self.pressure(window, x, y, 1011.2)
-        x, y = 10, y + 5
-        x, _ = self.wind(window, x, y, 15.4)
-        x += 5
-        x, y = self.direction(window, x, y, "SW")
+        x, y = image.width, 10
+        f = FrameBufferOffset(window,  x, y, window.width - (image.width + 2*5), 50)
+        _, y = f.textfalign(weekday, FM.get_serif_bold(60), top_margin=-10, left_margin=5)
+        y += -25
 
-        # thickness, radius = 5, [12, 9]
-        # fb.rectround(0, 0, fb.width, fb.height, border, radius[0], True)
-        # fb.rectround(thickness, thickness, fb.width - 2 * thickness, fb.height - 2 * thickness, background, radius[1], True)
-        # return FrameBufferOffset(fb, thickness, thickness, fb.width - 2 * thickness, fb.height - 2 * thickness)
+        f = FrameBufferOffset(window,  x, y, window.width - (image.width + 2*5), 50)
+        _, y = f.textfalign(date, FM.get_sans_bold(38), top_margin=5)
+
+        return _x + _w, _y + _h
+
+    @staticmethod
+    def _add_word(line: str, word: str) -> str:
+        return f"{line}{" " if line != "" else ""}{word}"
+
+    def _split_text(self, text: str, font: FrameBufferFont, max_width: int) -> tuple(str, str):
+        tw, _ = font.size(text)
+        line, rest = "", None
+        if tw > max_width:
+            words = text.split(" ")
+            for idx, word in enumerate(words):
+                next = self._add_word(line, word)
+                tw, _ = font.size(next)
+                if tw <= max_width:
+                    line = next
+                else:
+                    rest = ""
+                    for i in range(idx, len(words)):
+                        rest = f"{rest}{' ' if rest != '' else ''}{words[i]}"
+                    break
+        else:
+            line = text
+        return line, rest
+
+    def holiday(self, fb, x, y, w, h, holidays: list):
+        text = holidays[random.randint(0, len(holidays)-1)]
+        window = FrameBufferOffset(fb, x, y, w, h)
+        window = self.frame(window)
+        window = FrameBufferOffset(window, 10, 10, window.width - 2*10, window.height - 2*10)
+        # window.fill(self.colors.LIGHT)
+
+        font = FM.get_sans_bold(32)
+        lines = []
+        while True:
+            line, rest = self._split_text(text, font, window.width)
+            lines.append(line)
+            if rest is None:
+                break
+            text = rest
+
+        if len(lines) == 1:
+            _, h = window.textfalign(lines[0],  font)
+        elif len(lines) == 2:
+            m = 40
+            window.textfalign(lines[0], font, top_margin=-m)
+            window.textfalign(lines[1], font, top_margin=m)
+        else:
+            m = 65
+            window.textfalign(lines[0], font, top_margin=-m)
+            window.textfalign(lines[1], font, top_margin=-2)
+            window.textfalign(lines[2], font, top_margin=m)
+
+        return x + w, y + h
 
 
-
-        # self._temperature(data['meteo']['temperature'])
-
-        # self.fb.textf(f"{data['meteo']['pressure']['real']:.1f} hPa", 10, 8, self.font_topbottom, key=self.background)
-        #
-        # time_str = f"{data['meteo']['date'][11:13]}:{data['meteo']['date'][14:16]}"
-        # time_str_len, _ = self.font_hour.size(time_str)
-        # week_length, _ = self.font_topbottom.size(data['astro']['datetime']['weekday'])
-        #
-        # x, y = self.fb.textf(time_str,
-        #                      self.fb.width - (10 + time_str_len + week_length), 8 + 4,
-        #                      self.font_hour, key=self.background)
-        # x, y = self.fb.textf(f"{data['astro']['datetime']['weekday']}",
-        #                      x + 4, 8,
-        #                      self.font_topbottom, key=self.background)
-
-
-        # precipitation = f"{meteo_data['precipitation']:.1f}mm ({meteo_data['humidity']:.0f}%)"
-        # self.fb.textf(precipitation, 10, self.fb.height - (self.font_topbottom.height + 8), self.font_topbottom, key=self.background)
-        #
-        # wind = f"{meteo_data['wind']['speed']:.1f}m/s {meteo_data['wind']['direction_desc']}"
-        # x,y = self.font_topbottom.size(wind)
-        # self.fb.textf(wind, self.fb.width - x - 10, self.fb.height - (self.font_topbottom.height + 8), self.font_topbottom, key=self.background)
-
+    # Sun & Moon calendar widget:
+    def  sunmoon(self, fb,  x, y, width, height, data: dict):
+        # width, height = 760, 83
         astro_widgets = AstroPart(data['astro'], self.colors)
-        width, height = 760, 60
+        #fb.rectround(x, y, width, height, self.colors.BLACK, 10, True)
+        d = MeteoDisplay.FRAME_THICKNESS + 2
+        self.frame(FrameBufferOffset(fb, x, y, width, height), self.colors.BLACK, self.colors.WHITE)
 
-        # Sun & Moon calendar widget:
-        x, y = 10, 397
+        width -= 2 * d + 2
+        x, y = x + d, y + d
         _, y = astro_widgets.weekday_axis(
-            FrameBufferOffset(self.fb, x, y, width, 20),
-            FrameBufferFont("fonts/LiberationSans-Bold.16.mfnt", palette=self.palette_white))
+            FrameBufferOffset(fb, x, y, width, 20),
+            FM.get_sans_bold(16))
 
         x, y = x, y + 5
         astro_widgets.sun_axis(
-            FrameBufferOffset(self.fb, x, y, width, 20),
-            self.font_small)
+            FrameBufferOffset(fb, x, y, width, 20),
+            FM.get_sans_bold(12))
 
         x, y = x, y + 19
         _, y = astro_widgets.moon_axis(
-            FrameBufferOffset(self.fb, x, y, width, 20),
-            self.font_small)
+            FrameBufferOffset(fb, x, y, width, 20),
+            FM.get_sans_bold(12))
 
         x, y = x, y + 2
         astro_widgets.moon_phase_axis(
-            FrameBufferOffset(self.fb, x, y, width, 20),
-            FrameBufferFont("fonts/LiberationSans-Bold.14.mfnt", palette=self.palette_white),
+            FrameBufferOffset(fb, x, y, width, 20),
+            FM.get_sans_bold(14),
             x_padding=2)
+        return x, y
 
+    def precipitation(self, fb, x, y, width, height, data: dict):
+        d = MeteoDisplay.FRAME_THICKNESS + 2
+        off_x, off_y = 10, 4 # additional offset for scale, that has to be out of buffer frame
+        self.frame(FrameBufferOffset(fb, x, y, width, height), self.colors.BLACK, self.colors.WHITE)
 
-        # Precipitation part:
-        x, y = x, 330
-        PrecipitationStrip(data['astro'], self.colors).draw(
-            FrameBufferOffset(self.fb, x, y, width, height),
-            self.font_small,
-            data['precipitation']['time'],
-            data['precipitation']['values'],
-            data['meteofcst']['time'],
-            data['meteofcst']['precipitation']['average'])
+        # PrecipitationStrip(data['astro'], self.colors).draw(
+        #     FrameBufferOffset(self.fb, x + d + off_x, y + d + off_y, width - 2*d, height - 2*d),
+        #     FM.get_sans_bold(12),
+        #     data['precipitation']['time'],
+        #     data['precipitation']['values'],
+        #     data['meteofcst']['time'],
+        #     data['meteofcst']['precipitation']['average'])
 
-        # Temperature part:
-        x, y = x, 270
+        # # Temperature part:
         TemperatureStrip(data['astro'], self.colors).draw(
-            FrameBufferOffset(self.fb, x, y, width, height),
-            self.font_small,
+            FrameBufferOffset(self.fb, x + d + off_x, y + d + off_y, width - 2*d, height - 2*d),
+            FM.get_sans_bold(12),
             data['temperature']['time'],
             data['temperature']['values'],
             data['meteofcst']['time'],
             data['meteofcst']['temperature']['air'])
+
+
+
+    def update(self, data: dict):
+        self.fb.fill(self.colors.LIGHT)
+
+        # Main meteo part:
+        margin = 2
+        inner_space, inner_margin = 5, 10
+        w, h = 285 + 2*inner_margin, 252 + 2*inner_margin
+
+        x, y = margin, margin
+        window = self.fb.rectround(x, y, w, h, self.colors.BLACK, 10, True)
+
+        x, y = inner_margin + self.FRAME_THICKNESS, inner_margin
+        x, y = self.battery(window, x, y, 73, 22, data['battery'])
+        x, y = x + inner_space, inner_margin
+        x, y = self.source(window, x, y, 118, 22, data['meteo']['source'])
+        x, y = x + inner_space, inner_margin
+        x, y = self.time(window, x, y, 74, 22, f"{data['meteo']['date'][11:13]}:{data['meteo']['date'][14:16]}")
+
+        x, y  = inner_margin, y + inner_space
+        x, y = self.temperature(window, x, y, data['meteo']['temperature'])
+        x, y =  inner_margin, y + inner_space
+        x, _ = self.humidity(window, x, y, data['meteo']['humidity'])
+        x += inner_space
+        x, y = self.pressure(window, x, y, data['meteo']['pressure']['real'])
+        x, y = inner_margin, y + inner_space
+        x, _ = self.wind(window, x, y, data['meteo']['wind']['speed'])
+        x += inner_space
+        x, y = self.direction(window, x, y, data['meteo']['wind']['direction_desc'], data['meteo']['wind']['direction'])
+
+        # Calendar part:
+        thedate = time.strftime("%B %e, %Y",
+                                time.localtime(
+                                    time.fromisostrict(data['astro']['datetime']['date'])))
+        x, y = margin + w + 5, margin
+        w, h = self.fb.width - x - margin, 252 + 2*inner_margin
+        window = self.fb.rectround(x, y, w, h, self.colors.BLACK, 10, True)
+        x, y = inner_margin, inner_margin
+        w, h = w - 2*inner_margin, ((h - 2*inner_margin) // 2) - inner_space // 2
+        _, y = self.calendar(window, x, y, w, h,thedate, data['astro']['datetime']['weekday'])
+        y += inner_space
+        x, y = self.holiday(window, x, y, w, h, data['holidays']['holidays'])
+
+
+        x, y, w, h  = 2, 380, self.fb.width - 2 * 2, 98
+        self.sunmoon(self.fb, x, y, w, h, data)
+
+        # Precipitation part:
+        x, y = x, 278
+        self.precipitation(self.fb, x, y, w, h, data)
+
 
         # # Nothing so far:
         # logger.debug(" ============================== ")
@@ -255,14 +329,6 @@ class MeteoDisplay:
         #     [-3, 0, 1, -5, 10, 15] * multi
         # )
 
-        logger.debug(" ============================== ")
-        # f = FrameBufferFont("fonts/LiberationSans-Bold.18.mfnt", palette=self.palette_light)
-        # window = FrameBufferOffset(self.fb, 350, 70, 200, 100)
-        # window.rectround(0, 0, window.width, window.height, self.colors.LIGHT, 10, True)
-        # window.blit(FrameBufferExtension.fromfile("images/humidity.fb"), 10, 10, self.colors.WHITE)
-
-        # window = FrameBufferOffset(self.fb, 20, 20, 600, 100)
-        # window = self.frame(window, self.colors.LIGHT)
 
 
     def test_screen(self):
@@ -280,20 +346,24 @@ class MeteoDisplay:
 
 
 if __name__ == "__main__":
-    import logging
-
-    logging.basicConfig(level=logging.DEBUG)
     logger = logging.getLogger("meteo_display")
     # logging.getLogger('plot').setLevel(logging.INFO)
     logging.getLogger('plot').setLevel(logging.DEBUG)
     logging.getLogger('toolbox.framebufext').setLevel(logging.INFO)
+
+
+    import time
+    #minutes = time.localtime()[4]
+    minutes = 100
 
     data = {
         'astro': json.loads(open("astro.json").read()),
         'meteo': json.loads(open("meteo.json").read()),
         'precipitation': json.loads(open("precipitation.json").read()),
         'temperature': json.loads(open("temperature.json").read()),
-        'meteofcst': json.loads(open("meteofcst.json").read())['meteofcst']
+        'meteofcst': json.loads(open("meteofcst.json").read())['meteofcst'],
+        'holidays': json.loads(open("holidays.json").read()),
+        'battery': minutes,
     }
 
     # Mangling data:
@@ -304,12 +374,6 @@ if __name__ == "__main__":
     # Pick only 5 days of astro data:
     data['astro']['astro'] = [astro_data for astro_data in data['astro']['astro'] if astro_data['day']['day_offset'] in range(from_day_offset, to_day_offset)]
     logger.debug(f"Astro data: {data['astro']}")
-
-    # # Precipitation:
-    # #TODO: remove random test data
-    # import random
-    # data['precipitation']['values'] = [random.randint(0, 48) / 10 for _ in range(0, len(data['precipitation']['values']))]
-    # data['meteofcst']['precipitation']['average'] = [random.randint(0, 48) / 10 for _ in range(0, len(data['meteofcst']['precipitation']['average']))]
 
 
     meteo = MeteoDisplay(800, 480, framebuf.GS2_HMSB)
@@ -334,5 +398,5 @@ if __name__ == "__main__":
     # sometest.test_screen()
     # PGMExporter("/tmp/sometest.pgm").export_fbext(sometest.fb)
     logger.info("USED FONTS:")
-    for font_file, font in meteo.FM.fonts.items():
+    for font_file, font in FM.cache.items():
         logger.info(f" - {font_file}")
