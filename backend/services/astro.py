@@ -11,7 +11,6 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 logger = logging.getLogger("onair.astro")
-logger.setLevel(logging.INFO)
 
 class Astro(OnAirService):
 
@@ -142,6 +141,9 @@ class Astro(OnAirService):
 
         # every day at midnight
         scheduler.add_job(self.astro, CronTrigger.from_crontab("1 0 * * *"))
+
+        # run once at startup:
+        scheduler.add_job(self.astro)
 
         scheduler.start()
         await asyncio.Event().wait()

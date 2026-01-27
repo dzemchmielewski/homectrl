@@ -86,6 +86,12 @@ class Meteo(OnAirService):
         scheduler.add_job(self.precipitation, every_hour_trigger)
         scheduler.add_job(self.pressure, every_hour_trigger)
 
+        # run once at startup:
+        scheduler.add_job(self.meteo)
+        scheduler.add_job(self.temperature)
+        scheduler.add_job(self.precipitation)
+        scheduler.add_job(self.pressure)
+
         scheduler.start()
         await asyncio.Event().wait()
         scheduler.shutdown()
