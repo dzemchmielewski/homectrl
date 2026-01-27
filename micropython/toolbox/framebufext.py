@@ -458,3 +458,44 @@ class FrameBufferOffset:
     def rectround(self, x, y, w, h, c, radius, f=False):
         return self.fb.rectround(x + self.x, y + self.y, w, h, c, radius, f)
 
+class FontManager:
+
+    FAMILY_LIBERATION = "Liberation"
+    CLASSIFICATION_SANS = "Sans"
+    CLASSIFICATION_SERIF = "Serif"
+    CLASSIFICATION_MONO = "Mono"
+    WEIGHT_REGULAR = "Regular"
+    WEIGHT_BOLD = "Bold"
+
+    palette = FrameBufferExtension.palette([3, 0, 1, 2], framebuf.GS2_HMSB)
+    directory = "fonts"
+    cache = {}
+
+    @staticmethod
+    def get(family: str = FAMILY_LIBERATION, classification: str = CLASSIFICATION_SANS, weight: str = WEIGHT_REGULAR, size: int = 14, palette: FrameBufferExtension = None):
+        font_file = f"{FM.directory}/{family}{classification}-{weight}.{size}.mfnt"
+        if not FontManager.cache.get(font_file):
+            FM.cache[font_file] = FrameBufferFont(font_file, palette=palette if palette else FM.palette)
+        return FM.cache[font_file]
+
+    @staticmethod
+    def get_sans(size: int, weight = WEIGHT_REGULAR, palette: FrameBufferExtension = None):
+        return FM.get(classification=FM.CLASSIFICATION_SANS, weight=weight, size=size, palette=palette)
+    @staticmethod
+    def get_sans_bold(size: int, palette: FrameBufferExtension = None):
+        return FM.get(classification=FM.CLASSIFICATION_SANS, weight=FM.WEIGHT_BOLD, size=size, palette=palette)
+    @staticmethod
+    def get_sans_regular(size: int, palette: FrameBufferExtension = None):
+        return FM.get(classification=FM.CLASSIFICATION_SANS, weight=FM.WEIGHT_REGULAR, size=size, palette=palette)
+
+    @staticmethod
+    def get_serif(size: int, weigth = WEIGHT_REGULAR, palette: FrameBufferExtension = None):
+        return FM.get(classification=FM.CLASSIFICATION_SERIF, weight=weigth, size=size, palette=palette)
+    @staticmethod
+    def get_serif_bold(size: int, palette: FrameBufferExtension = None):
+        return FM.get(classification=FM.CLASSIFICATION_SERIF, weight=FM.WEIGHT_BOLD, size=size, palette=palette)
+    @staticmethod
+    def get_serif_regular(size: int, palette: FrameBufferExtension = None):
+        return FM.get(classification=FM.CLASSIFICATION_SERIF, weight=FM.WEIGHT_REGULAR, size=size, palette=palette)
+
+FM = FontManager
