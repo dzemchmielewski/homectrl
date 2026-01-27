@@ -96,12 +96,18 @@
 		  "debug": false,
 		  "webrepl_password": "${webrepl_password}"
 	  },
-	  "meteo": {
-		  "host": "192.168.0.135",
-		  "port": 8123,
-		  "debug": false,
-		  "webrepl_password": "${webrepl_password}"
-	  }
+    "meteo": {
+      "host": "192.168.0.135",
+      "port": 8123,
+      "debug": false,
+      "webrepl_password": "${webrepl_password}"
+    },
+    "coffee": {
+      "host": "192.168.0.136",
+      "port": 8123,
+      "debug": false,
+      "webrepl_password": "${webrepl_password}"
+    }
   },
   "mqtt": {
     "host": "status.home",
