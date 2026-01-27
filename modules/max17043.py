@@ -23,7 +23,7 @@ class MAX17043:
         return f"MAX17043(address={self.address}, version=0x{self.version:04x}, compensation={self.compensation}, alert_threshold={self.alert_threshold}%)"
 
     def __str__(self):
-        return f"v: {battery.voltage} V, soc: {battery.soc} %, alert: {battery.alert} (threshold: {battery.alert_threshold} %), sleep: {battery.sleep}"
+        return f"v: {self.voltage} V, soc: {self.soc} %, alert: {self.alert} (threshold: {self.alert_threshold} %), sleep: {self.sleep}"
 
     def reset(self):
         self._write_reg(_REGISTER_COMMAND, binascii.unhexlify('0054'))
