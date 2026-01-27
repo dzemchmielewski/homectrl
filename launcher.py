@@ -59,11 +59,18 @@ elif system == "charts":
 elif system == "devel":
     # put your devel code here
     # that will run with proper python environment
-    logger = logging.getLogger("onair.meteofcst")
+
+    # logger = logging.getLogger("onair.meteofcst")
+    # logger.setLevel(logging.DEBUG)
+    # from backend.services.meteofcst import MeteoForcast
+    # service = MeteoForcast()
+    # asyncio.run(service.lauch())
+
+    logger = logging.getLogger("onair.holidays")
     logger.setLevel(logging.DEBUG)
-    from backend.services.meteofcst import MeteoForcast
-    service = MeteoForcast()
-    asyncio.run(service.lauch())
+    from backend.services.holidays import Holidays
+    service = Holidays()
+    asyncio.run(service.dojob())
 
 elif system == "devel-mqtt":
     logger = logging.getLogger("devel.getmqtt")
