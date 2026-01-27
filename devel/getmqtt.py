@@ -38,6 +38,11 @@ class GetMQTT:
                 'data': None,
                 'filename': 'pressure.json'
             },
+            'meteofcst': {
+                'topic': Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteofcst"),
+                'data': None,
+                'filename': 'meteofcst.json'
+            },
         }
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
