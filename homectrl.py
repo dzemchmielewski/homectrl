@@ -57,8 +57,10 @@ class HomeCtrl(Common):
                         "homectrl/onair/activity/#": None,
                         "homectrl/onair/activity/laundry": None,
                         "homectrl/onair/activity/astro": None,
+                        "homectrl/onair/activity/holidays": None,
                         "homectrl/onair/activity/meteo": {
                             "homectrl/onair/activity/meteo": None,
+                            "homectrl/onair/activity/meteofcst": None,
                             "homectrl/onair/activity/meteo/#": None,
                             "homectrl/onair/activity/meteo/temperature": None,
                             "homectrl/onair/activity/meteo/precipitation": None,
@@ -101,7 +103,9 @@ class HomeCtrl(Common):
         from devel.firmware import Firmware
         from devel.fontconv import FontConverter
         from devel.fbimage import FBImage
+        from devel.pping import PPing
         self.devel = [Esp32Setup, Firmware, FontConverter, FBImage]
+        self.plugs = [PPing]
 
     def parse_args(self):
         boards = list(Configuration.MAP["board"].keys())
@@ -134,7 +138,6 @@ class HomeCtrl(Common):
         ping = subparsers.add_parser("ping", help="Ping to specified host", formatter_class=self.Formatter)
         ping.add_argument("--count", "-c", type=int, help="Stop after sending count ECHO_REQUEST packets")
         ping.add_argument("server_id", choices=boards, help="Available hosts")
-
         ping.set_defaults(command="ping")
 
         db = subparsers.add_parser("db", help="Open database command-line tool", formatter_class=self.Formatter)
@@ -166,6 +169,11 @@ class HomeCtrl(Common):
              .add_parser(dev.argparser.prog, parents=[dev.argparser], conflict_handler="resolve", formatter_class=dev.argparser.formatter_class)
              .set_defaults(devel_command=dev.argparser.prog))
         devel.set_defaults(command="devel")
+
+        for plug in self.plugs:
+            (subparsers
+             .add_parser(plug.argparser.prog, parents=[plug.argparser], conflict_handler="resolve", formatter_class=plug.argparser.formatter_class)
+             .set_defaults(command=plug.argparser.prog))
 
         argcomplete.autocomplete(parser)
         args = parser.parse_args()
@@ -208,10 +216,10 @@ class HomeCtrl(Common):
                     WSCommandLineClient(args.server_id, not args.no_format).start()
 
         elif args.command == "ping":
-            ping_args = ""
+            ping_args = "-D -O"
             if args.count:
                 ping_args = " -c {}".format(args.count)
-            os.system("ping {} {}".format(ping_args, Configuration.get_config(args.server_id)["host"]))
+            os.system("ping {} {} | grep -v -i 'host unreachable'".format(ping_args, Configuration.get_config(args.server_id)["host"]))
 
         elif args.command == "webrepl":
             with WebREPLClient(args.server_id) as repl:
@@ -284,6 +292,9 @@ class HomeCtrl(Common):
             dev_cls = next((cls for cls in self.devel if cls.argparser.prog == args.devel_command), None)
             dev_cls(args).run()
 
+        else:
+            plug_cls = next((cls for cls in self.plugs if cls.argparser.prog == args.command), None)
+            plug_cls(args).run()
 
 if __name__ == "__main__":
     HomeCtrl().run()
