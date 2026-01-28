@@ -35,7 +35,6 @@ except ImportError:
         pass
 
 RTT_HEIGHT = 6
-RTT_WIDTH = 20
 RTT_COLORS = [int((120 / (2*RTT_HEIGHT)) * i) / 360 for i in range(0, 2*RTT_HEIGHT + 1)]
 RTT_COLORS.reverse()
 COLOR_BLACK = Color.from_rgb(0, 0, 0)
@@ -48,7 +47,9 @@ class PPing:
         description='DZEM HomeCtrl Devel - PPing - Pretty Ping tool',
         add_help=True, formatter_class=RawTextArgumentDefaultsHelpFormatter)
 
-    argparser.add_argument("--count", "-c", type=int, help="Stop after sending count ECHO_REQUEST packets")
+    argparser.add_argument("--count", "-c", type=int, help="Stop after sending count ECHO_REQUEST packets", default=None)
+    argparser.add_argument("--width", "-w", type=int, help="Ping chart width", default=None)
+
     argparser.add_argument(
         "server_id",
         help="Available hosts",
@@ -63,8 +64,23 @@ class PPing:
     def __init__(self, parsed_args):
         self.tasks = None
         self.args = parsed_args
-        self.data = {}
         self.console = Console()
+        console_max = self.console.options.max_width - 6
+        if self.args.width is not None:
+            self.args.width = max(16, self.args.width)
+            self.args.width = min(console_max, self.args.width)
+        else:
+            width = console_max
+            if (c := len(self.args.server_id)) > 1:
+                while True:
+                    if c * width > (console_max - c * 4):
+                        width -= 1
+                    else:
+                        break
+            self.args.width = max(16, width)
+
+        self.exit = False
+        self.data = {}
         for id in self.args.server_id:
             host = boards.get(id)
             if host:
@@ -138,28 +154,28 @@ class PPing:
             loss_style = Style(color=RTTColorPlot.hue_to_color((100-loss)/360) if loss is not None else 'red')
 
             stat =  (f"{last:.0f}/{avg:.0f}" if last is not None else "—") + "_" +  f" {loss:.0f}%".rjust(4)
-            stat = stat.replace("_", " " * (RTT_WIDTH - len(stat) + 1))
+            stat = stat.replace("_", " " * (self.args.width - len(stat) + 1))
             panels.append(Panel.fit(
                 Group(
-                    RTTColorPlot(values),
+                    RTTColorPlot(values, self.args.width),
                     Text(name, justify="center"),
                     Text(f"IP: {d['ip']}", style="dim", justify="center"),
                     Text(status, style=style, justify="center"),
-                    Text("RTT last/avg" + (" " * (RTT_WIDTH - 16)) + "Loss", style="blue bold", justify="right"),
-                    Text("─" * RTT_WIDTH, justify="center"),
+                    Text("RTT last/avg" + (" " * (self.args.width - 16)) + "Loss", style="blue bold", justify="right"),
+                    Text("─" * self.args.width, justify="center"),
                     Text( stat, style=loss_style),
                 ),
-                width=RTT_WIDTH + 4,  border_style=style))
+                width=self.args.width + 4,  border_style=style))
         return Columns(
             panels,
-            width=RTT_WIDTH + 5,
+            width=self.args.width + 5,
             equal=True,
             expand=False,
         )
 
     async def display(self):
         with Live(console=self.console, refresh_per_second=2) as live:
-            while True:
+            while not self.exit:
                 live.update(self.render())
                 await asyncio.sleep(0.3)
 
@@ -176,11 +192,19 @@ class PPing:
 
     async def ping_loop(self, id):
         host = self.data[id]["host"]
-        while True:
-            delay = await asyncio.to_thread(PPing.ping_safe, host)
-            self.data[id]["status"] = "error" if delay is None else ("timeout" if delay is False else "up")
-            self.data[id]["values"].append(delay)
-            await asyncio.sleep(1)
+        if self.args.count:
+            for _ in range(self.args.count):
+                delay = await asyncio.to_thread(PPing.ping_safe, host)
+                self.data[id]["status"] = "error" if delay is None else ("timeout" if delay is False else "up")
+                self.data[id]["values"].append(delay)
+                await asyncio.sleep(1)
+        else:
+            while True:
+                delay = await asyncio.to_thread(PPing.ping_safe, host)
+                self.data[id]["status"] = "error" if delay is None else ("timeout" if delay is False else "up")
+                self.data[id]["values"].append(delay)
+                await asyncio.sleep(1)
+        self.exit = True
 
     async def getip(self, id):
         host = self.data[id]["host"]
@@ -201,19 +225,21 @@ class PPing:
         try:
             asyncio.run(self.main())
         except KeyboardInterrupt:
+            self.exit = True
             [task.cancel() for task in self.tasks]
 
 class RTTColorPlot:
 
-    def __init__(self, values: list[float]) -> None:
+    def __init__(self, values: list[float], width: int) -> None:
         # The value > 200 is mapped to the highest row (2*RTT_HEIGHT - 1)
         # Te values between 0 and 200 are mapped linearly to range 0..(2*RTT_HEIGHT - 1)
-        self.level = [RTTColorPlot.getlevel(x) for x in list(values)[ -RTT_WIDTH:]]
+        self.width = width
+        self.level = [RTTColorPlot.getlevel(x) for x in list(values)[ -self.width:]]
 
     @staticmethod
     def getlevel(x: float) -> int | None | bool:
         if x is not None and x is not False:
-            return min(int((x / 200) * (2 * RTT_HEIGHT - 1)), 2 * RTT_HEIGHT - 1)
+            return min(int((x / 300) * (2 * RTT_HEIGHT - 1)), 2 * RTT_HEIGHT - 1)
         return x
 
     @staticmethod
@@ -227,7 +253,7 @@ class RTTColorPlot:
     def __rich_console__(
             self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
-        pad = RTT_WIDTH - len(self.level)
+        pad = self.width - len(self.level)
         for y in range(RTT_HEIGHT -1, -1, -1):
             if pad > 0:
                 yield self.empty_segment(pad)
