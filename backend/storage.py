@@ -177,10 +177,6 @@ class Moisture(HomeCtrlValueBaseModel):
 class Lux(HomeCtrlValueBaseModel):
     value = IntegerField()
 
-class Battery(HomeCtrlValueBaseModel):
-    value = IntegerField()
-
-
 class Error(HomeCtrlValueBaseModel):
     value = TextField()
 
@@ -193,6 +189,27 @@ class Error(HomeCtrlValueBaseModel):
 
 class Live(HomeCtrlValueBaseModel):
     value = BooleanField()
+
+class Battery(HomeCtrlBaseModel):
+    value = IntegerField()
+    voltage = DecimalField(decimal_places=6, null=True)
+
+    def equals(self, other: Self) -> bool:
+        return (other and type(other) is type(self)
+                and self.value == other.value
+                and self.name.value == other.name.value)
+
+    @classmethod
+    def get_currents(cls):
+        with database:
+            subq = (
+                cls.select(peewee.fn.row_number().over(partition_by=cls.name_id, order_by=[cls.create_at.desc()]).alias("row_num"), cls))
+            query = (peewee.Select(columns=[subq.c.id, subq.c.create_at, subq.c.name_id,
+                                            subq.c.value, subq.c.voltage])
+                     .from_(subq)
+                     .where(subq.c.row_num == 1)
+                     .bind(database))
+            return list(map(lambda r: cls(**r), query))
 
 
 class Radio(HomeCtrlBaseModel):

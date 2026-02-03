@@ -85,7 +85,7 @@ class Devices(OnAirService):
     def data2entries(data: dict) -> [storage.HomeCtrlValueBaseModel]:
         result = [storage.Live(name=data["name"], create_at=data["timestamp"], value=data.get("live") is None or data.get("live"))]
         for key, value in data.items():
-            if key in ["temperature", "humidity", "darkness", "light", "presence", "pressure", "voltage", "error", "moisture", "doors", "bell", "lux", "battery"]:
+            if key in ["temperature", "humidity", "darkness", "light", "presence", "pressure", "voltage", "error", "moisture", "doors", "bell", "lux"]:
                 if value is not None:
                     clazz = getattr(storage, key.capitalize(), None)
                     result.append(clazz(name=data["name"], create_at=data["timestamp"], value=value))
@@ -103,6 +103,9 @@ class Devices(OnAirService):
                 result.append(storage.Electricity(name=data["name"], create_at=data["timestamp"],
                                           voltage=value.get('voltage'), current=value.get('current'), active_power=value.get('active_power'),
                                           active_energy=value.get('active_energy'), power_factor=value.get('power_factor')))
+            elif key == "battery"and value is not None:
+                    result.append(storage.Battery(name=data["name"], create_at=data["timestamp"],
+                                          value=value.get('value'), voltage=value.get('voltage')))
         return result
 
     def process_entry(self, entry: storage.HomeCtrlBaseModel, db_save=True):

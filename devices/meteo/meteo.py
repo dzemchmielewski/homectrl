@@ -43,7 +43,8 @@ class MeteoApplication(BoardApplication):
         self.epd = EPD7in5V2(width, height, spi, cs, dc, rst, busy, pwr)
 
         self.indicator = Facility("indicator", PinIO(10, 1), 1)
-        self.battery = Facility("battery", MAX17043(SoftI2C(scl=Pin(18), sda=Pin(9))))
+        self.battery = Facility("battery", MAX17043(SoftI2C(scl=Pin(18), sda=Pin(9))),
+                                to_dict=lambda x : {'battery': {'value': x.value[0], 'voltage': x.value[1]}})
         # boolean display value: True = display is processing refresh, False = idle
         self.display = Facility("display", MeteoDisplay(width, height, mode))
         self.display.value = True
@@ -183,10 +184,10 @@ class MeteoApplication(BoardApplication):
     async def battery_task(self):
         last_mqtt = None
         while not self.exit:
-            self.battery.value = round(self.battery.endpoint.soc)
-            if self.battery.value > 100:
-                self.battery.value = 100
-            self.data['battery'] = self.battery.value
+            self.battery.value = (round(self.battery.endpoint.soc), self.battery.endpoint.voltage)
+            if self.battery.value[0] > 100:
+                self.battery.value[0] = 100
+            self.data['battery'] = self.battery.value[0]
             if last_mqtt is None or (time.time_ms() - last_mqtt) > 60 * 5 * 1_000:
                 await self.publish(self.topic_data, self.battery.to_dict(), True)
                 last_mqtt = time.time_ms()
