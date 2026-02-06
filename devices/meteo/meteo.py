@@ -1,6 +1,10 @@
+import logging
+logging.basicConfig(level=logging.DEBUG)
+for handler in logging.getLogger().handlers:
+    handler.setFormatter(logging.Formatter("[%(asctime)s][%(levelname)s][%(name)s] %(message)s"))
+
 import asyncio
 import json
-import logging
 import gc
 import sys
 
@@ -15,11 +19,6 @@ from configuration import Configuration
 from max17043 import MAX17043
 from epd7in5v2 import EPD7in5V2
 from display_meteo import MeteoDisplay
-
-
-logging.basicConfig(level=logging.INFO)
-for handler in logging.getLogger().handlers:
-    handler.setFormatter(logging.Formatter("[%(asctime)s][%(levelname)s][%(name)s] %(message)s"))
 
 
 class MeteoApplication(BoardApplication):
@@ -60,12 +59,16 @@ class MeteoApplication(BoardApplication):
         self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteo"] = self.data_message
         self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/astro"] = self.data_message
         self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/holidays"] = self.data_message
+        self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteofcst"] = self.data_message
+        self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteo/temperature"] = self.temperature_message
         self.mqtt_custom_config['keepalive'] = 400
 
         self.data = {
             'meteo': None,
             'astro': None,
             'holidays': None,
+            'meteofcst': None,
+            'temperature': None,
             'battery': None,
         }
 
@@ -73,6 +76,8 @@ class MeteoApplication(BoardApplication):
         return (self.data['meteo'] is not None
                 and self.data['astro'] is not None
                 and self.data['holidays'] is not None
+                and self.data['meteofcst'] is not None
+                and self.data['temperature'] is not None
                 and self.data['battery'] is not None
                 )
 
@@ -87,13 +92,19 @@ class MeteoApplication(BoardApplication):
     def data_message(self, topic, message, retained):
         name = topic.split('/')[-1]
         self.log.info(f"Message received. Name: {name}")
-        self.data[name] = json.loads(message)
+        if name == 'meteofcst':
+            self.data['meteofcst'] = json.loads(message)['meteofcst']
+        else:
+            self.data[name]  = json.loads(message)
 
         if name == 'astro':
             from_day_offset = -1
             to_day_offset = 4
             # Pick only 5 days of astro data:
             self.data['astro']['astro'] = [astro_data for astro_data in self.data['astro']['astro'] if astro_data['day']['day_offset'] in range(from_day_offset, to_day_offset)]
+
+    def temperature_message(self, topic, message, retained):
+        self.data['temperature'] = json.loads(message)
 
     def trigger_update(self, value = True):
         self.trigger.value['update'] = value

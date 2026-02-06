@@ -232,10 +232,14 @@ class MeteoDisplay:
             x_padding=2)
         return x, y
 
-    def precipitation(self, fb, x, y, width, height, data: dict):
+    def past_and_forecst(self, fb, x, y, width, height, data: dict):
         d = MeteoDisplay.FRAME_THICKNESS + 2
-        off_x, off_y = 10, 4 # additional offset for scale, that has to be out of buffer frame
+        off_x, off_y = 13, 4 # additional offset for scale, that has to be out of buffer frame
+        width_off = 8 # additional width cut from the right for scale labels
         self.frame(FrameBufferOffset(fb, x, y, width, height), self.colors.BLACK, self.colors.WHITE)
+
+        fb.blit(FrameBufferExtension.fromfile('images/temperature-16.fb'), x+d, y + d + 15, self.colors.WHITE)
+        off_x, off_y = off_x + 16, off_y
 
         # PrecipitationStrip(data['astro'], self.colors).draw(
         #     FrameBufferOffset(self.fb, x + d + off_x, y + d + off_y, width - 2*d, height - 2*d),
@@ -247,13 +251,12 @@ class MeteoDisplay:
 
         # # Temperature part:
         TemperatureStrip(data['astro'], self.colors).draw(
-            FrameBufferOffset(self.fb, x + d + off_x, y + d + off_y, width - 2*d, height - 2*d),
+            FrameBufferOffset(self.fb, x + d + off_x, y + d + off_y, width - 2*d - off_x - width_off, height - 2*d),
             FM.get_sans_bold(12),
             data['temperature']['time'],
             data['temperature']['values'],
             data['meteofcst']['time'],
             data['meteofcst']['temperature']['air'])
-
 
 
     def update(self, data: dict):
@@ -302,33 +305,9 @@ class MeteoDisplay:
         x, y, w, h  = 2, 380, self.fb.width - 2 * 2, 98
         self.sunmoon(self.fb, x, y, w, h, data)
 
-        # Precipitation part:
+        # Temperature and precipitation history/forecast:
         x, y = x, 278
-        self.precipitation(self.fb, x, y, w, h, data)
-
-
-        # # Nothing so far:
-        # logger.debug(" ============================== ")
-        # chart_widget = BarPlot(self.colors.map | {'line': self.colors.BLACK, 'dot': self.colors.DARK}, self.font_small)
-        # chart_widget.frame = True
-        # chart_widget.axes(left=True, top=True, right=True, bottom=True)
-        # chart_widget.axis_y_max = 15
-        # chart_widget.axis_y_min = -5
-        # chart_widget.ticks_count(bottom=13, left=5)
-        # chart_widget.grid_count(horiz=5, vert=7)
-        # chart_widget.grid_dash(vert=(3, 2), horiz=(3, 2))
-        # chart_widget.margins(left=30, bottom=20, right=7, top=7)
-        # chart_widget.ticks_per_label(bottom=2, left=1)
-        # chart_widget.ticks_length(bottom=5, left=5)
-        # chart_widget.dot_size = 3
-        # import random
-        # multi = 1
-        # chart_widget.draw(FrameBufferOffset(self.fb, 10, 50, 301, 150),
-        #     ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00"] * multi,
-        #     # [random.randint(0,150)/10 for _ in range(6)] * multi
-        #     [-3, 0, 1, -5, 10, 15] * multi
-        # )
-
+        self.past_and_forecst(self.fb, x, y, w, h, data)
 
 
     def test_screen(self):

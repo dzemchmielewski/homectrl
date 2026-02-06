@@ -13,7 +13,11 @@ class DayChartStrip:
         # self.days_count = len(astro['astro'])
         self.days_count = 3
         self.start_day = min(astro['astro'], key=lambda i: i['day']['day_offset'])['day']['date']
-        logger.debug(f"Start Date: {self.start_day}, Days count: {self.days_count}")
+
+    def debug(self, align: int, message: str):
+        logger.debug(f"{' '*2*align}{message}")
+    def info(self, align: int, message: str):
+        logger.info(f"{' '*2*align}{message}")
 
     @staticmethod
     def split_by_days(data, start_date):
@@ -73,7 +77,8 @@ class DayChartStrip:
 
     def range(self, list_of_list) -> tuple:
         max_y, min_y = None, None
-        for ys in list_of_list:
+        for raw_ys in list_of_list:
+            ys = [y for y in raw_ys if y is not None]
             max_y = max(max_y, max(ys) if len(ys) > 0 else 0) if max_y is not None else (max(ys) if len(ys) > 0 else 0)
             min_y = min(min_y, min(ys) if len(ys) > 0 else 0) if min_y is not None else (min(ys) if len(ys) > 0 else 0)
         return max_y, min_y
@@ -82,51 +87,72 @@ class DayChartStrip:
              past_start_date: str, past: list,
              future_start_date: str, future: list):
 
-        logger.debug(f"PAST/FUTURE start dates: {past_start_date} / {future_start_date}")
+        logalign = 0
+        self.debug(logalign, f"Start drawing chart strip. Start date: {self.start_day}, Days count: {self.days_count}")
+        logalign += 1
+        self.debug(logalign, f"PAST/FUTURE start dates: {past_start_date} / {future_start_date}")
         past_values = self.split_by_days(self.cut_before(past, past_start_date, self.start_day), self.start_day)
-        logger.debug(f"PAST (len={len(past_values)}): {past_values}")
+        self.debug(logalign, f"PAST (len={len(past_values)}): {past_values}")
 
         frcst_cut_date = self._add_hours(self.start_day, sum(len(day) for day in past_values))
         frcst_values = self.split_by_days(self.cut_before(future, future_start_date, frcst_cut_date), frcst_cut_date)
-        logger.debug(f"FRCST cut date: {frcst_cut_date}")
-        logger.debug(f"FRCST (len={len(frcst_values)}): {frcst_values}")
+        if len(frcst_values[0]) == 24:
+            frcst_values = [[]] + frcst_values
+        self.debug(logalign,f"FRCST cut date: {frcst_cut_date}")
+        self.debug(logalign,f"FRCST (len={len(frcst_values)}): {frcst_values}")
 
         x, y, width, height = 0, 0, fb.width // self.days_count, fb.height
         max_y, min_y = self.range(past_values)
         _max_y, _min_y = self.range(frcst_values)
         max_y, min_y = self.ceil(max(max_y, _max_y)), self.ceil(min(min_y, _min_y))
+        self.debug(logalign,"MAX/MIN RANGE VALUES: {}, {}".format(max_y, min_y))
 
         plot = self.begin_draw(font, max_y, min_y)
-        logger.debug(f"MAX/MIN VALUE: {plot.axis_y_max}, {plot.axis_y_min}")
+        self.debug(logalign,f"MAX/MIN VALUE: {plot.axis_y_max}, {plot.axis_y_min}")
 
         # PAST values:
+        self.debug(logalign, f"PAST start.")
+        logalign += 1
         for i in range(len(past_values)):
             ys = past_values[i]
-            # # Fill missing precipitation values with 0:
+            # # Fill missing  values with None to have 24 values per day:
             if 0 < len(ys) < 24:
-                ys = ys + ([0] * (24-len(ys)))
-            logger.debug(f"PAST {i}, data: {ys}")
+                ys = ys + ([None] * (24-len(ys)))
+            self.debug(logalign, f"PAST {i}, data: {ys}")
             plot.draw(FrameBufferOffset(fb, x, y, width, height), None, ys)
             x += width - 2
             self.end_past_draw(plot)
+        logalign -= 1
+        self.debug(logalign, f"PAST completed.")
 
         # FRCST values:
         self.begin_frsct_draw(plot)
         # back to previous plot, to draw future values on it
         x -= width - 2
 
+        self.debug(logalign, f"FRCST start.")
+        logalign += 1
         for i in range(len(past_values) - 1, self.days_count):
             idx = i - len(past_values) + 1
             ys = frcst_values[idx] if idx < len(frcst_values) else []
+            idx_signal = 24-len(ys)-1
+            self.debug(logalign,f"FRCST {idx}, data: {ys}")
             if 0 < len(ys) < 24:
                 if idx == 0:
                     # The day where PAST and FUTURE meet - pad at the beginning
-                    ys = ([0] * (24-len(ys))) + ys
+                    ys = ([None] * (24-len(ys))) + ys
                 else:
                     # Other FUTURE days - pad at the end
-                    ys = ys + ([0] * (24-len(ys)))
-            logger.debug(f"FRCST {idx}, data: {ys}")
+                    ys = ys + ([None] * (24-len(ys)))
+
+            if idx == 0:
+                plot.signals(bottom=[idx_signal], top=[idx_signal])
+            else:
+                plot.signals(bottom=[], top=[])
+            self.debug(logalign,f"FRCST SIGNALs: {plot.signals()}, colors: {plot.colormap}")
             plot.draw(FrameBufferOffset(fb, x, y, width, height), None, ys)
-            self.end_frsct_draw(plot)
+            self.end_frsct_draw(plot, i == self.days_count - 2)
             x = x + width - 2
+        logalign -= 1
+        self.debug(logalign, f"FRCST completed.")
 

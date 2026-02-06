@@ -227,7 +227,24 @@ class FrameBufferExtension(_FrameBufferExtension):
     def triangle(self, x1, y1, x2, y2, x3, y3, color, f=False):
         if f:
             # Simple filled triangle using polygon fill (if available)
-            self.poly(x1, y1, array.array('I', [ x1, y1, x2, y2, x3, y3]), color, True)
+            #self.poly(x1, y1, array.array('I', [ x1, y1, x2, y2, x3, y3]), color, True)
+            # Simple scanline fill for triangle
+            points = sorted([(x1, y1), (x2, y2), (x3, y3)], key=lambda p: p[1])
+            x1, y1 = points[0]
+            x2, y2 = points[1]
+            x3, y3 = points[2]
+            def interp(xa, ya, xb, yb, y):
+                if ya == yb:
+                    return xa
+                return int(xa + (xb - xa) * (y - ya) / (yb - ya))
+            for y in range(y1, y3 + 1):
+                if y < y2:
+                    xa = interp(x1, y1, x2, y2, y)
+                    xb = interp(x1, y1, x3, y3, y)
+                else:
+                    xa = interp(x2, y2, x3, y3, y)
+                    xb = interp(x1, y1, x3, y3, y)
+                self.hline(min(xa, xb), y, abs(xa - xb) + 1, color)
         else:
             # Draw triangle outline
             self.line(x1, y1, x2, y2, color)
@@ -350,6 +367,8 @@ class FrameBufferExtension(_FrameBufferExtension):
             self.ellipse(x + w - radius - 1, y + h - radius - 1, radius, radius, c, False, 0b1000)
         return FrameBufferOffset(self, x, y, w, h)
 
+    def circle(self, x, y, r, c, f=False):
+        self.ellipse(x, y, r, r, c, f)
 
 class FrameBufferOffset:
     """
@@ -457,6 +476,9 @@ class FrameBufferOffset:
 
     def rectround(self, x, y, w, h, c, radius, f=False):
         return self.fb.rectround(x + self.x, y + self.y, w, h, c, radius, f)
+
+    def circle(self, x, y, r, c, f=False):
+        self.fb.circle(x + self.x, y + self.y, r, c, f)
 
 class FontManager:
 

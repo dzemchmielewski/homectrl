@@ -60,6 +60,14 @@ class Plot:
         self.ticks_count_top = None  # number of X ticks; if None, align with grid_count_top or auto generate
         self.ticks_count_right = None  # number of Y ticks; if None, align
 
+        # self.signals(bottom: list | None, left: list | None, right: list | None, top: list | None) OR:
+        self.signals_bottom = []  # list of tick indexes to differentiate (e.g. draw circle); bottom
+        self.signals_left = []  # list of tick indexes to differentiate (e.g. draw circle); left
+        self.signals_top = []  # list of tick indexes to differentiate (e.g. draw circle); top
+        self.signals_right = []  # list of tick indexes to differentiate (e.g. draw circle); right
+
+        self.signals_size = 5  # size of the signal sign
+
         # self.ticks_labels(bottom: bool | None, left: bool | None, right: bool | None, top: bool | None) OR:
         self.ticks_labels_bottom = True
         self.ticks_labels_left = True
@@ -93,11 +101,18 @@ class Plot:
         return self.margin_left, self.margin_top, self.margin_right, self.margin_bottom
 
     def ticks_count(self, bottom: int = None, left: int = None, right: int = None, top: int = None):
-        self.ticks_count_bottom = bottom
-        self.ticks_count_left = left
-        self.ticks_count_right = right
-        self.ticks_count_top = top
+        self.ticks_count_bottom = self._first_not_none(bottom, self.ticks_count_bottom)
+        self.ticks_count_left = self._first_not_none(left, self.ticks_count_left)
+        self.ticks_count_right = self._first_not_none(right, self.ticks_count_right)
+        self.ticks_count_top = self._first_not_none(top, self.ticks_count_top)
         return self.ticks_count_left, self.ticks_count_top, self.ticks_count_right, self.ticks_count_bottom
+
+    def signals(self, bottom: list = None, left: list = None, right: list = None, top: list = None):
+        self.signals_bottom = self._first_not_none(bottom, self.signals_bottom, [])
+        self.signals_left = self._first_not_none(left, self.signals_left, [])
+        self.signals_right = self._first_not_none(right, self.signals_right, [])
+        self.signals_top = self._first_not_none(top, self.signals_top, [])
+        return self.signals_left, self.signals_top, self.signals_right, self.signals_bottom
 
     def ticks_length(self, bottom: int = None, left: int = None, right: int = None, top: int = None):
         self.ticks_length_bottom = bottom
@@ -113,11 +128,11 @@ class Plot:
         self.ticks_pos_top = top
         return self.ticks_pos_left, self.ticks_pos_top, self.ticks_pos_right, self.ticks_pos_bottom
 
-    def ticks_per_label(self, bottom: int = 0, left: int = 0, right: int = 0, top: int = 0):
-        self.ticks_per_label_bottom = bottom
-        self.ticks_per_label_left = left
-        self.ticks_per_label_right = right
-        self.ticks_per_label_top = top
+    def ticks_per_label(self, bottom: int = None, left: int = None, right: int = None, top: int = None):
+        self.ticks_per_label_bottom = self._first_not_none(bottom, self.ticks_per_label_bottom)
+        self.ticks_per_label_left = self._first_not_none(left, self.ticks_per_label_left)
+        self.ticks_per_label_right = self._first_not_none(right, self.ticks_per_label_right)
+        self.ticks_per_label_top = self._first_not_none(top, self.ticks_per_label_top)
         return self.ticks_per_label_left, self.ticks_per_label_top, self.ticks_per_label_right, self.ticks_per_label_bottom
 
     def ticks_labels(self, bottom: bool = None, left: bool = None, right: bool = None, top: bool = None):
@@ -196,6 +211,36 @@ class Plot:
                 y = int((h / (y_count - 1)) * (fb.height - 1))
                 logger.debug(f"Drawing horizontal grid #{h} line at y={y}")
                 fb.seg_hline(0, y, fb.width, self.colormap['grid'], dash=self.grid_dash_horiz)
+
+    def _draw_signal(self, fb: FrameBufferExtension, x, y, size: int, orientation: str):
+        # x, y represents center of the signal sign
+        # draw triangle around the point:
+        color = self._first_not_none(self.colormap.get('signal_ticks'), self.colormap['ticks'])
+        if orientation == 'top':
+            fb.triangle(x - size, y - size, x + size, y - size, x, y + size, color, True)
+        elif orientation == 'bottom':
+            fb.triangle(x - size, y + size, x + size, y + size, x, y - size, color, True)
+        elif orientation == 'left':
+            fb.triangle(x - size, y - size, x - size, y + size, x + size, y, color, True)
+        elif orientation == 'right':
+            fb.triangle(x + size, y - size, x + size, y + size, x - size, y, color, True)
+        else:
+            raise ValueError("Orientation must be 'top', 'bottom', 'left', or 'right'")
+
+    def _draw_signals(self, fb: FrameBufferExtension, position: str, count: int, signals: list):
+        for i in range(count):
+            if signals and i in signals:
+                coord  = int((i / (count - 1)) * (fb.width - 1)) if position in ['bottom', 'top'] else int((i / (count - 1)) * (fb.height - 1))
+                if position == 'bottom':
+                    self._draw_signal(fb, coord, fb.height - 1 - self.signals_size, self.signals_size, position)
+                elif position == 'top':
+                    self._draw_signal(fb, coord, self.signals_size, self.signals_size, position)
+                elif position == 'left':
+                    self._draw_signal(fb, self.signals_size, coord, self.signals_size, position)
+                elif position == 'right':
+                    self._draw_signal(fb, fb.width - 1 - self.signals_size, coord, self.signals_size, position)
+                else:
+                    raise ValueError("Position must be 'bottom', 'top', 'left', or 'right'")
 
     def _draw_ticks(self, fb: FrameBufferExtension, position, count: int, length: int, pos_type: int):
         for i in range(count):
@@ -304,6 +349,16 @@ class Plot:
         if self.ticks_length_right:
             self._draw_ticks(chart, 'right', ticks_y_count, self.ticks_length_right, self.ticks_pos_right)
 
+        logger.debug(f"SIGNAL TICKS: {self.signals()}")
+        if self.signals_left:
+            self._draw_signals(chart, 'left', ticks_y_count, self.signals_left)
+        if self.signals_bottom:
+            self._draw_signals(chart, 'bottom', ticks_x_count, self.signals_bottom)
+        if self.signals_right:
+            self._draw_signals(chart, 'right', ticks_y_count, self.signals_right)
+        if self.signals_top:
+            self._draw_signals(chart, 'top', ticks_x_count, self.signals_top)
+
         self._draw_axes(chart)
 
         def pickup_labels(xs: list, n: int) -> list:
@@ -394,6 +449,9 @@ class LinePlot(Plot):
 
         for i in range(n):
             y_value = ys[i]
+            if y_value is None:
+                x, y = None, None
+                continue
             y_norm = (y_value - lower_value) / value_range
             y_pos = arena.height - 1 - int(y_norm * (arena.height - 1))
 
