@@ -86,6 +86,8 @@ class Plot:
         self.ticks_per_label_top = 1  # number of top ticks per label
         self.ticks_per_label_right = 1  # number of right ticks per label
 
+        self.label_format = lambda  x: str(x)  # function to format tick labels; by default, convert to string
+
     def axes(self, bottom: bool = None, left: bool = None, right: bool = None, top: bool = None):
         self.axis_bottom =  self._first_not_none(bottom, self.axis_bottom)
         self.axis_left = self._first_not_none(left, self.axis_left)
@@ -215,6 +217,7 @@ class Plot:
     def _draw_signal(self, fb: FrameBufferExtension, x, y, size: int, orientation: str):
         # x, y represents center of the signal sign
         # draw triangle around the point:
+        logger.debug("Drawing signal at ({}, {}) with size {} and orientation {}".format(x, y, size, orientation))
         color = self._first_not_none(self.colormap.get('signal_ticks'), self.colormap['ticks'])
         if orientation == 'top':
             fb.triangle(x - size, y - size, x + size, y - size, x, y + size, color, True)
@@ -299,7 +302,7 @@ class Plot:
             n = len(xs)
             for i in range(0, n * ticks_per_label, ticks_per_label):
                 x = int((i / (x_ticks_count - 1)) * (fb.width - 1))
-                text = str(xs[i // ticks_per_label])
+                text = self.label_format(xs[i // ticks_per_label])
                 text_width = self.font.size(text)[0]
                 text_x = x - (text_width // 2)
                 text_y = fb.height + 1 if position == 'bottom' else 0 - self.font.height - 1
@@ -315,7 +318,7 @@ class Plot:
             n = len(ys)
             for i in range(0, n * ticks_per_label, ticks_per_label):
                 y = fb.height - int((i / (y_ticks_count - 1)) * (fb.height - 1))
-                text = str(ys[i // ticks_per_label])
+                text = self.label_format(ys[i // ticks_per_label])
                 text_width = self.font.size(text)[0]
                 text_x = 0 - text_width - 2 if position == 'left' else fb.width + 2
                 text_y = y - (self.font.height // 2)
@@ -336,28 +339,31 @@ class Plot:
                                   fb.width - self.margin_left - self.margin_right - 1,
                                   fb.height - self.margin_top - self.margin_bottom - 1)
 
-        ticks_x_count = self._first_not_none(self.ticks_count_bottom, self.grid_count_vert, len(ys) + 1)
-        ticks_y_count = self._first_not_none(self.ticks_count_left, self.grid_count_horiz, fb.height // 10)
-        self._draw_grid(chart, self._first_not_none(self.grid_count_vert, ticks_x_count), self._first_not_none(self.grid_count_horiz, ticks_y_count))
+        ticks_y_count_left = self._first_not_none(self.ticks_count_left, self.grid_count_horiz, fb.height // 10)
+        ticks_x_count_top = self._first_not_none(self.ticks_count_top, self.grid_count_vert, len(ys) + 1)
+        ticks_y_count_right = self._first_not_none(self.ticks_count_right, self.grid_count_horiz, fb.height // 10)
+        ticks_x_count_bottom = self._first_not_none(self.ticks_count_bottom, self.grid_count_vert, len(ys) + 1)
 
-        if self.ticks_length_bottom:
-            self._draw_ticks(chart, 'bottom', ticks_x_count, self.ticks_length_bottom, self.ticks_pos_bottom)
+        self._draw_grid(chart, self._first_not_none(self.grid_count_vert, ticks_x_count_bottom), self._first_not_none(self.grid_count_horiz, ticks_y_count_left))
+
         if self.ticks_length_left:
-            self._draw_ticks(chart, 'left', ticks_y_count, self.ticks_length_left, self.ticks_pos_left)
+            self._draw_ticks(chart, 'left', ticks_y_count_left, self.ticks_length_left, self.ticks_pos_left)
         if self.ticks_length_top:
-            self._draw_ticks(chart, 'top', ticks_x_count, self.ticks_length_top, self.ticks_pos_top)
+            self._draw_ticks(chart, 'top', ticks_x_count_top, self.ticks_length_top, self.ticks_pos_top)
         if self.ticks_length_right:
-            self._draw_ticks(chart, 'right', ticks_y_count, self.ticks_length_right, self.ticks_pos_right)
+            self._draw_ticks(chart, 'right', ticks_y_count_right, self.ticks_length_right, self.ticks_pos_right)
+        if self.ticks_length_bottom:
+            self._draw_ticks(chart, 'bottom', ticks_x_count_bottom, self.ticks_length_bottom, self.ticks_pos_bottom)
 
         logger.debug(f"SIGNAL TICKS: {self.signals()}")
         if self.signals_left:
-            self._draw_signals(chart, 'left', ticks_y_count, self.signals_left)
-        if self.signals_bottom:
-            self._draw_signals(chart, 'bottom', ticks_x_count, self.signals_bottom)
-        if self.signals_right:
-            self._draw_signals(chart, 'right', ticks_y_count, self.signals_right)
+            self._draw_signals(chart, 'left', ticks_y_count_left, self.signals_left)
         if self.signals_top:
-            self._draw_signals(chart, 'top', ticks_x_count, self.signals_top)
+            self._draw_signals(chart, 'top', ticks_x_count_top, self.signals_top)
+        if self.signals_right:
+            self._draw_signals(chart, 'right', ticks_y_count_right, self.signals_right)
+        if self.signals_bottom:
+            self._draw_signals(chart, 'bottom', ticks_x_count_bottom, self.signals_bottom)
 
         self._draw_axes(chart)
 
@@ -371,25 +377,30 @@ class Plot:
             return [xs[int(round(i * step))] for i in range(n)]
 
         # Horizontal labels:
-        picked_x_labels = pickup_labels(xs, ticks_x_count // self.ticks_per_label_bottom)
         if self.ticks_labels_bottom:
+            picked_x_labels = pickup_labels(xs, ticks_x_count_bottom // self.ticks_per_label_bottom)
             x_labels = self.ticks_labels_list_bottom if self.ticks_labels_list_bottom else picked_x_labels
-            self._draw_horiz_labels(chart, 'bottom', x_labels, ticks_x_count)
+            self._draw_horiz_labels(chart, 'bottom', x_labels, ticks_x_count_bottom)
         if self.ticks_labels_top:
+            picked_x_labels = pickup_labels(xs, ticks_x_count_top // self.ticks_per_label_top)
             x_labels = self.ticks_labels_list_top if self.ticks_labels_list_top else picked_x_labels
-            self._draw_horiz_labels(chart, 'top', x_labels, ticks_x_count)
+            self._draw_horiz_labels(chart, 'top', x_labels, ticks_x_count_top)
 
         # Vertical labels:
-        picked_y_labels = pickup_labels(
-            [round(self.axis_y_min + (i / (ticks_y_count - 1)) * (self.axis_y_max - self.axis_y_min), 1) for i in range(ticks_y_count)],
-            (ticks_y_count // self.ticks_per_label_left) + (1 if ticks_y_count % self.ticks_per_label_left != 0 else 0)
-        )
         if self.ticks_labels_left:
+            picked_y_labels = pickup_labels(
+                [round(self.axis_y_min + (i / (ticks_y_count_left - 1)) * (self.axis_y_max - self.axis_y_min), 1) for i in range(ticks_y_count_left)],
+                (ticks_y_count_left // self.ticks_per_label_left) + (1 if ticks_y_count_left % self.ticks_per_label_left != 0 else 0)
+            )
             y_labels = self.ticks_labels_list_left if self.ticks_labels_list_left is not None else picked_y_labels
-            self._draw_vert_labels(chart, 'left', y_labels, ticks_y_count)
+            self._draw_vert_labels(chart, 'left', y_labels, ticks_y_count_left)
         if self.ticks_labels_right:
+            picked_y_labels = pickup_labels(
+                [round(self.axis_y_min + (i / (ticks_y_count_right - 1)) * (self.axis_y_max - self.axis_y_min), 1) for i in range(ticks_y_count_right)],
+                (ticks_y_count_right // self.ticks_per_label_left) + (1 if ticks_y_count_right % self.ticks_per_label_left != 0 else 0)
+            )
             y_labels = self.ticks_labels_list_right if self.ticks_labels_list_right is not None else picked_y_labels
-            self._draw_vert_labels(chart, 'right', y_labels, ticks_y_count)
+            self._draw_vert_labels(chart, 'right', y_labels, ticks_y_count_right)
 
         arena = FrameBufferOffset(chart, 1, 1, chart.width - 2, chart.height - 2)
         self.draw_series(arena, ys)
@@ -410,13 +421,17 @@ class BarPlot(Plot):
         if n == 0:
             return
         for i in range(n):
-            bar_height = int((ys[i] / upper_value) * fb.height) if upper_value > 0 else 0
-            x0 = int((i / n) * fb.width)
-            y0 = fb.height - bar_height
-            x1 = int(((i + 1) / n) * fb.width)
-            y1 = fb.height - 1
-            logger.debug(f"  Bar #{i}: value={ys[i]}, height={bar_height}, coords=({x0},{y0})-({x1},{y1})")
-            fb.rect(x0, y0, x1 - x0, y1 - y0 + 1, self.colormap['bars'], True)
+            if ys[i] is not None:
+                bar_height = int((ys[i] / upper_value) * fb.height) if upper_value > 0 else 0
+                x0 = int((i / n) * fb.width)
+                y0 = fb.height - bar_height
+                x1 = int(((i + 1) / n) * fb.width)
+                y1 = fb.height - 1
+                logger.debug(f"  Bar #{i}: value={ys[i]}, height={bar_height}, coords=({x0},{y0})-({x1},{y1})")
+                fb.rect(x0, y0, x1 - x0, y1 - y0 + 1, self.colormap['bars'], True)
+            else:
+                logger.debug(f"  Bar #{i}: None")
+
 
 
 class LinePlot(Plot):
@@ -454,9 +469,6 @@ class LinePlot(Plot):
                 continue
             y_norm = (y_value - lower_value) / value_range
             y_pos = arena.height - 1 - int(y_norm * (arena.height - 1))
-
-            # y_pos = fb.height - int((y_value / upper_value) * fb.height) if upper_value > 0 else fb.height - 1
-
             x_pos = int((i / (n - 1)) * (arena.width - 1)) if n > 1 else 0
             logger.debug(f"  Point #{i}: value={y_value}, pos=({x_pos},{y_pos})")
             if x is not None and y is not None:

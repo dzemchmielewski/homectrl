@@ -238,26 +238,28 @@ class MeteoDisplay:
         width_off = 8 # additional width cut from the right for scale labels
         self.frame(FrameBufferOffset(fb, x, y, width, height), self.colors.BLACK, self.colors.WHITE)
 
-        fb.blit(FrameBufferExtension.fromfile('images/temperature-16.fb'), x+d, y + d + 15, self.colors.WHITE)
+        fb.blit(FrameBufferExtension.fromfile('images/temperature-16.fb'), x+d, y + d + 48, self.colors.WHITE)
         off_x, off_y = off_x + 16, off_y
 
-        # PrecipitationStrip(data['astro'], self.colors).draw(
-        #     FrameBufferOffset(self.fb, x + d + off_x, y + d + off_y, width - 2*d, height - 2*d),
-        #     FM.get_sans_bold(12),
-        #     data['precipitation']['time'],
-        #     data['precipitation']['values'],
-        #     data['meteofcst']['time'],
-        #     data['meteofcst']['precipitation']['average'])
+        fb.blit(FrameBufferExtension.fromfile('images/rain.fb'), width - d - 16, y + d + 48, self.colors.WHITE)
+        width -= 16
 
-        # # Temperature part:
+        charts = FrameBufferOffset(self.fb, x + d + off_x, y + d + off_y, width - 2*d - off_x - width_off, height - 2*d)
+        PrecipitationStrip(data['astro'], self.colors).draw(
+            charts,
+            FM.get_sans_bold(12),
+            data['precipitation']['time'],
+            data['precipitation']['values'],
+            data['meteofcst']['time'],
+            data['meteofcst']['precipitation']['average'])
+
         TemperatureStrip(data['astro'], self.colors).draw(
-            FrameBufferOffset(self.fb, x + d + off_x, y + d + off_y, width - 2*d - off_x - width_off, height - 2*d),
+            charts,
             FM.get_sans_bold(12),
             data['temperature']['time'],
             data['temperature']['values'],
             data['meteofcst']['time'],
             data['meteofcst']['temperature']['air'])
-
 
     def update(self, data: dict):
         self.fb.fill(self.colors.LIGHT)

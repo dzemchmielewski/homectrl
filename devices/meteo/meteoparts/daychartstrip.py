@@ -103,7 +103,7 @@ class DayChartStrip:
 
         x, y, width, height = 0, 0, fb.width // self.days_count, fb.height
         max_y, min_y = self.range(past_values)
-        _max_y, _min_y = self.range(frcst_values)
+        _max_y, _min_y = self.range(frcst_values[0:1])
         max_y, min_y = self.ceil(max(max_y, _max_y)), self.ceil(min(min_y, _min_y))
         self.debug(logalign,"MAX/MIN RANGE VALUES: {}, {}".format(max_y, min_y))
 
@@ -145,8 +145,8 @@ class DayChartStrip:
                     # Other FUTURE days - pad at the end
                     ys = ys + ([None] * (24-len(ys)))
 
-            if idx == 0:
-                plot.signals(bottom=[idx_signal], top=[idx_signal])
+            if (idx == 0 and len(frcst_values[0]) > 0) or (idx == 1 and len(frcst_values[0]) == 0):
+                plot.signals(bottom=[idx_signal if idx_signal > 0 else 0], top=[idx_signal if idx_signal > 0 else 0])
             else:
                 plot.signals(bottom=[], top=[])
             self.debug(logalign,f"FRCST SIGNALs: {plot.signals()}, colors: {plot.colormap}")

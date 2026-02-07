@@ -7,34 +7,38 @@ from toolbox.framebufext import FrameBufferFont
 
 class PrecipitationStrip(DayChartStrip):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_y = None
+
     def begin_draw(self, font: FrameBufferFont, max_y: float, min_y: float) -> Plot:
         plot = BarPlot(self.colors.map, font)
-        max_y = max(max_y, self.max_value())
         plot.margins(bottom=15)
-        # plot.ticks_count(bottom=7, left=max_y + 1)
-        plot.ticks_count(bottom=25, left=max_y + 1)
-        plot.ticks_per_label(bottom=4, left=1)
-        plot.axis_y_max = max_y
-        plot.axis_y_min = 0
+        plot.axes(left=False, bottom=False, right=False, top=False)
 
-        plot.grid_dash(None, (3, 2))
-        plot.ticks_labels_list(bottom = ["0", "4", "8", "12", "16", "20"], left = [i for i in range(max_y + 1)])
+        max_y = max(max_y, 2)
+        plot.axis_y_max = int(max_y) if max_y == int(max_y) else int(max_y) + 1
+        plot.axis_y_min = 0
+        plot.colormap['bars'] = self.colors.LIGHT
+        plot.grid_count(0, 0)
+        plot.ticks_labels(right=False, left=False, top=False, bottom=False)
+
+        plot.colormap = plot.colormap | {'bars': self.colors.DARK}
         return plot
 
     def end_past_draw(self, plot: Plot) -> Plot:
-        plot.ticks_labels(left=False)  # no labels for next charts
         return plot
 
     def begin_frsct_draw(self, plot: Plot) -> Plot:
-        plot.colormap['bars'] = self.colors.LIGHT
-        plot.grid_count(0, 0)
+        plot.colormap = plot.colormap | {'bars': self.colors.LIGHT}
+        return plot
 
-    def end_frsct_draw(self, plot: Plot) -> Plot:
-        plot.grid_count_vert = None
-        plot.grid_count_horiz = None
-
-    def max_value(self):
-        return 3
-
-    def min_value(self):
-        return 0
+    def end_frsct_draw(self, plot: Plot, penult: bool = False) -> Plot:
+        if penult:
+            plot.ticks_per_label(right=1)
+            plot.ticks_count(right=plot.axis_y_max + 1)
+            plot.ticks_labels(right=True)
+            plot.ticks_length(right=3)
+            plot.axes(right=True)
+            plot.label_format = lambda x : f"{int(x)}" + ("mm" if x == plot.axis_y_max else "")
+        return plot

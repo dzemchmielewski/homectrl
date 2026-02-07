@@ -60,7 +60,8 @@ class MeteoApplication(BoardApplication):
         self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/astro"] = self.data_message
         self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/holidays"] = self.data_message
         self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteofcst"] = self.data_message
-        self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteo/temperature"] = self.temperature_message
+        self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteo/temperature"] = self.past_meteo_message
+        self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteo/precipitation"] = self.past_meteo_message
         self.mqtt_custom_config['keepalive'] = 400
 
         self.data = {
@@ -103,8 +104,11 @@ class MeteoApplication(BoardApplication):
             # Pick only 5 days of astro data:
             self.data['astro']['astro'] = [astro_data for astro_data in self.data['astro']['astro'] if astro_data['day']['day_offset'] in range(from_day_offset, to_day_offset)]
 
-    def temperature_message(self, topic, message, retained):
-        self.data['temperature'] = json.loads(message)
+    def past_meteo_message(self, topic, message, retained):
+        if topic == f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteo/temperature":
+            self.data['temperature'] = json.loads(message)
+        elif topic == f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteo/precipitation":
+            self.data['precipitation'] = json.loads(message)
 
     def trigger_update(self, value = True):
         self.trigger.value['update'] = value
