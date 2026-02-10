@@ -58,6 +58,16 @@ class DayChartStrip:
         return i if x <= i else i + 1
 
     @staticmethod
+    def round_down_to(value: float, destination: int):
+        i = int(value)
+        i -= 1 if value < 0 and value != i else 0
+        return int((i // destination) * destination)
+
+    @staticmethod
+    def round_up_to(value: float, destination: int):
+        return ((int(value) + (destination-1)) // destination) * destination
+
+    @staticmethod
     def _add_hours(date_ymd: str, hours: int) -> str:
         y, m, d  = int(date_ymd[0:4]), int(date_ymd[5:7]), int(date_ymd[8:10])
         lt = time.localtime(time.mktime((y, m, d, 0, 0, 0, 0, 0)) + (hours * 60 * 60))
@@ -103,7 +113,7 @@ class DayChartStrip:
 
         x, y, width, height = 0, 0, fb.width // self.days_count, fb.height
         max_y, min_y = self.range(past_values)
-        _max_y, _min_y = self.range(frcst_values[0:1])
+        _max_y, _min_y = self.range(frcst_values[1:2] if len(frcst_values) == 0 else frcst_values[0:2])
         max_y, min_y = self.ceil(max(max_y, _max_y)), self.ceil(min(min_y, _min_y))
         self.debug(logalign,"MAX/MIN RANGE VALUES: {}, {}".format(max_y, min_y))
 

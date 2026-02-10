@@ -13,9 +13,9 @@ class TemperatureStrip(DayChartStrip):
     def begin_draw(self, font: FrameBufferFont, max_y: float, min_y: float) -> Plot:
         plot = LinePlot(self.colors.map, font)
 
-        # Round max_y and min_y to nearest multiple of 5
-        plot.axis_y_max = ((int(max_y) + 4) // 5) * 5
-        plot.axis_y_min = ((int(min_y) - 4) // 5) * 5
+        # Round max_y and min_y to the nearest multiple of 5
+        plot.axis_y_max = self.round_up_to(max_y, 5)
+        plot.axis_y_min = self.round_down_to(min_y, 5)
 
         vertical_ticks = abs(plot.axis_y_max) // 5 + abs(plot.axis_y_min) // 5
 
