@@ -92,7 +92,7 @@ class PPing:
                 'host': host,
                 'status': 'unknown',
                 'ip': '?',
-                'values': deque(maxlen=60)
+                'values': deque(maxlen=self.args.width)
             }
 
     @staticmethod
