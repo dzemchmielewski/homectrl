@@ -157,12 +157,15 @@ class BoardApplication(shared.Named, shared.Exitable):
                 'version': boot.version,
                 'load_time': util.time_str_ms(boot.load_time),
                 'loaded': boot.loaded,
+                'port': boot.port,
             },
             'network': {
                 'iftype': boot.iftype(),
                 'ifconfig': boot.ifconfig(),
             }
-        } | self.time_sync.to_dict())
+        }
+        | self.time_sync.to_dict()
+        | ({'ap': boot.ap.ifconfig()} if boot.ap else {}))
 
     async def publish(self, topic, data, retain=False, qos=0, properties=None):
         if self.use_mqtt:

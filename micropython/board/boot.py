@@ -107,15 +107,27 @@ class Boot:
             print(f"LAN connected! ifconfig: {self.lan.ifconfig()}")
             self.loaded['lan'] = True
 
-    def setup_ap(self):
-        if not self.ap:
+    def setup_ap(self, activate=True):
+        if activate and not self.ap:
             import network
             network.country("PL")
-            ap = network.WLAN(network.AP_IF)
-            ap.active(True)
-            ap.config(essid=Configuration.AP_SSID, password=Configuration.AP_PASSWORD, authmode=network.AUTH_WPA_WPA2_PSK)
-            print("AP started! SSID: {}, ifconfig: {}".format(Configuration.AP_SSID, ap.ifconfig()))
+            self.ap = network.WLAN(network.AP_IF)
+            self.ap.active(True)
+            self.ap.config(essid=Configuration.AP_SSID, password=Configuration.AP_PASSWORD, authmode=network.AUTH_WPA_WPA2_PSK)
+            print("AP started! SSID: {}, ifconfig: {}".format(Configuration.AP_SSID, self.ap.ifconfig()))
             self.loaded['ap'] = True
+        elif not activate and self.ap:
+            try:
+                self.ap.active(False)   # turn AP off
+            except Exception as e:
+                print("Error stopping AP:", e)
+            time.sleep_ms(200)
+            del self.ap
+            import gc
+            gc.collect()
+            self.ap = None
+            self.loaded['ap'] = False
+
 
     def setup_webrepl(self):
         if self.isconnected():

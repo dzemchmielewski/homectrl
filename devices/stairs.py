@@ -60,6 +60,7 @@ class StairsApplication(BoardApplication):
         self.presence_up = Facility("presence_up", endpoint=Pin(self.CONF_PRESENCE_UP_PIN, Pin.IN, Pin.PULL_DOWN), value=False)
         self.presence_down = Facility("presence_down", endpoint=Pin(self.CONF_PRESENCE_DOWN_PIN, Pin.IN, Pin.PULL_DOWN), value=False)
         self.presence = Facility("presence", value=False)
+        self.ap_switch = Facility("ap_switch", endpoint=Pin(14, Pin.IN, Pin.PULL_UP), value=False)
 
         if self.CONF_USE_MQTT:
             self.mqtt_subscriptions["homectrl/onair/darkness/kitchen"] = self.darkness_message
@@ -104,7 +105,8 @@ class StairsApplication(BoardApplication):
                   | self.light.to_dict()
                   | {
                       'brightness': self.light.endpoint.value,
-                  })
+                  }
+                  | self.ap_switch.to_dict())
         return json.dumps(result) if to_json else result
 
     async def publish_mqtt_task(self):
@@ -121,7 +123,7 @@ class StairsApplication(BoardApplication):
         self.darkness.value = bool(json.loads(message)['value'])
 
     def _calc_brightness(self) -> float:
-        if boot.isconnected():
+        if boot.isconnected() and boot.loaded['time']:
             (hour, minute) = time.localtime()[3:5]
             for (start, end), value in self.BRIGHTNESS.items():
                 if start <= hour <= end:
@@ -203,6 +205,13 @@ class StairsApplication(BoardApplication):
         await self.publish(self.topic_state, self.control, True)
         await self.publish(self.topic_capabilities, self.capabilities, True)
 
+    async def ac_switch_task(self):
+        while not self.exit:
+            if self.ap_switch.value != self.ap_switch.endpoint.value():
+                self.ap_switch.value = self.ap_switch.endpoint.value()
+                boot.setup_ap(not self.ap_switch.value)
+            await asyncio.sleep_ms(1_000)
+
     # async def conditions_task(self):
     #     while not self.exit:
     #         readings = self.conditions.endpoint.readings()
@@ -217,6 +226,7 @@ class StairsApplication(BoardApplication):
         self.presence_up.task = asyncio.create_task(self.presence_sensor_task(self.presence_up))
         self.presence_down.task = asyncio.create_task(self.presence_sensor_task(self.presence_down))
         self.publish_mqtt.task = asyncio.create_task(self.publish_mqtt_task())
+        self.ap_switch.task = asyncio.create_task(self.ac_switch_task())
         asyncio.create_task(self.publish_capabilities_task())
         # self.conditions.task = asyncio.create_task(self.conditions_task())
 
@@ -226,5 +236,6 @@ class StairsApplication(BoardApplication):
         self.presence_up.task.cancel()
         self.presence_down.task.cancel()
         self.publish_mqtt.task.cancel()
+        self.ap_switch.task.cancel()
         # self.conditions.task.cancel()
 
