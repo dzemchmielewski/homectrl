@@ -109,6 +109,12 @@ class Firmware:
             for line in file:
                 print(re.sub(boot_version_pattern, f"version = '{self.args.version}'", line), end='')
 
+    def apply_port_name(self):
+        boot_version_pattern = re.compile("port = (.+)")
+        with fileinput.FileInput(f"{self.args.src_micropython}/modules/board/boot.py", inplace=True) as file:
+            for line in file:
+                print(re.sub(boot_version_pattern, f"port = '{self.args.port}'", line), end='')
+
     def run(self):
         if self.args.ota_command == "build":
             print(f"Building version: {self.args.version} for ESP32-{self.args.port}")
@@ -126,6 +132,7 @@ class Firmware:
 
             self.sync_frozen_py()
             self.apply_boot_version()
+            self.apply_port_name()
 
             if Firmware.INC_desk in  self.args.include:
                 shutil.copytree(f"{self.args.src_homectrl}/devices/desk/desk_fw", f"{self.args.src_micropython}/modules/desk_fw/")
