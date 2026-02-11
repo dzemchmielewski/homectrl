@@ -27,7 +27,7 @@ class TemperatureStrip(DayChartStrip):
 
         plot.grid_dash(None, (3, 2))
         plot.ticks_labels_list(bottom = ["0", "4", "8", "12", "16", "20"], left = [num for num in range(plot.axis_y_min, plot.axis_y_max + 1, 5)])
-        plot.label_format = lambda x : (" °C" if x == plot.axis_y_max else "") + f"{x}"
+        # plot.label_format = lambda x : (" °C" if x == plot.axis_y_max else "") + f"{x}"
         return plot
 
     def end_past_draw(self, plot: Plot) -> Plot:
