@@ -9,9 +9,11 @@ class Boot:
         'lan': False,
         'time': False,
         'webrepl': False,
+        'ap': False,
     }
     led_pattern = [0.5, 0.3, 0.2, 0.2, 0.1, 0.1, 0.1, 0.05, 0.05]
     version = '20000101_00_00'
+    port = 'unknown'
     instance = None
     load_time = 0
 
@@ -28,6 +30,7 @@ class Boot:
     def __init__(self, pin_notify: int = None, pin_notify_on_signal: int | bool = None):
         self.wifi = None
         self.lan = None
+        self.ap = None
         self.pin_notify = machine.Pin(pin_notify, machine.Pin.OUT) if pin_notify else None
         self.pin_notify_on_signal = 0 if pin_notify_on_signal in [None, False, 0] else 1
 
@@ -40,17 +43,17 @@ class Boot:
             self.pin_notify_signal(1)
 
 
-    def setup_wifi(self):
+    def setup_wifi(self, timeout_ms=30000, cleanup_on_fail=False):
         if not self.wifi:
             import network
             network.country("PL")
             self.wifi = network.WLAN(network.STA_IF)
 
         self.wifi.active(True)
-        # self.wifi.disconnect()
+        self.wifi.disconnect()
 
         while not self.wifi.isconnected():
-            timeout = 30000
+            timeout = timeout_ms
             self.led_notification()
             print(f"WIFI connecting to: {Configuration.WIFI_SSID}")
             self.wifi.connect(Configuration.WIFI_SSID, Configuration.WIFI_PASSWORD)
@@ -62,6 +65,15 @@ class Boot:
                     break
             if timeout <= 0:
                 self.led_notification(reverse=True)
+                print("WIFI timeouted!. Cleaning up." if cleanup_on_fail else "WIFI timeouted!.")
+                if cleanup_on_fail:
+                    self.wifi.disconnect()
+                    time.sleep_ms(200)
+                    self.wifi.active(False)
+                    del self.wifi
+                    import gc
+                    gc.collect()
+                    self.wifi = None
 
         self.pin_notify_signal(0)
         print(f"WIFI connected! ifconfig: {self.wifi.ifconfig()}")
@@ -94,6 +106,16 @@ class Boot:
             self.pin_notify_signal(0)
             print(f"LAN connected! ifconfig: {self.lan.ifconfig()}")
             self.loaded['lan'] = True
+
+    def setup_ap(self):
+        if not self.ap:
+            import network
+            network.country("PL")
+            ap = network.WLAN(network.AP_IF)
+            ap.active(True)
+            ap.config(essid=Configuration.AP_SSID, password=Configuration.AP_PASSWORD, authmode=network.AUTH_WPA_WPA2_PSK)
+            print("AP started! SSID: {}, ifconfig: {}".format(Configuration.AP_SSID, ap.ifconfig()))
+            self.loaded['ap'] = True
 
     def setup_webrepl(self):
         if self.isconnected():
@@ -145,7 +167,7 @@ class Boot:
             else self.lan if self.lan and self.lan.isconnected() \
             else None
 
-    def load(self, wifi=True, lan=False, webrepl=True, time=True):
+    def load(self, wifi=True, lan=False, webrepl=True, time=True, ap=False):
         if not self.loaded['wifi'] and wifi:
             try:
                 self.setup_wifi()
@@ -157,6 +179,12 @@ class Boot:
                 self.setup_lan()
             except Exception as e:
                 print(f"FAILED to load lan: {e}")
+
+        if not self.loaded['ap'] and ap:
+            try:
+                self.setup_ap()
+            except Exception as e:
+                print(f"FAILED to load AP: {e}")
 
         if not self.loaded['webrepl'] and webrepl:
             try:
