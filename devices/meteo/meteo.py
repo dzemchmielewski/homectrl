@@ -60,8 +60,7 @@ class MeteoApplication(BoardApplication):
         self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/astro"] = self.data_message
         self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/holidays"] = self.data_message
         self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteofcst"] = self.data_message
-        self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteo/temperature"] = self.past_meteo_message
-        self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteo/precipitation"] = self.past_meteo_message
+        self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteo/history"] = self.past_meteo_message
         self.mqtt_custom_config['keepalive'] = 400
 
         self.data = {
@@ -70,6 +69,7 @@ class MeteoApplication(BoardApplication):
             'holidays': None,
             'meteofcst': None,
             'temperature': None,
+            'precipitation': None,
             'battery': None,
         }
 
@@ -79,6 +79,7 @@ class MeteoApplication(BoardApplication):
                 and self.data['holidays'] is not None
                 and self.data['meteofcst'] is not None
                 and self.data['temperature'] is not None
+                and self.data['precipitation'] is not None
                 and self.data['battery'] is not None
                 )
 
@@ -105,10 +106,9 @@ class MeteoApplication(BoardApplication):
             self.data['astro']['astro'] = [astro_data for astro_data in self.data['astro']['astro'] if astro_data['day']['day_offset'] in range(from_day_offset, to_day_offset)]
 
     def past_meteo_message(self, topic, message, retained):
-        if topic == f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteo/temperature":
-            self.data['temperature'] = json.loads(message)
-        elif topic == f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteo/precipitation":
-            self.data['precipitation'] = json.loads(message)
+        msg = json.loads(message)
+        self.data['temperature'] = msg.get('temperature')
+        self.data['precipitation'] = msg.get('precipitation')
 
     def trigger_update(self, value = True):
         self.trigger.value['update'] = value

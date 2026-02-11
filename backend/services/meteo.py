@@ -20,7 +20,6 @@ class Meteo(OnAirService):
 
     def __init__(self):
         super().__init__()
-        self.data_url = "https://pogoda.umk.pl/api/last?type="
         self.exit = False
         self.providers = [UMKProvider(), OpenMeteoProvider(*Configuration.location())]
 
@@ -30,30 +29,12 @@ class Meteo(OnAirService):
         idx = round(degree / 45) % 8
         return directions[idx]
 
-    async def _data(self, name: str, data_type: str) -> None:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(self.data_url + data_type) as response:
-                if response.status == 200:
-                    json_resp = await response.json()
-                    if isinstance(json_resp, dict):
-                        logger.debug(f"[{name}] {await response.text()}")
-                        data = json_serial({
-                            'time': datetime.datetime.fromtimestamp(json_resp['data'][0]['date']),
-                            'values': [item['value'] for item in json_resp['data']],
-                        })
-                        logger.debug(f"[{name}] Data: {data}")
-                        self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo/" + name), data, retain=True)
-                    else:
-                            raise Exception(f"[{name}] Unexpected response format: expected dict, got {type(json_resp)}")
-                else:
-                    raise Exception(f"[{name}] Error fetching data: {response.status}")
-
     @noexception(logger=logger)
     async def meteo(self) -> None:
         weather = None
         for provider in self.providers:
             try:
-                weather = await provider.get_weather()
+                weather = await provider.meteo()
                 if weather:
                     break
             except Exception as e:
@@ -67,14 +48,22 @@ class Meteo(OnAirService):
             logger.error("All providers failed to fetch weather data.")
 
     @noexception(logger=logger)
-    async def temperature(self) -> None:
-        return await self._data('temperature', 'tempAir200')
-    @noexception(logger=logger)
-    async def precipitation(self) -> None:
-        return await self._data('precipitation', 'precipitation1')
-    @noexception(logger=logger)
-    async def pressure(self) -> None:
-        return await self._data('pressure', 'atmosphericPressureSL')
+    async def history(self) -> None:
+        history = None
+        for provider in self.providers:
+            try:
+                history = await provider.history()
+                if history:
+                    break
+            except Exception as e:
+                logger.error(f"Error fetching weather from {provider.__class__.__name__}: {e}")
+
+        if history:
+            message = json_serial(history)
+            logger.debug(message)
+            self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo/history"), message, retain=True)
+        else:
+            logger.error("All providers failed to fetch weather data.")
 
 
     async def run(self) -> None:
@@ -82,15 +71,11 @@ class Meteo(OnAirService):
         scheduler.add_job(self.meteo, CronTrigger.from_crontab("*/5 * * * *"))  # every 5 minutes
 
         every_hour_trigger = CronTrigger.from_crontab("4 * * * *")  # every hour at minute 4
-        scheduler.add_job(self.temperature, every_hour_trigger)
-        scheduler.add_job(self.precipitation, every_hour_trigger)
-        scheduler.add_job(self.pressure, every_hour_trigger)
+        scheduler.add_job(self.history, every_hour_trigger)
 
         # run once at startup:
         scheduler.add_job(self.meteo)
-        scheduler.add_job(self.temperature)
-        scheduler.add_job(self.precipitation)
-        scheduler.add_job(self.pressure)
+        scheduler.add_job(self.history)
 
         scheduler.start()
         await asyncio.Event().wait()

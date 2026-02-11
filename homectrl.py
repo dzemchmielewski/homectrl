@@ -58,13 +58,10 @@ class HomeCtrl(Common):
                         "homectrl/onair/activity/laundry": None,
                         "homectrl/onair/activity/astro": None,
                         "homectrl/onair/activity/holidays": None,
+                        "homectrl/onair/activity/meteofcst": None,
                         "homectrl/onair/activity/meteo": {
-                            "homectrl/onair/activity/meteo": None,
-                            "homectrl/onair/activity/meteofcst": None,
                             "homectrl/onair/activity/meteo/#": None,
-                            "homectrl/onair/activity/meteo/temperature": None,
-                            "homectrl/onair/activity/meteo/precipitation": None,
-                            "homectrl/onair/activity/meteo/pressure": None,
+                            "homectrl/onair/activity/meteo/history": None,
                         }
                     }
                 }

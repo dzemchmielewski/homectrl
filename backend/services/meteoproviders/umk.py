@@ -4,6 +4,8 @@ import aiohttp
 import logging
 
 from backend.services.meteoproviders.provider import MeteoProvider
+from backend.tools import json_serial
+from configuration import Topic
 
 logger = logging.getLogger("onair.umk")
 
@@ -11,8 +13,9 @@ class UMKProvider(MeteoProvider):
 
     def __init__(self, *args, **kwargs):
         self.weather_url = "https://pogoda.umk.pl/api/weather"
+        self.data_url = "https://pogoda.umk.pl/api/last?type="
 
-    async def get_weather(self) -> dict:
+    async def meteo(self) -> dict:
         async with aiohttp.ClientSession() as session:
             async with session.get(self.weather_url) as response:
                 if response.status == 200:
@@ -57,3 +60,26 @@ class UMKProvider(MeteoProvider):
                         raise Exception(f"[weather] Unexpected response format: expected dict, got {type(json_resp)}")
                 else:
                     raise Exception(f"[weather] Error fetching data: {response.status}")
+
+    async def _data(self, name: str, data_type: str) -> None:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(self.data_url + data_type) as response:
+                if response.status == 200:
+                    json_resp = await response.json()
+                    if isinstance(json_resp, dict):
+                        logger.debug(f"[{name}] {await response.text()}")
+                        return {
+                            'time': datetime.datetime.fromtimestamp(json_resp['data'][0]['date']),
+                            'values': [item['value'] for item in json_resp['data']],
+                        }
+                    else:
+                        raise Exception(f"[{name}] Unexpected response format: expected dict, got {type(json_resp)}")
+                else:
+                    raise Exception(f"[{name}] Error fetching data: {response.status}")
+
+    async def history(self) -> None:
+        return {
+            'temperature': await self._data('temperature', 'tempAir200'),
+            'precipitation': await self._data('precipitation', 'precipitation1'),
+            'pressure': await self._data('pressure', 'atmosphericPressureSL'),
+        }
