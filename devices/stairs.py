@@ -3,6 +3,7 @@ import json
 import logging
 import time
 
+from board.boot import Boot
 from micropython import const
 
 from board.board_application import BoardApplication, Facility
@@ -15,11 +16,11 @@ logging.basicConfig(level=logging.INFO)
 for handler in logging.getLogger().handlers:
     handler.setFormatter(logging.Formatter("[%(asctime)s][%(levelname)s][%(name)s] %(message)s"))
 
+boot = Boot.get_instance()
 
 class StairsApplication(BoardApplication):
 
     # PROD:
-    CONF_USE_MQTT = const(True)
     CONF_LIGHT_PIN = const(2)
     CONF_PRESENCE_UP_PIN = const(35)
     CONF_PRESENCE_DOWN_PIN = const(12)
@@ -39,12 +40,19 @@ class StairsApplication(BoardApplication):
         (22, 22): 20,
         (23, 23): 10,
     }
+    DEFAULT_BRIGHTNESS = 40
 
     def __init__(self):
+        if boot.isconnected():
+            self.CONF_USE_MQTT = True
+        else:
+            self.CONF_USE_MQTT = False
+
         BoardApplication.__init__(self, 'stairs', use_mqtt=self.CONF_USE_MQTT)
         (_, self.topic_data, _, _, _) = Configuration.topics(self.name)
 
         self.darkness = Facility("darkness")
+        self.darkness.value = True
 
         self.light = Facility("light", PWMFade(PWM(Pin(self.CONF_LIGHT_PIN), 5000)), value=False, register_access=False)
         self.light.endpoint.pwm.duty(0)
@@ -55,8 +63,6 @@ class StairsApplication(BoardApplication):
 
         if self.CONF_USE_MQTT:
             self.mqtt_subscriptions["homectrl/onair/darkness/kitchen"] = self.darkness_message
-        else:
-            self.darkness.value = True
 
         self.publish_mqtt = Facility("publish_mqtt", value=False)
 
@@ -115,11 +121,13 @@ class StairsApplication(BoardApplication):
         self.darkness.value = bool(json.loads(message)['value'])
 
     def _calc_brightness(self) -> float:
-        (hour, minute) = time.localtime()[3:5]
-        for (start, end), value in self.BRIGHTNESS.items():
-            if start <= hour <= end:
-                return value
-        return 0.0
+        if boot.isconnected():
+            (hour, minute) = time.localtime()[3:5]
+            for (start, end), value in self.BRIGHTNESS.items():
+                if start <= hour <= end:
+                    return value
+            return 0.0
+        return self.DEFAULT_BRIGHTNESS
 
     def _calc_fadein(self, brightness: float):
         return max(20/2, brightness / 2)
