@@ -69,14 +69,14 @@ if __name__ == "__main__":
 
     async def main_as():
         sensor = HCSR04(trigger=33, echo_pin=25)
-        while True:
+        for _ in range(3):
             dist = await sensor.measure(samples=10, calibration=2.4)
             print(f"Distance: {dist:.2f} cm")
             asyncio.sleep(1)
 
     def main_sync():
         sensor = HCSR04(trigger=33, echo_pin=25)
-        while True:
+        for _ in range(3):
             dist = asyncio.run(sensor.measure(samples=10, calibration=2.4))
             print(f"Distance: {dist:.2f} cm")
             time.sleep(1)
