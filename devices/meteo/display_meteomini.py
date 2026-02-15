@@ -4,6 +4,10 @@ import json
 if __name__ == "__main__":
     import sys
     sys.path.append('../../micropython')
+    sys.path.append('../../devel')
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+
 
 from toolbox.framebufext import FrameBufferExtension, FrameBufferFont
 
@@ -13,8 +17,8 @@ class MeteoMiniDisplay:
     def __init__(self, width: int, height: int, fb_mode: int = framebuf.MONO_HLSB):
         self.fb = FrameBufferExtension(width, height, fb_mode)
 
-        self.background = 1  # white
-        # self.background = 0  # black
+        #self.background = 1  # white
+        self.background = 0  # black
 
         if self.background == 1:
             self.palette = framebuf.FrameBuffer(bytearray(2), 1, 2, framebuf.MONO_HLSB)  # 2 entries × 1 byte each
@@ -52,7 +56,10 @@ class MeteoMiniDisplay:
         return x, y
 
 
-    def update(self, meteo_data: dict, astro_data: dict):
+    def update(self, data: dict):
+        meteo_data = data['meteo']
+        astro_data = data['astro']
+        battery = data['battery']
         self.fb.fill(self.background)
         self._temperature(meteo_data['temperature'])
 
@@ -76,6 +83,10 @@ class MeteoMiniDisplay:
         x,y = self.font_topbottom.size(wind)
         self.fb.textf(wind, self.fb.width - x - 10, self.fb.height - (self.font_topbottom.height + 8), self.font_topbottom, key=self.background)
 
+        self.fb.textf(str(battery) + "%",
+                             self.fb.width - 30, self.fb.height - 45,
+                             self.font_hour, key=self.background, palette=self.palette)
+
         #debug lines:
         # self.fb.line(0, 0, self.fb.width - 1, self.fb.height - 1, self.foreground)
         # self.fb.line(0, self.fb.height - 1, self.fb.width - 1, 0, self.foreground)
@@ -88,11 +99,13 @@ if __name__ == "__main__":
     import sys, time
     meteo = MeteoMiniDisplay(248, 122, framebuf.MONO_HLSB)
     temperature = round(time.localtime()[4] + (time.localtime()[5]/100), 1)
-    astro_data = json.loads('{"name": "astro", "astro": [{"date": "2025-11-03", "weekday": "Monday", "sun": {"event": [{"type": "rise", "time": "06:47:17"}, {"type": "set", "time": "16:10:14"}]}, "moon": {"event": [{"type": "rise", "time": "15:00:46"}, {"type": "set", "time": "03:38:23"}], "phase": 0.43}}, {"date": "2025-11-04", "weekday": "Tuesday", "sun": {"event": [{"type": "rise", "time": "06:49:10"}, {"type": "set", "time": "16:08:24"}]}, "moon": {"event": [{"type": "rise", "time": "15:13:59"}, {"type": "set", "time": "05:10:44"}], "phase": 0.46}}, {"date": "2025-11-05", "weekday": "Wednesday", "sun": {"event": [{"type": "rise", "time": "06:51:03"}, {"type": "set", "time": "16:06:35"}]}, "moon": {"event": [{"type": "rise", "time": "15:31:33"}, {"type": "set", "time": "06:47:53"}], "phase": 0.5}}, {"date": "2025-11-06", "weekday": "Thursday", "sun": {"event": [{"type": "rise", "time": "06:52:56"}, {"type": "set", "time": "16:04:47"}]}, "moon": {"event": [{"type": "rise", "time": "15:56:57"}, {"type": "set", "time": "08:27:59"}], "phase": 0.53}}, {"date": "2025-11-07", "weekday": "Friday", "sun": {"event": [{"type": "rise", "time": "06:54:48"}, {"type": "set", "time": "16:03:02"}]}, "moon": {"event": [{"type": "rise", "time": "16:36:16"}, {"type": "set", "time": "10:03:41"}], "phase": 0.56}}, {"date": "2025-11-08", "weekday": "Saturday", "sun": {"event": [{"type": "rise", "time": "06:56:41"}, {"type": "set", "time": "16:01:18"}]}, "moon": {"event": [{"type": "rise", "time": "17:36:15"}, {"type": "set", "time": "11:22:53"}], "phase": 0.6}}, {"date": "2025-11-09", "weekday": "Sunday", "sun": {"event": [{"type": "rise", "time": "06:58:33"}, {"type": "set", "time": "15:59:37"}]}, "moon": {"event": [{"type": "rise", "time": "18:54:22"}, {"type": "set", "time": "12:17:38"}], "phase": 0.63}}], "datetime": {"date": "2025-11-04", "time": "23:07:03.481179", "weekday": "Tuesday"}}')
-    meteo_data = json.loads('{"temperature": -' + str(temperature)+ ', "humidity": 93.0, "pressure": {"real": 1018.5, "sea_level": 1024.7}, "precipitation": 0.0, "wind": {"speed": 0.7, "direction": 100, "direction_desc": "E", "max": {"speed": 1.6, "direction": 158, "direction_desc": "S"}}, "solar_radiation": 0.0, "date": "2025-11-05T02:24:18+01:00", "create_at": "2025-11-05T02:25:01.775631"}')
-    print(astro_data)
-    print(meteo_data)
-    meteo.update(meteo_data, astro_data)
+    data = {
+        'meteo': json.loads('{"temperature": -' + str(temperature)+ ', "humidity": 93.0, "pressure": {"real": 1018.5, "sea_level": 1024.7}, "precipitation": 0.0, "wind": {"speed": 0.7, "direction": 100, "direction_desc": "E", "max": {"speed": 1.6, "direction": 158, "direction_desc": "S"}}, "solar_radiation": 0.0, "date": "2025-11-05T02:24:18+01:00", "create_at": "2025-11-05T02:25:01.775631"}'),
+        'astro': json.loads('{"name": "astro", "astro": [{"date": "2025-11-03", "weekday": "Monday", "sun": {"event": [{"type": "rise", "time": "06:47:17"}, {"type": "set", "time": "16:10:14"}]}, "moon": {"event": [{"type": "rise", "time": "15:00:46"}, {"type": "set", "time": "03:38:23"}], "phase": 0.43}}, {"date": "2025-11-04", "weekday": "Tuesday", "sun": {"event": [{"type": "rise", "time": "06:49:10"}, {"type": "set", "time": "16:08:24"}]}, "moon": {"event": [{"type": "rise", "time": "15:13:59"}, {"type": "set", "time": "05:10:44"}], "phase": 0.46}}, {"date": "2025-11-05", "weekday": "Wednesday", "sun": {"event": [{"type": "rise", "time": "06:51:03"}, {"type": "set", "time": "16:06:35"}]}, "moon": {"event": [{"type": "rise", "time": "15:31:33"}, {"type": "set", "time": "06:47:53"}], "phase": 0.5}}, {"date": "2025-11-06", "weekday": "Thursday", "sun": {"event": [{"type": "rise", "time": "06:52:56"}, {"type": "set", "time": "16:04:47"}]}, "moon": {"event": [{"type": "rise", "time": "15:56:57"}, {"type": "set", "time": "08:27:59"}], "phase": 0.53}}, {"date": "2025-11-07", "weekday": "Friday", "sun": {"event": [{"type": "rise", "time": "06:54:48"}, {"type": "set", "time": "16:03:02"}]}, "moon": {"event": [{"type": "rise", "time": "16:36:16"}, {"type": "set", "time": "10:03:41"}], "phase": 0.56}}, {"date": "2025-11-08", "weekday": "Saturday", "sun": {"event": [{"type": "rise", "time": "06:56:41"}, {"type": "set", "time": "16:01:18"}]}, "moon": {"event": [{"type": "rise", "time": "17:36:15"}, {"type": "set", "time": "11:22:53"}], "phase": 0.6}}, {"date": "2025-11-09", "weekday": "Sunday", "sun": {"event": [{"type": "rise", "time": "06:58:33"}, {"type": "set", "time": "15:59:37"}]}, "moon": {"event": [{"type": "rise", "time": "18:54:22"}, {"type": "set", "time": "12:17:38"}], "phase": 0.63}}], "datetime": {"date": "2025-11-04", "time": "23:07:03.481179", "weekday": "Tuesday"}}'),
+        'battery': 93,
+    }
+    print(data)
+    meteo.update(data)
 
     from pgmexporter import PGMExporter
     PGMExporter('/tmp/output.pgm').export_fbext(meteo.fb)

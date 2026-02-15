@@ -23,20 +23,10 @@ class GetMQTT:
                 'data': None,
                 'filename': 'meteo.json'
             },
-            'precipitation': {
-                'topic': Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo/precipitation"),
+            'history': {
+                'topic': Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo/history"),
                 'data': None,
-                'filename': 'precipitation.json'
-            },
-            'temperature': {
-                'topic': Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo/temperature"),
-                'data': None,
-                'filename': 'temperature.json'
-            },
-            'pressure': {
-                'topic': Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo/pressure"),
-                'data': None,
-                'filename': 'pressure.json'
+                'filename': 'history.json'
             },
             'meteofcst': {
                 'topic': Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteofcst"),

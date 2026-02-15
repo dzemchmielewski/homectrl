@@ -105,7 +105,7 @@ class MAX17043:
 
 if __name__ == "__main__":
     from time import sleep
-    battery = MAX17043(SoftI2C(scl=Pin(18), sda=Pin(9)))
+    battery = MAX17043(SoftI2C(scl=Pin(7), sda=Pin(9)))
     print(repr(battery))
     print(f"CONFIG: {battery.conf()}")
 

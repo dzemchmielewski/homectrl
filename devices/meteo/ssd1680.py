@@ -16,9 +16,8 @@ class SSD1680:
         self.orientation = orientation
         self.width, self.height = width, height
 
-        if self.debug:
-            print(f"Display size: {self.width} x {self.height}, orientation: {self.orientation}")
-            print(f"PINS: CS={self.cs_pin}, DC={self.dc_pin}, RST={self.rst_pin}, BUSY={self.busy_pin}")
+        print(f"Display size: {self.width} x {self.height}, orientation: {self.orientation}")
+        print(f"PINS: CS={self.cs_pin}, DC={self.dc_pin}, RST={self.rst_pin}, BUSY={self.busy_pin}")
 
         self.reset_hw()
         self.reset_sw()

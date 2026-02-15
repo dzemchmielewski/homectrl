@@ -337,11 +337,12 @@ if __name__ == "__main__":
     #minutes = time.localtime()[4]
     minutes = 100
 
+    history = json.loads(open("history.json").read())
     data = {
         'astro': json.loads(open("astro.json").read()),
         'meteo': json.loads(open("meteo.json").read()),
-        'precipitation': json.loads(open("precipitation.json").read()),
-        'temperature': json.loads(open("temperature.json").read()),
+        'precipitation': history['precipitation'],
+        'temperature': history['temperature'],
         'meteofcst': json.loads(open("meteofcst.json").read())['meteofcst'],
         'holidays': json.loads(open("holidays.json").read()),
         'battery': minutes,
