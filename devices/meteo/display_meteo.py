@@ -8,7 +8,7 @@ if __name__ == "__main__":
 import random
 import framebuf
 import json
-import time
+import time  # don't trust intellij that suggest this module is not used. It is.
 from meteoparts.astropart import AstroPart
 from meteoparts.temperaturestrip import TemperatureStrip
 from meteoparts.precipitationstrip import PrecipitationStrip
@@ -200,6 +200,28 @@ class MeteoDisplay:
 
         return x + w, y + h
 
+    def undervoltage_warning(self, fb):
+        margin = 80
+        w, h = fb.width - 2 * margin, 120
+        x,y  = (fb.width - w) // 2, (fb.height - h) // 2
+        window = self.frame(FrameBufferOffset(fb, x, y, w, h), border=self.colors.BLACK, background=self.colors.LIGHT)
+
+        x, y = 35, 23
+        img = FrameBufferExtension.fromfile("images/triangle-warning.fb")
+        window.blit(img, x, y, self.colors.WHITE)
+        window.blit(img, window.width - x - img.width, y, self.colors.WHITE)
+
+        font = FM.get_sans_bold(32)
+        lines = [
+         "LOW BATTERY",
+         "Plug in adapter",
+         "Updates suspended"
+        ]
+        m = 65
+        window.textfalign(lines[0], font, top_margin=-m, palette=self.palette_light)
+        window.textfalign(lines[1], font, top_margin=0, palette=self.palette_light)
+        window.textfalign(lines[2], font, top_margin=m, palette=self.palette_light)
+
 
     # Sun & Moon calendar widget:
     def  sunmoon(self, fb,  x, y, width, height, data: dict):
@@ -311,6 +333,9 @@ class MeteoDisplay:
         x, y = x, 278
         self.past_and_forecst(self.fb, x, y, w, h, data)
 
+        # Undervoltage warning (overlay on top):
+        if data.get('undervoltage', False):
+            self.undervoltage_warning(self.fb)
 
     def test_screen(self):
         self.fb.fill(self.background)
@@ -346,6 +371,7 @@ if __name__ == "__main__":
         'meteofcst': json.loads(open("meteofcst.json").read())['meteofcst'],
         'holidays': json.loads(open("holidays.json").read()),
         'battery': minutes,
+        'undervoltage': True,
     }
 
     # Mangling data:

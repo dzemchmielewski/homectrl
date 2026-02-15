@@ -15,8 +15,9 @@ _ALERT_BITS = 0x20  # 0b00100000
 
 class MAX17043:
 
-    def __init__(self, i2c: SoftI2C):
+    def __init__(self, i2c: SoftI2C, undervoltage_threshold=2.82):
         self.i2c = i2c
+        self.undervoltage_threshold = undervoltage_threshold
         self.address = (self.i2c.scan())[0]
 
     def __repr__(self):
@@ -36,6 +37,10 @@ class MAX17043:
 
     def conf(self):
         return "{:08b} {:08b}".format(*self._read_cfg_reg())
+
+    @property
+    def undervoltage(self) -> bool:
+        return self.voltage < self.undervoltage_threshold
 
     @property
     def sleep(self):
