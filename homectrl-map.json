@@ -107,6 +107,12 @@
       "port": 8123,
       "debug": false,
       "webrepl_password": "${webrepl_password}"
+    },
+    "coffee-ap": {
+      "host": "192.168.4.1",
+      "port": 8123,
+      "debug": false,
+      "webrepl_password": "${webrepl_password}"
     }
   },
   "mqtt": {
