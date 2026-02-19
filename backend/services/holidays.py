@@ -44,7 +44,8 @@ class Holidays(OnAirService):
         scheduler = AsyncIOScheduler()
 
         # every day at midnight
-        scheduler.add_job(self.dojob, CronTrigger.from_crontab("1 0 * * *"))
+        # 23 hours grace time, so if the job is missed, it will run as soon as possible within the next 23 hours
+        scheduler.add_job(self.dojob, CronTrigger.from_crontab("1 0 * * *"), misfire_grace_time=82800)
         # run once at startup:
         scheduler.add_job(self.dojob)
 
