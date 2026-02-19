@@ -16,6 +16,8 @@ from plot import *
 from toolbox.framebufext import FrameBufferExtension, FrameBufferFont, FrameBufferOffset, FM
 from colors import Colors
 
+FM.liberation.sans.bold.normal
+
 class MeteoDisplay:
 
     FRAME_THICKNESS = 5
@@ -75,7 +77,7 @@ class MeteoDisplay:
         gap += 16
         f = FrameBufferOffset(fb, gap, 0, w - gap, h)
         #f.fill(self.colors.LIGHT)
-        f.textfalign(text, FM.get_sans_bold(16), top_margin=-2, palette=self.palette_light)
+        f.textfalign(text, FM.get.bold.font(16), top_margin=-2, palette=self.palette_light)
         return x + w, y + h
 
     def battery(self, fb, x, y, w, h, level_percent: int):
@@ -109,27 +111,27 @@ class MeteoDisplay:
 
         if unit:
             textframe = FrameBufferOffset(window,  image.width, textframe.height + 5, window.width - (image.width + 2*5), 25)
-            textframe.textfalign(unit, FM.get_sans_bold(14), left_margin=left_margin)
+            textframe.textfalign(unit, FM.get.bold.font(14), left_margin=left_margin)
 
         return x + w, y + h
 
     def temperature(self, fb, x, y, temperature: float):
-        return self._meteo_item(fb, x, y, "images/temperature.fb", "{:2.1f}".format(temperature) + "°C", FM.get_serif_bold(52), 285)
+        return self._meteo_item(fb, x, y, "images/temperature.fb", "{:2.1f}".format(temperature) + "°C", FM.get.serif.bold.font(52), 285)
 
     def humidity(self, fb, x, y, humidity: int):
-        return self._meteo_item(fb, x, y, "images/humidity.fb", str(humidity), FM.get_sans_bold(26), 140, unit="%")
+        return self._meteo_item(fb, x, y, "images/humidity.fb", str(humidity), FM.get.bold.font(26), 140, unit="%")
 
     def pressure(self, fb, x, y, pressure: float):
-        x, y = self._meteo_item(fb, x, y, "images/pressure.fb", "{:4.1f}".format(pressure), FM.get_sans_bold(26), 140, unit="hPa", left_margin=14)
+        x, y = self._meteo_item(fb, x, y, "images/pressure.fb", "{:4.1f}".format(pressure), FM.get.bold.font(26), 140, unit="hPa", left_margin=14)
 #        fb.textf("hPa", x - 40, y - 20, FM.get_sans_bold(14))
         return x, y
 
     def wind(self, fb, x, y, speed: float):
-        x, y = self._meteo_item(fb, x, y, "images/wind.fb", "{:4.1f}".format(speed), FM.get_sans_bold(26), 140, unit="m/s")
+        x, y = self._meteo_item(fb, x, y, "images/wind.fb", "{:4.1f}".format(speed), FM.get.bold.font(26), 140, unit="m/s")
         return x, y
 
     def direction(self, fb, x, y, direction: str, angle: int):
-        return self._meteo_item(fb, x, y, "images/compass.fb", direction, FM.get_sans_bold(26), 140, unit=str(angle) + "°")
+        return self._meteo_item(fb, x, y, "images/compass.fb", direction, FM.get.bold.font(26), 140, unit=str(angle) + "°")
 
     def calendar(self, fb, _x, _y, _w, _h, date: str, weekday: str):
         image = FrameBufferExtension.fromfile("images/weekday.fb")
@@ -139,11 +141,11 @@ class MeteoDisplay:
 
         x, y = image.width, 10
         f = FrameBufferOffset(window,  x, y, window.width - (image.width + 2*5), 50)
-        _, y = f.textfalign(weekday, FM.get_serif_bold(60), top_margin=-10, left_margin=5)
+        _, y = f.textfalign(weekday, FM.get.serif.bold.font(60), top_margin=-10, left_margin=5)
         y += -25
 
         f = FrameBufferOffset(window,  x, y, window.width - (image.width + 2*5), 50)
-        _, y = f.textfalign(date, FM.get_sans_bold(38), top_margin=5)
+        _, y = f.textfalign(date, FM.get.bold.font(38), top_margin=5)
 
         return _x + _w, _y + _h
 
@@ -177,7 +179,7 @@ class MeteoDisplay:
         window = FrameBufferOffset(window, 10, 10, window.width - 2*10, window.height - 2*10)
         # window.fill(self.colors.LIGHT)
 
-        font = FM.get_sans_bold(32)
+        font = FM.get.bold.font(32)
         lines = []
         while True:
             line, rest = self._split_text(text, font, window.width)
@@ -211,7 +213,7 @@ class MeteoDisplay:
         window.blit(img, x, y, self.colors.WHITE)
         window.blit(img, window.width - x - img.width, y, self.colors.WHITE)
 
-        font = FM.get_sans_bold(32)
+        font = FM.get.bold.font(32)
         lines = [
          "LOW BATTERY",
          "Plug in adapter",
@@ -235,22 +237,22 @@ class MeteoDisplay:
         x, y = x + d, y + d
         _, y = astro_widgets.weekday_axis(
             FrameBufferOffset(fb, x, y, width, 20),
-            FM.get_sans_bold(16))
+            FM.get.bold.font(16))
 
         x, y = x, y + 5
         astro_widgets.sun_axis(
             FrameBufferOffset(fb, x, y, width, 20),
-            FM.get_sans_bold(12))
+            FM.get.bold.font(12))
 
         x, y = x, y + 19
         _, y = astro_widgets.moon_axis(
             FrameBufferOffset(fb, x, y, width, 20),
-            FM.get_sans_bold(12))
+            FM.get.bold.font(12))
 
         x, y = x, y + 2
         astro_widgets.moon_phase_axis(
             FrameBufferOffset(fb, x, y, width, 20),
-            FM.get_sans_bold(14),
+            FM.get.bold.font(14),
             x_padding=2)
         return x, y
 
@@ -269,7 +271,7 @@ class MeteoDisplay:
         charts = FrameBufferOffset(self.fb, x + d + off_x, y + d + off_y, width - 2*d - off_x - width_off, height - 2*d)
         PrecipitationStrip(data['astro'], self.colors).draw(
             charts,
-            FM.get_sans_bold(12),
+            FM.get.bold.font(12),
             data['precipitation']['time'],
             data['precipitation']['values'],
             data['meteofcst']['time'],
@@ -277,7 +279,7 @@ class MeteoDisplay:
 
         TemperatureStrip(data['astro'], self.colors).draw(
             charts,
-            FM.get_sans_bold(12),
+            FM.get.bold.font(12),
             data['temperature']['time'],
             data['temperature']['values'],
             data['meteofcst']['time'],

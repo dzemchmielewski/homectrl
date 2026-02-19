@@ -8,9 +8,7 @@ if __name__ == "__main__":
     import logging
     logging.basicConfig(level=logging.DEBUG)
 
-
-from toolbox.framebufext import FrameBufferExtension, FrameBufferFont
-
+from toolbox.framebufext import FrameBufferExtension, FM
 
 class MeteoMiniDisplay:
 
@@ -21,18 +19,24 @@ class MeteoMiniDisplay:
         self.background = 0  # black
 
         if self.background == 1:
-            self.palette = framebuf.FrameBuffer(bytearray(2), 1, 2, framebuf.MONO_HLSB)  # 2 entries × 1 byte each
-            self.palette.pixel(0, 0, 1)  # 0 → 1
-            self.palette.pixel(0, 1, 0)  # 1 → 0
+            # self.palette = framebuf.FrameBuffer(bytearray(2), 1, 2, framebuf.MONO_HLSB)  # 2 entries × 1 byte each
+            self.palette = FrameBufferExtension.palette([1, 0], framebuf.MONO_HLSB)
+            FM.palette = FrameBufferExtension.palette([1, 0], framebuf.MONO_HLSB)
+            # self.palette.pixel(0, 0, 1)  # 0 → 1
+            # self.palette.pixel(0, 1, 0)  # 1 → 0
         else:
             # Identity palette: 0 → 0 and 1 → 1 is default, so no need to create one.
             # Also, creating an identity palette seems  not to work correctly.
             self.palette = None
+            FM.palette = FrameBufferExtension.palette([0, 1], framebuf.MONO_HLSB)
         self.foreground = self.background ^ 1
 
-        self.fonts_middle = FrameBufferFont("LiberationSerif-Bold.52.mfnt", palette=self.palette)
-        self.font_topbottom = FrameBufferFont("LiberationSans-Bold.18.mfnt", palette=self.palette)
-        self.font_hour = FrameBufferFont("LiberationMono-Italic.12.mfnt", palette=self.palette)
+        # set default font, so we don't have to specify it for each font:
+        FM.liberation.sans.bold.normal.directory = "fonts/"
+
+        self.fonts_middle =  FM.get.serif.font(52)
+        self.font_topbottom = FM.get.sans.font(18)
+        self.font_hour = FM.get.italic.mono.regular.font(12)
 
     def _temperature(self, temperature: float) -> tuple[int, int]:
         font = self.fonts_middle

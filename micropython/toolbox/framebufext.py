@@ -19,10 +19,10 @@ class _FrameBufferExtension(framebuf.FrameBuffer):
             raise ValueError("Unsupported framebuf mode")
 
         if buffer and len(buffer) != size:
-            raise ValueError("Buffer size does not match")
+            log.warning("Buffer size does not match. Expected %d bytes, got %d bytes." % (size, len(buffer)))
 
         self.buffer = buffer if buffer else memoryview(bytearray(size))
-        log.debug("framebuf size: %d, %d, number of bytes: %d", self.width, self.height, size)
+        log.debug("framebuf size: %d, %d, number of bytes: %d", self.width, self.height, len(self.buffer))
         super().__init__(self.buffer, self.width, self.height, self.mode)
 
     def deinit(self):
@@ -49,6 +49,7 @@ class FrameBufferFont:
 
     @staticmethod
     def open_mfnt_file(filename: str):
+        log.debug("Opening MFNT font file '%s'", filename)
         stream = open(filename,"rb")
         header_data = stream.read(12)
         if len(header_data) != 12:
@@ -152,7 +153,11 @@ class FrameBufferExtension(_FrameBufferExtension):
     @staticmethod
     def palette(colors: list, mode: int):
         # index 0 - background, index 1 - foreground, others - shades
-        result = FrameBufferExtension(len(colors), 1, mode)
+        if mode == framebuf.MONO_HLSB or mode == framebuf.MONO_HMSB:
+            result = FrameBufferExtension(len(colors), 1, mode, bytearray(len(colors)))
+        else:
+            result = FrameBufferExtension(len(colors), 1, mode)
+
         for i, c in enumerate(colors):
             result.pixel(i, 0, c)
         return result
@@ -480,7 +485,11 @@ class FrameBufferOffset:
     def circle(self, x, y, r, c, f=False):
         self.fb.circle(x + self.x, y + self.y, r, c, f)
 
+
 class FontManager:
+    palette = FrameBufferExtension.palette([3, 0, 1, 2], framebuf.GS2_HMSB)
+    directory = "fonts"
+    cache = {}
 
     FAMILY_LIBERATION = "Liberation"
     CLASSIFICATION_SANS = "Sans"
@@ -488,36 +497,74 @@ class FontManager:
     CLASSIFICATION_MONO = "Mono"
     WEIGHT_REGULAR = "Regular"
     WEIGHT_BOLD = "Bold"
+    STYLE_ITALIC = "Italic"
+    STYLE_OBLIQUE = "Oblique"
+    STYLE_NORMAL = "Normal"
 
-    palette = FrameBufferExtension.palette([3, 0, 1, 2], framebuf.GS2_HMSB)
-    directory = "fonts"
-    cache = {}
+    def __init__(self, src: "FontManager" = None):
+        self.ffamily = src.ffamily if src else self.FAMILY_LIBERATION
+        self.fclassification = src.fclassification if src else self.CLASSIFICATION_SANS
+        self.fweight = src.fweight if src else self.WEIGHT_REGULAR
+        self.fstyle = src.fstyle if src else self.STYLE_NORMAL
 
-    @staticmethod
-    def get(family: str = FAMILY_LIBERATION, classification: str = CLASSIFICATION_SANS, weight: str = WEIGHT_REGULAR, size: int = 14, palette: FrameBufferExtension = None):
-        font_file = f"{FM.directory}/{family}{classification}-{weight}.{size}.mfnt"
-        if not FontManager.cache.get(font_file):
-            FM.cache[font_file] = FrameBufferFont(font_file, palette=palette if palette else FM.palette)
+    def __str__(self):
+        return f"{self.ffamily}-{self.fclassification}-{self.fweight}-{self.fstyle}"
+    def __repr__(self):
+        return f"FontManager(family='{self.ffamily}', classification='{self.fclassification}', weight='{self.fweight}', style='{self.fstyle}')"
+
+    def family(self, family: str) -> "FontManager":
+        self.ffamily = family
+        return self
+    @property
+    def liberation(self) -> "FontManager":
+        return self.family(FM.FAMILY_LIBERATION)
+
+    def classification(self, classification: str) -> "FontManager":
+        self.fclassification = classification
+        return self
+    @property
+    def sans(self) -> "FontManager":
+        return self.classification(FM.CLASSIFICATION_SANS)
+    @property
+    def serif(self) -> "FontManager":
+        return self.classification(FM.CLASSIFICATION_SERIF)
+    @property
+    def mono(self) -> "FontManager":
+        return self.classification(FM.CLASSIFICATION_MONO)
+
+    def weight(self, weight: str) -> "FontManager":
+        self.fweight = weight
+        return self
+    @property
+    def regular(self) -> "FontManager":
+        return self.weight(FM.WEIGHT_REGULAR)
+    @property
+    def bold(self) -> "FontManager":
+        return self.weight(FM.WEIGHT_BOLD)
+
+    def style(self, style: str) -> "FontManager":
+        self.fstyle = style
+        return self
+    @property
+    def normal(self) -> "FontManager":
+        return self.style(FM.STYLE_NORMAL)
+    @property
+    def italic(self) -> "FontManager":
+        return self.style(FM.STYLE_ITALIC)
+    @property
+    def oblique(self) -> "FontManager":
+        return self.style(FM.STYLE_OBLIQUE)
+
+    def font(self, size: int) -> FrameBufferFont:
+        font_file = (f"{FM.directory}/{self.ffamily}{self.fclassification}-"
+                     f"{self.fweight}{'' if self.fstyle == FM.STYLE_NORMAL else self.fstyle}.{size}.mfnt")
+        if not FM.cache.get(font_file):
+            FM.cache[font_file] = FrameBufferFont(font_file, palette=FM.palette)
         return FM.cache[font_file]
 
-    @staticmethod
-    def get_sans(size: int, weight = WEIGHT_REGULAR, palette: FrameBufferExtension = None):
-        return FM.get(classification=FM.CLASSIFICATION_SANS, weight=weight, size=size, palette=palette)
-    @staticmethod
-    def get_sans_bold(size: int, palette: FrameBufferExtension = None):
-        return FM.get(classification=FM.CLASSIFICATION_SANS, weight=FM.WEIGHT_BOLD, size=size, palette=palette)
-    @staticmethod
-    def get_sans_regular(size: int, palette: FrameBufferExtension = None):
-        return FM.get(classification=FM.CLASSIFICATION_SANS, weight=FM.WEIGHT_REGULAR, size=size, palette=palette)
+    @property
+    def get(self) -> "FontManager":
+        return FontManager(self)
 
-    @staticmethod
-    def get_serif(size: int, weigth = WEIGHT_REGULAR, palette: FrameBufferExtension = None):
-        return FM.get(classification=FM.CLASSIFICATION_SERIF, weight=weigth, size=size, palette=palette)
-    @staticmethod
-    def get_serif_bold(size: int, palette: FrameBufferExtension = None):
-        return FM.get(classification=FM.CLASSIFICATION_SERIF, weight=FM.WEIGHT_BOLD, size=size, palette=palette)
-    @staticmethod
-    def get_serif_regular(size: int, palette: FrameBufferExtension = None):
-        return FM.get(classification=FM.CLASSIFICATION_SERIF, weight=FM.WEIGHT_REGULAR, size=size, palette=palette)
 
-FM = FontManager
+FM = FontManager()
