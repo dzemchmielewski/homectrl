@@ -62,6 +62,22 @@ class HomeCtrl(Common):
                         "homectrl/onair/activity/meteo": {
                             "homectrl/onair/activity/meteo/#": None,
                             "homectrl/onair/activity/meteo/history": None,
+                            "homectrl/onair/activity/meteo/umk": {
+                                "homectrl/onair/activity/meteo/umk/#": None,
+                                "homectrl/onair/activity/meteo/umk/history": None,
+                            },
+                            "homectrl/onair/activity/meteo/openmeteo": {
+                                "homectrl/onair/activity/meteo/openmeteo/#": None,
+                                "homectrl/onair/activity/meteo/openmeteo/history": None,
+                            },
+                            "homectrl/onair/activity/meteo/imgw": {
+                                "homectrl/onair/activity/meteo/imgw/#": None,
+                                "homectrl/onair/activity/meteo/imgw/history": None,
+                            },
+                            "homectrl/onair/activity/meteo/visualcrossing": {
+                                "homectrl/onair/activity/meteo/visualcrossing/#": None,
+                                "homectrl/onair/activity/meteo/visualcrossing/history": None,
+                            },
                         }
                     }
                 }

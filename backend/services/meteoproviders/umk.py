@@ -12,6 +12,7 @@ logger = logging.getLogger("onair.umk")
 class UMKProvider(MeteoProvider):
 
     def __init__(self, *args, **kwargs):
+        super().__init__("umk")
         self.weather_url = "https://pogoda.umk.pl/api/weather"
         self.data_url = "https://pogoda.umk.pl/api/last?type="
 
@@ -54,7 +55,7 @@ class UMKProvider(MeteoProvider):
                             'solar_radiation': round(float(data['totalSolarRadiation']['value']), 1),
                             'date': datetime.datetime.fromisoformat(json_resp['dateUTC']).astimezone(),
                             'create_at': datetime.datetime.now(),
-                            'source': 'umk',
+                            'source': self.name,
                         }
                     else:
                         raise Exception(f"[weather] Unexpected response format: expected dict, got {type(json_resp)}")

@@ -9,6 +9,7 @@ logger = logging.getLogger("onair.visualcrossing")
 class VisualCrossingProvider(MeteoProvider):
 
     def __init__(self, latitude: float, longitude: float, apikey: str, *args, **kwargs):
+        super().__init__("visualcrossing")
         self.weather_url = (
             "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/"
             f"{latitude}, {longitude}?"
@@ -48,7 +49,7 @@ class VisualCrossingProvider(MeteoProvider):
                             data['days'][0]['datetime'] + " " + cond['datetime']
                         ).astimezone(),
                         'create_at': datetime.datetime.now(),
-                        'source': 'visualcrossing',
+                        'source': self.name,
                     }
                 else:
                     raise Exception(f"[weather] Error fetching data: {response.status}")

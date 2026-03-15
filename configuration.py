@@ -132,3 +132,8 @@ class Configuration:
     @staticmethod
     def locations() -> dict:
         return Configuration.MAP["locations"]
+
+    @staticmethod
+    def meteo_providers() -> list:
+        # return ['umk', 'imgw', 'openmeteo', 'visualcrossing']
+        return ['umk', 'imgw', 'openmeteo']

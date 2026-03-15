@@ -10,6 +10,7 @@ logger = logging.getLogger("onair.openmeteo")
 class OpenMeteoProvider(MeteoProvider):
 
     def __init__(self, latitude: float, longitude: float, *args, **kwargs):
+        super().__init__("openmeteo")
         self.weather_url = ("https://api.open-meteo.com/v1/forecast"
                             f"?latitude={latitude}&longitude={longitude}"
                             # "&current_weather=true"
@@ -47,7 +48,7 @@ class OpenMeteoProvider(MeteoProvider):
                         'solar_radiation': None,
                         'date': datetime.datetime.fromisoformat(data['current']['time']).astimezone(),
                         'create_at': datetime.datetime.now(),
-                        'source': 'openmeteo',
+                        'source': self.name,
                     }
                 else:
                     raise Exception(f"[weather] Error fetching data: {response.status}")

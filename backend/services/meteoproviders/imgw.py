@@ -11,6 +11,7 @@ logger = logging.getLogger("onair.imgw")
 class IMGWProvider(MeteoProvider):
 
     def __init__(self, latitude: float, longitude: float, *args, **kwargs):
+        super().__init__("imgw")
         self.latitude = latitude
         self.longitude = longitude
         self.recent_data = None
@@ -52,7 +53,7 @@ class IMGWProvider(MeteoProvider):
                             'solar_radiation': float(cond['Irradiance_Radiation']),
                             'date': datetime.datetime.fromisoformat(cond['Date']).astimezone(),
                             'create_at': datetime.datetime.now(),
-                            'source': 'imgw',
+                            'source': self.name,
                         }
                     else:
                         raise Exception(f"[weather] Error fetching data: {response.status}")
@@ -61,7 +62,10 @@ class IMGWProvider(MeteoProvider):
 
     def history(self) -> dict:
         #TODO: implement history method
-        raise NotImplementedError("TODO: implement history method for OpenMeteoProvider")
+        raise NotImplementedError("TODO: implement history method for IMGWProvider")
+
+    def forecast_hours(self) -> dict:
+        raise NotImplementedError("TODO implement forecast hours method for IMGWProvider")
 
 
 if __name__ == "__main__":

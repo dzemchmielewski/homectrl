@@ -1,7 +1,7 @@
-import datetime
-
-
 class MeteoProvider:
+
+    def __init__(self, name):
+        self.name = name
 
     @staticmethod
     def desc_direction(degree: int) -> str:
