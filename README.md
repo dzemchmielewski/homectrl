@@ -35,6 +35,16 @@ Repository: https://github.com/dzemchmielewski/homectrl
 
 `<facet>` examples: `light`, `presence`, `live`, `temperature`, `humidity`, `darkness`, etc.
 
+**Meteo topics** (published by the `meteo` plugin, all retained):
+
+| Topic | Description | Schedule |
+|---|---|---|
+| `homectrl/onair/activity/meteo` | Current conditions from the first successful provider | every 5 min |
+| `homectrl/onair/activity/meteo/<provider>` | Current conditions per provider (`umk`, `imgw`, `openmeteo`) | every 5 min |
+| `homectrl/onair/activity/meteo/history` | Historical weather data from the first available provider | every hour (at :04) |
+
+Payload fields: `temperature`, `humidity`, `pressure` (`real`, `sea_level`), `precipitation`, `wind` (`speed`, `direction`, `direction_desc`, `max`), `solar_radiation`, `date`, `created_at`, `source`.
+
 **Frontend**
 
 * React + Bootstrap application.
@@ -73,7 +83,7 @@ homectrl webrepl [--file FILE | --get GET | --exit | --reboot] <device>
 
 * **devices** — ingests `homectrl/device/...` topics, translates to `homectrl/onair/...`, persists history to PostgreSQL and republishes last-known states on startup.
 * **laundry** — monitors bathroom electricity usage, computes last laundry run and active power consumed, stores results and sends SMS notifications to family when laundry completes.
-* **weather** — reads a local meteo station and publishes updates as a `meteo` device.
+* **meteo** — fetches current weather conditions and history from multiple external providers (UMK, IMGW, Open-Meteo, Visual Crossing), publishes results to MQTT every 5 minutes and historical data every hour.
 
 ## Getting started (development)
 
