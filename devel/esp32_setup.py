@@ -24,7 +24,7 @@ class Esp32Setup:
                            help="Destination main file name")
 
     argparser.add_argument('--boot-pin', '-bp', type=int, required=False, dest="pin",
-                           help="Pin number to use for boot notification.\nESP32-C3 super mini: 8\nESP32-S3: 44\nESP32-S3 super mini: 48\nESP32-GENERIC: 2\n")
+                           help="Pin number to use for boot notification.\nESP32-C3 super mini: 8\nESP32-S3: 44\nESP32-S3 super mini: 48\nESP32-GENERIC: 2 (or 22)\n")
     argparser.add_argument('--boot-pin-on', '-bp-on', type=int, required=False, dest="pin_on", choices=[0, 1], default=0,
                            help="Value that indicate when boot pin led is ON.\nESP32-C3 super mini: 0\nESP32-S3: 0???\nESP32-GENERIC: 1\n")
 
