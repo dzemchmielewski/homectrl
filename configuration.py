@@ -127,4 +127,8 @@ class Configuration:
 
     @staticmethod
     def location() -> tuple:
-        return 53.0102721, 18.6048094
+        return Configuration.MAP["locations"]['torun']
+
+    @staticmethod
+    def locations() -> dict:
+        return Configuration.MAP["locations"]

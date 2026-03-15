@@ -60,14 +60,19 @@ elif system == "devel":
     # put your devel code here
     # that will run with proper python environment
 
-    import json
-    logger = logging.getLogger("onair.meteofcst")
-    logger.setLevel(logging.DEBUG)
-    from backend.services.meteofcst import MeteoForcast
-    service = MeteoForcast()
-    #asyncio.run(service.dojob())
-    data = asyncio.run(service.data())
-    json.dump(data, open("meteofcst_meteopl.json", "w"))
+    from backend.services.meteocmp import MeteoCmp
+    service = MeteoCmp()
+    asyncio.run(service.meteocmp())
+
+
+    # import json
+    # logger = logging.getLogger("onair.meteofcst")
+    # logger.setLevel(logging.DEBUG)
+    # from backend.services.meteofcst import MeteoForcast
+    # service = MeteoForcast()
+    # #asyncio.run(service.dojob())
+    # data = asyncio.run(service.data())
+    # json.dump(data, open("meteofcst_meteopl.json", "w"))
 
     # logger = logging.getLogger("onair.holidays")
     # logger.setLevel(logging.DEBUG)

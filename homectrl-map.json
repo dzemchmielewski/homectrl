@@ -162,6 +162,11 @@
   },
 	"visualcrossing": {
 		"api_key": "${visualcrossing_api_key}"
-	}
+	},
+  "locations": "${locations}",
+
+  "locations_example": {
+      "greenwich": [51.476676, -0.000454]
+  }
 
 }

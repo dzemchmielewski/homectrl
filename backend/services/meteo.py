@@ -1,6 +1,4 @@
 import asyncio
-import datetime
-import aiohttp
 import logging
 
 from backend.services.meteoproviders.openmeteo import OpenMeteoProvider

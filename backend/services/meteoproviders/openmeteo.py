@@ -9,7 +9,7 @@ logger = logging.getLogger("onair.openmeteo")
 
 class OpenMeteoProvider(MeteoProvider):
 
-    def __init__(self, latitude: float, longitude: float):
+    def __init__(self, latitude: float, longitude: float, *args, **kwargs):
         self.weather_url = ("https://api.open-meteo.com/v1/forecast"
                             f"?latitude={latitude}&longitude={longitude}"
                             # "&current_weather=true"
