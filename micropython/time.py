@@ -5,6 +5,7 @@ helpers for date and time formatting, ISO date parsing, and
  and microcontroller environments, providing convenient utilities
  for handling time representations and conversions.
 """
+import time
 from utime import *
 from micropython import const
 
@@ -60,7 +61,7 @@ _FMT = {
 def time_ms() -> int:
     return time() * 1000 + (ticks_ms() % 1000)
 
-def strftime(fmt: str, dt: tuple) -> str:
+def strftime(fmt: str, dt: tuple|int) -> str:
     """
     Formats a date/time tuple according to the given format string.
     Supported format codes:
@@ -85,11 +86,14 @@ def strftime(fmt: str, dt: tuple) -> str:
 
     Args:
         fmt: Format string using supported codes.
-        dt:  Time tuple as returned by localtime().
+        dt:  Time tuple as returned by localtime() OR int - number of seconds since epoch.
 
     Returns:
         Formatted date/time string.
     """
+    if type(dt) == int:
+        dt = time.localtime(dt)
+
     out = []
     esc = False
 
@@ -141,3 +145,70 @@ def fromisostrict(s: str) -> int:
 
     except (ValueError, IndexError):
         raise ValueError("Invalid date format. Expected 'YYYY-MM-DD' or 'YYYY-MM-DDThh:mm:ss'.")
+
+def last_weekday_of_month(year: int, month: int, weekday: int) -> int:
+    """
+    Returns the day-of-month of the last occurrence of a given weekday in a month.
+
+    Args:
+        year:    Full year (e.g. 2024).
+        month:   Month number (1-12).
+        weekday: Target weekday, 0=Monday .. 6=Sunday (same convention as gmtime).
+
+    Returns:
+        Day of month (1-31) of the last matching weekday.
+    """
+
+    # first day of next month
+    if month == 12:
+        ts = mktime((year + 1, 1, 1, 0, 0, 0, 0, 0, 0))
+    else:
+        ts = mktime((year, month + 1, 1, 0, 0, 0, 0, 0, 0))
+
+    # step back one day → last day of requested month
+    ts -= 86400
+
+    t = gmtime(ts)
+    last_day = t[2]
+    wday = t[6]
+
+    return last_day - ((wday - weekday) % 7)
+
+def utc_to_local(utc: tuple | int) -> tuple | int:
+    """Convert UTC to local time (CET/CEST), accounting for DST.
+
+    Accepts either a Unix timestamp (int) or a time tuple (as returned by
+    gmtime/localtime) and returns the same type.  The DST boundaries follow
+    the EU rule: clocks spring forward on the last Sunday of March at 01:00
+    UTC, and fall back on the last Sunday of October at 01:00 UTC.
+    """
+    ts = utc if type(utc) == int else mktime(utc)
+    year = gmtime(ts)[0]
+    hh_march   = mktime((year, 3,  (31 - (int(5 * year // 4 + 4)) % 7), 1, 0, 0, 0, 0, 0))
+    hh_october = mktime((year, 10, (31 - (int(5 * year // 4 + 1)) % 7), 1, 0, 0, 0, 0, 0))
+    if ts < hh_march:
+        result = ts + 3600   # CET:  UTC+1H
+    elif ts < hh_october:
+        result = ts + 7200   # CEST: UTC+2H
+    else:
+        result = ts + 3600   # CET:  UTC+1H
+    return result if type(utc) == int else localtime(result)
+
+def local_to_utc(local: tuple | int) -> tuple | int:
+    """Convert local time (CET/CEST) to UTC, accounting for DST.
+
+    Accepts either a Unix timestamp (int) or a time tuple (as returned by
+    gmtime/localtime) and returns the same type.  Inverse of utc_to_local;
+    round-tripping via local_to_utc(utc_to_local(ts)) preserves ts.
+    """
+    ts = local if type(local) == int else mktime(local)
+    year = gmtime(ts)[0]
+    hh_march   = mktime((year, 3,  (31 - (int(5 * year // 4 + 4)) % 7), 1, 0, 0, 0, 0, 0))
+    hh_october = mktime((year, 10, (31 - (int(5 * year // 4 + 1)) % 7), 1, 0, 0, 0, 0, 0))
+    if ts < hh_march + 3600:
+        result = ts - 3600   # CET:  UTC+1H
+    elif ts < hh_october + 3600:
+        result = ts - 7200   # CEST: UTC+2H
+    else:
+        result = ts - 3600   # CET:  UTC+1H
+    return result if type(local) == int else gmtime(result)

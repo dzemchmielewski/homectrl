@@ -137,24 +137,8 @@ class Boot:
 
     def setup_time(self):
         if self.isconnected():
-            import ntptime
-            ntptime.host = Configuration.NTP_SERVER
-
-            now = ntptime.time()
-
-            year = time.gmtime(now)[0]       # get current year
-            hh_march   = time.mktime((year,3 ,(31-(int(5*year/4+4))%7),1,0,0,0,0,0)) # Time of March change to CEST
-            hh_october = time.mktime((year,10,(31-(int(5*year/4+1))%7),1,0,0,0,0,0)) # Time of October change to CET
-
-            if now < hh_march :               # we are before last sunday of march
-                cet = time.localtime(now+3600) # CET:  UTC+1H
-            elif now < hh_october :           # we are before last sunday of october
-                cet = time.localtime(now+7200) # CEST: UTC+2H
-            else:                            # we are after last sunday of october
-                cet = time.localtime(now+3600) # CET:  UTC+1H
-
-            (year, month, mday, hour, minute, second, weekday, yearday) = cet
-            machine.RTC().datetime((year, month, mday, 0, hour, minute, second, 0))
+            import timesync
+            timesync.ntp_to_sys(Configuration.NTP_SERVER)
             print(f"SUCCESS time load: {time.localtime()}")
             return True
         else:

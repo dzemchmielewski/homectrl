@@ -213,6 +213,7 @@ class BoardApplication(shared.Named, shared.Exitable):
             self.log.info(f"Daily RTC sync task started. Date/Time: {util.time_str()}")
             try:
                 if self.time_sync.endpoint.setup_time():
+                    self.time_sync.endpoint.loaded['time'] = True
                     # Just a dummy increment to indicate that sync was done
                     self.time_sync.value = self.time_sync.value + 1
                     self.log.info(f"Daily RTC sync finished successfully. Date/Time: {util.time_str()}")

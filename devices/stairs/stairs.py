@@ -9,6 +9,7 @@ from micropython import const
 from board.board_application import BoardApplication, Facility
 from configuration import Configuration
 from machine import Pin, PWM
+from sunriseset import is_night
 
 from pwm_fade import PWMFade
 
@@ -34,8 +35,10 @@ class StairsApplication(BoardApplication):
     # CONF_LIGHT_TIMEOUT = const(5_000)
 
     BRIGHTNESS = {
-        (0, 5): 5,
-        (6, 21): 40,
+        (0, 4): 5,
+        (5, 6): 20,
+        (6, 7): 30,
+        (7, 21): 40,
         (21, 21): 30,
         (22, 22): 20,
         (23, 23): 10,
@@ -61,6 +64,7 @@ class StairsApplication(BoardApplication):
         self.presence_down = Facility("presence_down", endpoint=Pin(self.CONF_PRESENCE_DOWN_PIN, Pin.IN, Pin.PULL_DOWN), value=False)
         self.presence = Facility("presence", value=False)
         self.ap_switch = Facility("ap_switch", endpoint=Pin(14, Pin.IN, Pin.PULL_UP), value=False)
+        self.isnight = Facility("isnight", value=True)
 
         if self.CONF_USE_MQTT:
             self.mqtt_subscriptions["homectrl/onair/darkness/kitchen"] = self.darkness_message
@@ -99,6 +103,7 @@ class StairsApplication(BoardApplication):
         result = (self.light.to_dict()
                   # | self.conditions.to_dict()
                   | self.darkness.to_dict()
+                  | self.isnight.to_dict()
                   | self.presence_up.to_dict()
                   | self.presence_down.to_dict()
                   | self.presence.to_dict()
@@ -123,7 +128,7 @@ class StairsApplication(BoardApplication):
         self.darkness.value = bool(json.loads(message)['value'])
 
     def _calc_brightness(self) -> float:
-        if boot.isconnected() and boot.loaded['time']:
+        if boot.loaded['time']:
             (hour, minute) = time.localtime()[3:5]
             for (start, end), value in self.BRIGHTNESS.items():
                 if start <= hour <= end:
@@ -136,6 +141,14 @@ class StairsApplication(BoardApplication):
 
     def _calc_fadeout(self):
         return self.light.endpoint.value / 5
+
+    def allow_light(self):
+        if self.CONF_USE_MQTT:
+            return self.darkness.value
+        else:
+            if boot.loaded['time']:
+                return self.isnight.value
+        return True
 
     async def light_task(self):
         while not self.exit:
@@ -161,7 +174,7 @@ class StairsApplication(BoardApplication):
                     self.presence.value = new_presence
                     self.publish_mqtt.value = True
 
-                if self.darkness.value:
+                if self.allow_light():
                     if not self.light.value:
                         if self.presence.value:
                             self.publish_mqtt.value = True
@@ -212,6 +225,14 @@ class StairsApplication(BoardApplication):
                 boot.setup_ap(not self.ap_switch.value)
             await asyncio.sleep_ms(1_000)
 
+    async def isnight_task(self):
+        while not self.exit:
+            if boot.loaded['time']:
+                value = is_night(time.localtime(), 60*60*1, -60*60*1)  # one hour after rise and before set is considered as night
+                if value != self.isnight.value:
+                    self.isnight.value = value
+            await asyncio.sleep(60)
+
     # async def conditions_task(self):
     #     while not self.exit:
     #         readings = self.conditions.endpoint.readings()
@@ -227,6 +248,7 @@ class StairsApplication(BoardApplication):
         self.presence_down.task = asyncio.create_task(self.presence_sensor_task(self.presence_down))
         self.publish_mqtt.task = asyncio.create_task(self.publish_mqtt_task())
         self.ap_switch.task = asyncio.create_task(self.ac_switch_task())
+        self.isnight.task = asyncio.create_task(self.isnight_task())
         asyncio.create_task(self.publish_capabilities_task())
         # self.conditions.task = asyncio.create_task(self.conditions_task())
 
@@ -237,5 +259,6 @@ class StairsApplication(BoardApplication):
         self.presence_down.task.cancel()
         self.publish_mqtt.task.cancel()
         self.ap_switch.task.cancel()
+        self.isnight.task.cancel()
         # self.conditions.task.cancel()
 
