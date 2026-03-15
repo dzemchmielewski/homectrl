@@ -260,7 +260,7 @@ class FrameBufferExtension(_FrameBufferExtension):
         result = FrameBufferExtension(self.width, self.height, self.mode)
         for y in range(self.height):
             for x in range(self.width):
-                result.pixel(x, y, (self.width - 1) - self.pixel(x, y))
+                result.pixel(x, y, not self.pixel(x, y))
         return result
 
     def convert(self, dst_mode: int, palette: "FrameBufferExtension") -> "FrameBufferExtension":
