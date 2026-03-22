@@ -3,12 +3,15 @@ import json
 import logging
 import time
 
+import timesync
 from board.boot import Boot
 from micropython import const
 
 from board.board_application import BoardApplication, Facility
 from configuration import Configuration
-from machine import Pin, PWM
+from machine import Pin, PWM, SoftI2C
+
+from ds3231 import DS3231
 from sunriseset import is_night
 
 from pwm_fade import PWMFade
@@ -46,10 +49,11 @@ class StairsApplication(BoardApplication):
     DEFAULT_BRIGHTNESS = 40
 
     def __init__(self):
-        if boot.isconnected():
-            self.CONF_USE_MQTT = True
-        else:
-            self.CONF_USE_MQTT = False
+        # if boot.isconnected():
+        #     self.CONF_USE_MQTT = True
+        # else:
+        #     self.CONF_USE_MQTT = False
+        self.CONF_USE_MQTT = False
 
         BoardApplication.__init__(self, 'stairs', use_mqtt=self.CONF_USE_MQTT)
         (_, self.topic_data, _, _, _) = Configuration.topics(self.name)
@@ -63,17 +67,18 @@ class StairsApplication(BoardApplication):
         self.presence_up = Facility("presence_up", endpoint=Pin(self.CONF_PRESENCE_UP_PIN, Pin.IN, Pin.PULL_DOWN), value=False)
         self.presence_down = Facility("presence_down", endpoint=Pin(self.CONF_PRESENCE_DOWN_PIN, Pin.IN, Pin.PULL_DOWN), value=False)
         self.presence = Facility("presence", value=False)
-        self.ap_switch = Facility("ap_switch", endpoint=Pin(14, Pin.IN, Pin.PULL_UP), value=False)
+        self.ap_switch = Facility("ap_switch", endpoint=Pin(39, Pin.IN, Pin.PULL_DOWN), value=False)
         self.isnight = Facility("isnight", value=True)
+
+        # External RTC:
+        self.rtc = Facility("rtc", endpoint=DS3231(SoftI2C(sda=Pin(15), scl=Pin(14))))
+        # On start load time from external RTC:
+        timesync.rtc_to_sys(self.rtc.endpoint.datetime)
 
         if self.CONF_USE_MQTT:
             self.mqtt_subscriptions["homectrl/onair/darkness/kitchen"] = self.darkness_message
 
         self.publish_mqtt = Facility("publish_mqtt", value=False)
-
-        # self.conditions = Facility("conditions", BMP_AHT.from_pins(14, 15, calibrate_pressure=2.6),
-        #                            lambda x: {"temperature": x.value[0], "pressure": x.value[1], "humidity": x.value[2]})
-        # self.conditions.value = (None, None, None)
 
         self.capabilities = {
             "controls": [
@@ -128,13 +133,12 @@ class StairsApplication(BoardApplication):
         self.darkness.value = bool(json.loads(message)['value'])
 
     def _calc_brightness(self) -> float:
-        if boot.loaded['time']:
-            (hour, minute) = time.localtime()[3:5]
-            for (start, end), value in self.BRIGHTNESS.items():
-                if start <= hour <= end:
-                    return value
-            return 0.0
-        return self.DEFAULT_BRIGHTNESS
+#        if boot.loaded['time']:
+        (hour, minute) = time.localtime()[3:5]
+        for (start, end), value in self.BRIGHTNESS.items():
+            if start <= hour <= end:
+                return value
+        return 0.0
 
     def _calc_fadein(self, brightness: float):
         return max(20/2, brightness / 2)
@@ -146,9 +150,8 @@ class StairsApplication(BoardApplication):
         if self.CONF_USE_MQTT:
             return self.darkness.value
         else:
-            if boot.loaded['time']:
-                return self.isnight.value
-        return True
+            return self.isnight.value
+        #return True
 
     async def light_task(self):
         while not self.exit:
@@ -222,24 +225,38 @@ class StairsApplication(BoardApplication):
         while not self.exit:
             if self.ap_switch.value != self.ap_switch.endpoint.value():
                 self.ap_switch.value = self.ap_switch.endpoint.value()
-                boot.setup_ap(not self.ap_switch.value)
+                boot.setup_ap(self.ap_switch.value)
             await asyncio.sleep_ms(1_000)
 
     async def isnight_task(self):
         while not self.exit:
-            if boot.loaded['time']:
-                value = is_night(time.localtime(), 60*60*1, -60*60*1)  # one hour after rise and before set is considered as night
-                if value != self.isnight.value:
-                    self.isnight.value = value
+            value = is_night(time.localtime(), 60*60*1, -60*60*1)  # one hour after rise and before set is considered as night
+            if value != self.isnight.value:
+                self.isnight.value = value
             await asyncio.sleep(60)
 
-    # async def conditions_task(self):
-    #     while not self.exit:
-    #         readings = self.conditions.endpoint.readings()
-    #         if readings != self.conditions.value:
-    #             self.conditions.value = readings
-    #             self.publish_mqtt.value = True
-    #         await asyncio.sleep(60)
+    async def rtc_task(self):
+        while not self.exit:
+            now = time.localtime()
+            h, m, s = now[3], now[4], now[5]
+            seconds_today = h * 60 * 60 + m * 60 + s
+
+            # Seconds until next 03:45
+            target = 3 * 60 * 60 + 45 * 60
+            if seconds_today < target:
+                wait = target - seconds_today
+            else:
+                wait = 24 * 60 * 60 - seconds_today + target
+
+            await asyncio.sleep(wait)
+
+            if boot.loaded['time']:
+                # send the time to external RTC chip:
+                try:
+                    timesync.sys_to_rtc(self.rtc.endpoint.datetime)
+                except Exception as e:
+                    self.log.error(f"Sending systime to external RTC failed: {e}")
+
 
     async def start(self):
         await super().start()
@@ -249,8 +266,8 @@ class StairsApplication(BoardApplication):
         self.publish_mqtt.task = asyncio.create_task(self.publish_mqtt_task())
         self.ap_switch.task = asyncio.create_task(self.ac_switch_task())
         self.isnight.task = asyncio.create_task(self.isnight_task())
+        self.rtc.task = asyncio.create_task(self.rtc_task())
         asyncio.create_task(self.publish_capabilities_task())
-        # self.conditions.task = asyncio.create_task(self.conditions_task())
 
     def deinit(self):
         super().deinit()
@@ -260,5 +277,5 @@ class StairsApplication(BoardApplication):
         self.publish_mqtt.task.cancel()
         self.ap_switch.task.cancel()
         self.isnight.task.cancel()
-        # self.conditions.task.cancel()
+        self.rtc.task.cancel()
 
