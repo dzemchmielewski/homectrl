@@ -9,6 +9,7 @@ import sys
 from backend.tools import WebREPLClient
 from common.common import Common
 from  configuration import Configuration, Topic
+from topics import TopicCompleter
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -44,70 +45,6 @@ class HomeCtrl(Common):
         argparse.RawTextHelpFormatter):
         pass
 
-    class TopicCompleter(argcomplete.completers.BaseCompleter):
-        TOPICS = {
-            "homectrl/" : {
-                "homectrl/#" : None,
-                "homectrl/device/": {
-                    "homectrl/device/#": None
-                },
-                "homectrl/onair/": {
-                    "homectrl/onair/#": None,
-                    "homectrl/onair/activity/": {
-                        "homectrl/onair/activity/#": None,
-                        "homectrl/onair/activity/laundry": None,
-                        "homectrl/onair/activity/astro": None,
-                        "homectrl/onair/activity/holidays": None,
-                        "homectrl/onair/activity/meteofcst": None,
-                        "homectrl/onair/activity/meteo": {
-                            "homectrl/onair/activity/meteo/#": None,
-                            "homectrl/onair/activity/meteo/history": None,
-                            "homectrl/onair/activity/meteo/umk": {
-                                "homectrl/onair/activity/meteo/umk/#": None,
-                                "homectrl/onair/activity/meteo/umk/history": None,
-                            },
-                            "homectrl/onair/activity/meteo/openmeteo": {
-                                "homectrl/onair/activity/meteo/openmeteo/#": None,
-                                "homectrl/onair/activity/meteo/openmeteo/history": None,
-                            },
-                            "homectrl/onair/activity/meteo/imgw": {
-                                "homectrl/onair/activity/meteo/imgw/#": None,
-                                "homectrl/onair/activity/meteo/imgw/history": None,
-                            },
-                            "homectrl/onair/activity/meteo/visualcrossing": {
-                                "homectrl/onair/activity/meteo/visualcrossing/#": None,
-                                "homectrl/onair/activity/meteo/visualcrossing/history": None,
-                            },
-                        }
-                    }
-                }
-            }
-        }
-
-        def __init__(self, boards: [str]):
-            super().__init__()
-            # Dynamically add boards to topics
-            device_topics = self.TOPICS["homectrl/"]["homectrl/device/"]
-            for board in boards:
-                device_topics[f"homectrl/device/{board}/#"] = None
-
-        def getlist(self, input, topics: dict) -> [str]:
-            results = []
-            for key, value in topics.items():
-                if key.startswith(input):
-                    # If input matches the key, and value is a dict, return its keys
-                    if isinstance(value, dict):
-                        results.extend(value.keys())
-                    else:
-                        results.append(key)
-                elif input.startswith(key):
-                    # If input is longer, go deeper
-                    if isinstance(value, dict):
-                        results.extend(self.getlist(input, value))
-            return results
-
-        def __call__(self, prefix, parsed_args, **kwargs):
-            return self.getlist(prefix, self.TOPICS)
 
 
     def __init__(self):
@@ -163,7 +100,7 @@ class HomeCtrl(Common):
         mqtt.add_argument("mqtt_action", choices=["monitor", "delete", "publish"], default="monitor", nargs="?")
         mqtt_group = mqtt.add_mutually_exclusive_group()
         mqtt_group.add_argument("--topic", "-t", help="Topic name. Default: '{}/#'".format(Topic.Root), nargs="+")\
-            .completer=self.TopicCompleter(boards)
+            .completer=TopicCompleter(boards, Configuration.meteo_providers())
         # mqtt_group.add_argument("--topic-prefix", help="Default prefix of the topic that is added to each topic specified by  '-t' option.", default="{}/".format(Topic.Root))
         mqtt_group.add_argument("--device", "-d", choices=boards, help="Available boards", nargs="+")
 

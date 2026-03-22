@@ -2,7 +2,6 @@ import os
 import json
 import re
 from enum import Enum
-
 from common.communication import SocketCommunication
 
 
@@ -35,7 +34,7 @@ class _Topic:
     def format(self, *parts) -> str:
         return self.topic.format(*parts)
 
-    def parse(self, topic: str) -> tuple:
+    def parse(self, topic: str) -> tuple | None:
         if m := self.topic_re.match(topic):
             return m.groups()
         return None
@@ -134,6 +133,9 @@ class Configuration:
         return Configuration.MAP["locations"]
 
     @staticmethod
-    def meteo_providers() -> list:
-        # return ['umk', 'imgw', 'openmeteo', 'visualcrossing']
-        return ['umk', 'imgw', 'openmeteo']
+    def meteo_providers() -> dict:
+        return {
+            'current': ['umk', 'imgw'],
+            'past': ['umk', 'imgw'],
+            'forecast': ['icm'],
+        }
