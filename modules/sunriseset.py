@@ -8,7 +8,7 @@ def is_day(dt: tuple = None, add_rise_sec: int = 0, add_set_sec: int = 0):
     sun = sunriseset[dt[1] - 1][dt[2] - 1]
     rise, set = sun[0] * 60 * 60 + sun[1] + add_rise_sec, sun[2] * 60 * 60 + sun[3] + add_set_sec
     now = dt[3] * 60 * 60 + dt[4] + dt[5]
-    print(f"rise: {rise}, set: {set}, now: {now}, orig set: {sun[2] * 60 + sun[3]}")
+    print(f"rise: {rise} (with adjustment: {add_rise_sec}), set: {set} (with adjustment: {add_set_sec}), now: {now}")
     return rise <= now <= set
 
 def is_night(dt = None, add_rise_sec: int = 0, add_set_sec: int = 0):

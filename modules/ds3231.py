@@ -320,5 +320,5 @@ class DS3231:
 
 if __name__ == "__main__":
     from machine import Pin, SoftI2C
-    ds = DS3231(SoftI2C(sda=Pin(5), scl=Pin(6)))
+    ds = DS3231(SoftI2C(sda=Pin(15), scl=Pin(14)))
     print(ds.datetime())
