@@ -40,7 +40,7 @@ class MeteoMiniApplication(BoardApplication):
         self.indicator.endpoint.on()
 
         # MQTT subscriptions
-        self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteo"] = self.meteo_message
+        self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR}/meteo/current"] = self.meteo_message
         self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/astro"] = self.astro_message
         self.mqtt_custom_config['keepalive'] = 400
 
@@ -69,7 +69,7 @@ class MeteoMiniApplication(BoardApplication):
 
     def meteo_message(self, topic, message, retained):
         self.log.info(f"Meteo message received.")
-        self.display.value['meteo'] = json.loads(message)
+        self.display.value['meteo'] = json.loads(message)['data']
         self.display.value = self.display.value  # trigger update
 
     def astro_message(self, topic, message, retained):

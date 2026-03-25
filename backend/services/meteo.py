@@ -1,6 +1,8 @@
 import asyncio
+import datetime
 import logging
 
+from backend.services.meteoproviders.icm import ICMProvider
 from backend.services.meteoproviders.imgw import IMGWProvider
 from backend.services.meteoproviders.openmeteo import OpenMeteoProvider
 from backend.services.meteoproviders.umk import UMKProvider
@@ -25,71 +27,77 @@ class Meteo(OnAirService):
             UMKProvider(),
             OpenMeteoProvider(*Configuration.location()),
             IMGWProvider(*Configuration.location()),
+            ICMProvider(*Configuration.location()),
             VisualCrossingProvider(*Configuration.location(), Configuration.MAP['visualcrossing']['api_key'])]
 
     @noexception(logger=logger)
-    async def meteo(self) -> None:
+    async def _meteo(self, type: str, get_meteo_callback):
         first_meteo = None
-        for provider_name in Configuration.meteo_providers():
+        logger.debug(f"Fetching meteo {type}")
+        for name in Configuration.meteo_providers()[type]:
             message = None
             try:
-                provider = [p for p in self.providers if p.name == provider_name][0]
-                weather = await provider.meteo()
+                logger.debug(f"Fetching meteo {type} from provider {name}")
+                provider = [p for p in self.providers if p.name == name][0]
+                weather = await get_meteo_callback(provider)
                 if not weather:
-                    raise Exception(f"Empty response")
-                message = json_serial(weather)
+                    raise Exception(f"Empty response when fetching meteo {type} from provider {provider.name}")
+                message = json_serial({
+                    'source': name,
+                    'error': None,
+                    'create_at': datetime.datetime.now(),
+                    'data': weather,
+                    })
                 if first_meteo is None:
                     first_meteo = message
             except Exception as e:
-                logger.error(f"Error fetching meteo from provider {provider.name}: {e}")
+                logger.error(f"Error fetching meteo {type} from provider {provider.name}: {e}")
                 message - json_serial({
                     "error": f"{e}",
-                    "source": provider.name
+                    "source": provider.name,
+                    "create_at": datetime.datetime.now(),
                 })
             if message:
                 logger.debug(message)
                 self.mqtt.publish(
-                    Topic.OnAir.format(Topic.OnAir.Facet.activity, f"meteo/{provider.name}"),
+                    Topic.OnAir.format(Topic.OnAir.Facet.meteo, f"{type}/{provider.name}"),
                     message, retain=True)
         if first_meteo:
-            self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo"), first_meteo, retain=True)
-
+            self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.meteo, f"{type}"), first_meteo, retain=True)
 
     @noexception(logger=logger)
-    async def history(self) -> None:
-        history = None
-        for provider in self.providers:
-            try:
-                history = await provider.history()
-                if history:
-                    break
-            except Exception as e:
-                logger.error(f"Error fetching weather from {provider.__class__.__name__}: {e}")
+    async def current(self) -> None:
+        async def callback(provider):
+            return await provider.current()
+        await self._meteo('current', callback)
 
-        if history:
-            message = json_serial(history)
-            logger.debug(message)
-            self.mqtt.publish(Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo/history"), message, retain=True)
-        else:
-            logger.error("All providers failed to fetch weather data.")
+    @noexception(logger=logger)
+    async def past(self) -> None:
+        async def callback(provider):
+            return await provider.past()
+        await self._meteo('past/hourly', callback)
 
+    @noexception(logger=logger)
+    async def forecast(self) -> None:
+        async def callback(provider):
+            return await provider.forecast()
+        await self._meteo('forecast/hourly', callback)
 
     async def run(self) -> None:
         scheduler = AsyncIOScheduler()
-        scheduler.add_job(self.meteo, CronTrigger.from_crontab("*/5 * * * *"))  # every 5 minutes
+
+        every_five_min_trigger = CronTrigger.from_crontab("*/5 * * * *")  # every 5 minutes
+        scheduler.add_job(self.current, every_five_min_trigger)
 
         every_hour_trigger = CronTrigger.from_crontab("4 * * * *")  # every hour at minute 4
-        scheduler.add_job(self.history, every_hour_trigger)
+        scheduler.add_job(self.past, every_hour_trigger)
+        scheduler.add_job(self.forecast, every_hour_trigger)
 
         # run once at startup:
-        scheduler.add_job(self.meteo)
-        scheduler.add_job(self.history)
+        scheduler.add_job(self.current)
+        scheduler.add_job(self.past)
+        scheduler.add_job(self.forecast)
 
         scheduler.start()
         await asyncio.Event().wait()
         scheduler.shutdown()
-
-
-
-
-

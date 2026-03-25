@@ -18,7 +18,7 @@ class VisualCrossingProvider(MeteoProvider):
             f"&key={apikey}"
             "&contentType=json")
 
-    async def meteo(self):
+    async def current(self):
         async with aiohttp.ClientSession() as session:
             async with session.get(self.weather_url) as response:
                 if response.status == 200:
@@ -53,10 +53,6 @@ class VisualCrossingProvider(MeteoProvider):
                     }
                 else:
                     raise Exception(f"[weather] Error fetching data: {response.status}")
-
-    def history(self) -> dict:
-        #TODO: implement history method
-        raise NotImplementedError("TODO: implement history method for VisualCrossingProvider")
 
 
 if __name__ == "__main__":

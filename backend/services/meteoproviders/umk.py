@@ -16,7 +16,7 @@ class UMKProvider(MeteoProvider):
         self.weather_url = "https://pogoda.umk.pl/api/weather"
         self.data_url = "https://pogoda.umk.pl/api/last?type="
 
-    async def meteo(self) -> dict:
+    async def current(self) -> dict:
         async with aiohttp.ClientSession() as session:
             async with session.get(self.weather_url) as response:
                 if response.status == 200:
@@ -62,7 +62,7 @@ class UMKProvider(MeteoProvider):
                 else:
                     raise Exception(f"[weather] Error fetching data: {response.status}")
 
-    async def _data(self, name: str, data_type: str) -> None:
+    async def _data(self, name: str, data_type: str) -> dict:
         async with aiohttp.ClientSession() as session:
             async with session.get(self.data_url + data_type) as response:
                 if response.status == 200:
@@ -78,7 +78,7 @@ class UMKProvider(MeteoProvider):
                 else:
                     raise Exception(f"[{name}] Error fetching data: {response.status}")
 
-    async def history(self) -> None:
+    async def past(self) -> dict:
         return {
             'temperature': await self._data('temperature', 'tempAir200'),
             'precipitation': await self._data('precipitation', 'precipitation1'),

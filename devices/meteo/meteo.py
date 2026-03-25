@@ -56,11 +56,11 @@ class MeteoApplication(BoardApplication):
             'sleep': False,
         })
 
-        self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteo"] = self.data_message
+        self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR}/meteo/current"] = self.current_meteo_message
+        self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR}/meteo/forecast/hourly"] = self.forecast_meteo_message
+        self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR}/meteo/past/hourly"] = self.past_meteo_message
         self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/astro"] = self.data_message
         self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/holidays"] = self.data_message
-        self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteofcst"] = self.data_message
-        self.mqtt_subscriptions[f"{Configuration.TOPIC_HOMECTRL_ONAIR_ACTIVITY}/meteo/history"] = self.past_meteo_message
         self.mqtt_custom_config['keepalive'] = 400
 
         self.data = {
@@ -88,10 +88,7 @@ class MeteoApplication(BoardApplication):
     def data_message(self, topic, message, retained):
         name = topic.split('/')[-1]
         self.log.info(f"Message received. Name: {name}")
-        if name == 'meteofcst':
-            self.data['meteofcst'] = json.loads(message)['meteofcst']
-        else:
-            self.data[name]  = json.loads(message)
+        self.data[name]  = json.loads(message)
 
         if name == 'astro':
             from_day_offset = -1
@@ -99,10 +96,18 @@ class MeteoApplication(BoardApplication):
             # Pick only 5 days of astro data:
             self.data['astro']['astro'] = [astro_data for astro_data in self.data['astro']['astro'] if astro_data['day']['day_offset'] in range(from_day_offset, to_day_offset)]
 
+    def current_meteo_message(self, topic, message, retained):
+        msg = json.loads(message)
+        self.data['meteo']  = msg['data']
+
+    def forecast_meteo_message(self, topic, message, retained):
+        msg = json.loads(message)
+        self.data['meteofcst']  = msg['data']
+
     def past_meteo_message(self, topic, message, retained):
         msg = json.loads(message)
-        self.data['temperature'] = msg.get('temperature')
-        self.data['precipitation'] = msg.get('precipitation')
+        self.data['temperature'] = msg['data'].get('temperature')
+        self.data['precipitation'] = msg['data'].get('precipitation')
 
     def trigger_update(self, value = True):
         self.trigger.value['update'] = value

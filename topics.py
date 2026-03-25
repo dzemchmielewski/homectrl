@@ -1,18 +1,20 @@
 import argcomplete
 
+from configuration import Configuration
+
 METEO_TOPICS = {
-    "homectrl/onair/activity/meteo/#": None,
-    "homectrl/onair/activity/meteo/current": {
-        "homectrl/onair/activity/meteo/current": None,
-        "homectrl/onair/activity/meteo/current/#": None,
+    "homectrl/onair/meteo/#": None,
+    "homectrl/onair/meteo/current": {
+        "homectrl/onair/meteo/current": None,
+        "homectrl/onair/meteo/current/#": None,
     },
-    "homectrl/onair/activity/meteo/forecast/hourly": {
-        "homectrl/onair/activity/meteo/forecast/hourly": None,
-        "homectrl/onair/activity/meteo/forecast/hourly/#": None,
+    "homectrl/onair/meteo/forecast/hourly": {
+        "homectrl/onair/meteo/forecast/hourly": None,
+        "homectrl/onair/meteo/forecast/hourly/#": None,
     },
-    "homectrl/onair/activity/meteo/past/hourly": {
-        "homectrl/onair/activity/meteo/past/hourly": None,
-        "homectrl/onair/activity/meteo/past/hourly/#": None,
+    "homectrl/onair/meteo/past/hourly": {
+        "homectrl/onair/meteo/past/hourly": None,
+        "homectrl/onair/meteo/past/hourly/#": None,
     }
 }
 
@@ -29,8 +31,8 @@ TOPICS = {
                 "homectrl/onair/activity/laundry": None,
                 "homectrl/onair/activity/astro": None,
                 "homectrl/onair/activity/holidays": None,
-                "homectrl/onair/activity/meteo": METEO_TOPICS
-            }
+            },
+            "homectrl/onair/meteo/": METEO_TOPICS
         }
     }
 }
@@ -87,10 +89,10 @@ class TopicCompleter(argcomplete.completers.BaseCompleter):
     def __call__(self, prefix, parsed_args, **kwargs):
         if prefix.startswith("homectrl/d"):
             self._add_boards()
-        if prefix.startswith("homectrl/onair/activity/meteo/c"):
-            self._add_meteo_providers("homectrl/onair/activity/meteo/current", 'current')
-        if prefix.startswith("homectrl/onair/activity/meteo/f"):
-            self._add_meteo_providers("homectrl/onair/activity/meteo/forecast/hourly", 'forecast')
-        if prefix.startswith("homectrl/onair/activity/meteo/p"):
-            self._add_meteo_providers("homectrl/onair/activity/meteo/past/hourly", 'past')
+        if prefix.startswith("homectrl/onair/meteo/c"):
+            self._add_meteo_providers("homectrl/onair/meteo/current", 'current')
+        if prefix.startswith("homectrl/onair/meteo/f"):
+            self._add_meteo_providers("homectrl/onair/meteo/forecast/hourly", 'forecast/hourly')
+        if prefix.startswith("homectrl/onair/meteo/p"):
+            self._add_meteo_providers("homectrl/onair/meteo/past/hourly", 'past/hourly')
         return self.getlist(prefix, TOPICS)

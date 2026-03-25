@@ -16,7 +16,7 @@ class IMGWProvider(MeteoProvider):
         self.longitude = longitude
         self.recent_data = None
 
-    async def meteo(self):
+    async def current(self):
         async with aiohttp.ClientSession() as session:
             async with session.get("https://meteo.imgw.pl/shared/web-components/serwisy-imgw/serwisy-imgw.js") as response:
                 text = await response.text()
@@ -59,13 +59,6 @@ class IMGWProvider(MeteoProvider):
                         raise Exception(f"[weather] Error fetching data: {response.status}")
             else:
                 raise Exception("[weather] Error fetching API token from IMGW")
-
-    def history(self) -> dict:
-        #TODO: implement history method
-        raise NotImplementedError("TODO: implement history method for IMGWProvider")
-
-    def forecast_hours(self) -> dict:
-        raise NotImplementedError("TODO implement forecast hours method for IMGWProvider")
 
 
 if __name__ == "__main__":

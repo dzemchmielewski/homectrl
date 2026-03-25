@@ -21,7 +21,7 @@ class OpenMeteoProvider(MeteoProvider):
                             "&wind_speed_unit=ms"
                             "&timezone=Europe%2FBerlin&forecast_days=0&format=json")
 
-    async def meteo(self):
+    async def current(self):
         async with aiohttp.ClientSession() as session:
             async with session.get(self.weather_url) as response:
                 if response.status == 200:
@@ -52,10 +52,6 @@ class OpenMeteoProvider(MeteoProvider):
                     }
                 else:
                     raise Exception(f"[weather] Error fetching data: {response.status}")
-
-    def history(self) -> dict:
-        #TODO: implement history method
-        raise NotImplementedError("TODO: implement history method for OpenMeteoProvider")
 
 
 if __name__ == "__main__":

@@ -74,6 +74,7 @@ class Topic:
         class Facet(Enum):
             # There are some more dynamic facets here, like light, presence, live, etc...
             activity = "activity"
+            meteo = "meteo"
 
             def __str__(self):
                 return self.name
@@ -135,7 +136,7 @@ class Configuration:
     @staticmethod
     def meteo_providers() -> dict:
         return {
-            'current': ['umk', 'imgw'],
-            'past': ['umk', 'imgw'],
-            'forecast': ['icm'],
+            'current': ['umk', 'imgw', 'openmeteo'],
+            'past/hourly': ['umk'],
+            'forecast/hourly': ['icm'],
         }
