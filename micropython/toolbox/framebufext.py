@@ -256,11 +256,18 @@ class FrameBufferExtension(_FrameBufferExtension):
             self.line(x2, y2, x3, y3, color)
             self.line(x3, y3, x1, y1, color)
 
+    # def invert(self) -> "FrameBufferExtension":
+    #     result = FrameBufferExtension(self.width, self.height, self.mode)
+    #     for y in range(self.height):
+    #         for x in range(self.width):
+    #             result.pixel(x, y, not self.pixel(x, y))
+    #     return result
+
     def invert(self) -> "FrameBufferExtension":
         result = FrameBufferExtension(self.width, self.height, self.mode)
-        for y in range(self.height):
-            for x in range(self.width):
-                result.pixel(x, y, not self.pixel(x, y))
+        dst, src = result.buffer, self.buffer
+        for i in range(len(src)):
+            dst[i] = (~src[i]) & 0xFF
         return result
 
     def convert(self, dst_mode: int, palette: "FrameBufferExtension") -> "FrameBufferExtension":

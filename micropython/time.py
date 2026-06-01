@@ -212,3 +212,21 @@ def local_to_utc(local: tuple | int) -> tuple | int:
     else:
         result = ts - 3600   # CET:  UTC+1H
     return result if type(local) == int else gmtime(result)
+
+def secs_until_next_interval(dt: tuple, interval_min: int) -> int:
+    """
+    Returns the number of seconds until the next minute aligned to the given interval.
+
+    For example, with interval_min=15 and current time 17:01:32, the next aligned
+    minute is 17:15:00, so the result is 13*60 - 32 = 748.
+
+    Args:
+        dt:           Time tuple as returned by localtime() / gmtime().
+        interval_min: Interval in minutes to align to (e.g. 5, 10, 15, 20, 30, 60).
+
+    Returns:
+        Seconds remaining until the next multiple-of-interval minute boundary.
+    """
+    _, _, _, _, min, sec, _, _ = dt
+    next_minute = ((min + interval_min) // interval_min) * interval_min
+    return (next_minute - min) * 60 - sec

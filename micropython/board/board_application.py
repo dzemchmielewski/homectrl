@@ -115,6 +115,17 @@ class Facility:
         return iter(self.to_dict().items())
 
 
+class TaskObject:
+    def __init__(self):
+        self.atask = None
+    def init(self):
+        self.atask = asyncio.create_task(self.task())
+    async def task(self):
+        pass
+    def deinit(self):
+        self.atask.cancel()
+
+
 class BoardApplication(shared.Named, shared.Exitable):
 
     def __init__(self, name: str, use_mqtt: bool = True):
