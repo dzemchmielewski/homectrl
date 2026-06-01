@@ -17,7 +17,8 @@ class TemperatureStrip(DayChartStrip):
         plot.axis_y_max = self.round_up_to(max_y, 5)
         plot.axis_y_min = self.round_down_to(min_y, 5)
 
-        vertical_ticks = abs(plot.axis_y_max) // 5 + abs(plot.axis_y_min) // 5
+        # vertical_ticks = abs(plot.axis_y_max) // 5 + abs(plot.axis_y_min) // 5
+        vertical_ticks = abs(plot.axis_y_max - plot.axis_y_min) // 5
 
         plot.margins(bottom=15)
         plot.ticks_count(bottom=25, top=25, left=vertical_ticks + 1)

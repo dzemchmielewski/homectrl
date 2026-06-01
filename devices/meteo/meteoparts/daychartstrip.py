@@ -113,8 +113,11 @@ class DayChartStrip:
 
         x, y, width, height = 0, 0, fb.width // self.days_count, fb.height
         max_y, min_y = self.range(past_values)
+        self.debug(logalign, f"max_y: {max_y}, min_y: {min_y}")
         _max_y, _min_y = self.range(frcst_values[1:2] if len(frcst_values) == 0 else frcst_values[0:2])
-        max_y, min_y = self.ceil(max(max_y, _max_y)), self.ceil(min(min_y, _min_y))
+        self.debug(logalign, f"_max_y: {_max_y}, _min_y: {_min_y}")
+        max_y, min_y = (self.ceil(max(max_y, _max_y) if max_y is not None else _max_y),
+                        self.ceil(min(min_y, _min_y) if min_y is not None else _min_y))
         self.debug(logalign,"MAX/MIN RANGE VALUES: {}, {}".format(max_y, min_y))
 
         plot = self.begin_draw(font, max_y, min_y)

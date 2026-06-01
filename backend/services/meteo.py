@@ -14,6 +14,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 logger = logging.getLogger("onair.meteo")
+# logger.setLevel(logging.DEBUG)
 
 logging.getLogger('apscheduler.executors.default').setLevel(logging.WARNING)
 
@@ -52,7 +53,7 @@ class Meteo(OnAirService):
                     first_meteo = message
             except Exception as e:
                 logger.error(f"Error fetching meteo {type} from provider {provider.name}: {e}")
-                message - json_serial({
+                message = json_serial({
                     "error": f"{e}",
                     "source": provider.name,
                     "create_at": datetime.datetime.now(),

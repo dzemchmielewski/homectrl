@@ -367,13 +367,13 @@ if __name__ == "__main__":
     history = json.loads(open("history.json").read())
     data = {
         'astro': json.loads(open("astro.json").read()),
-        'meteo': json.loads(open("meteo.json").read()),
-        'precipitation': history['precipitation'],
-        'temperature': history['temperature'],
-        'meteofcst': json.loads(open("meteofcst.json").read())['meteofcst'],
+        'meteo': json.loads(open("meteo.json").read())['data'],
+        'precipitation': history['data']['precipitation'],
+        'temperature': history['data']['temperature'],
+        'meteofcst': json.loads(open("meteofcst.json").read())['data'],
         'holidays': json.loads(open("holidays.json").read()),
         'battery': minutes,
-        'undervoltage': True,
+        'undervoltage': False,
     }
 
     # Mangling data:

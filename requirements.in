@@ -43,3 +43,6 @@ matplotlib>=3.8
 pillow
 freetype-py
 pycairo
+
+# GPIO
+gpiozero

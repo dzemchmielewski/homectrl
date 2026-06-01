@@ -7,14 +7,14 @@ import asyncio
 import logging
 import time
 
-services = ["onair", "restapi", "charts", "devel", "devel-mqtt"]
+services = ["onair", "restapi", "attic", "charts", "devel", "devel-mqtt"]
 
 parser = argparse.ArgumentParser(description="HomeCtrl service launcher", add_help=True)
 parser.add_argument("service",  choices=services, help="Backend service to start")
 argcomplete.autocomplete(parser)
 args = parser.parse_args()
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 for handler in logging.getLogger().handlers:
     handler.setFormatter(logging.Formatter("[%(asctime)s][%(levelname)s][%(name)s] %(message)s"))
 
@@ -56,6 +56,10 @@ elif system == "charts":
     except KeyboardInterrupt:
         pass
 
+elif system == "attic":
+    from backend.devices.attic.attic import AtticApplication
+    AtticApplication().run()
+
 elif system == "devel":
     # put your devel code here
     # that will run with proper python environment
@@ -63,7 +67,6 @@ elif system == "devel":
     from backend.services.meteocmp import MeteoCmp
     service = MeteoCmp()
     asyncio.run(service.meteocmp())
-
 
     # import json
     # logger = logging.getLogger("onair.meteofcst")

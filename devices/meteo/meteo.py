@@ -175,9 +175,10 @@ class MeteoApplication(BoardApplication):
             if self.SLEEP_TIME_SEC:
                 seconds_to_next = self.SLEEP_TIME_SEC
             else:
+                interval_min = 10
                 _, _, _, _, min, sec, _, _ = time.localtime()
-                next_minute = ((min + 5) // 5) * 5
-                seconds_to_next = ((next_minute - min) * 60 - sec) + 45
+                next_minute = ((min + interval_min) // interval_min) * interval_min
+                seconds_to_next = (next_minute - min) * 60 - sec + 5
 
             self.log.info(f"Going to sleep now. Seconds to wakeup: {seconds_to_next}")
             self.indicator.endpoint.off()
@@ -204,9 +205,7 @@ class MeteoApplication(BoardApplication):
     async def battery_task(self):
         last_mqtt = None
         while not self.exit:
-            self.battery.value = (round(self.battery.endpoint.soc), self.battery.endpoint.voltage, self.battery.endpoint.undervoltage)
-            if self.battery.value[0] > 100:
-                self.battery.value[0] = 100
+            self.battery.value = (min(100, round(self.battery.endpoint.soc)), self.battery.endpoint.voltage, self.battery.endpoint.undervoltage)
             self.data['battery'] = self.battery.value[0]
             self.data['undervoltage'] = self.battery.endpoint.undervoltage
             if last_mqtt is None or (time.time_ms() - last_mqtt) > 60 * 5 * 1_000:

@@ -127,7 +127,7 @@ class Configuration:
 
     @staticmethod
     def location() -> tuple:
-        return Configuration.MAP["locations"]['torun']
+        return Configuration.MAP["locations"]['zamek_bierzglowski']
 
     @staticmethod
     def locations() -> dict:
@@ -136,7 +136,7 @@ class Configuration:
     @staticmethod
     def meteo_providers() -> dict:
         return {
-            'current': ['umk', 'imgw', 'openmeteo'],
+            'current': ['imgw', 'openmeteo', 'umk'],
             'past/hourly': ['umk'],
             'forecast/hourly': ['icm'],
         }
