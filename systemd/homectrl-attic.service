@@ -1,0 +1,21 @@
+[Unit]
+Description=DZEM HomeCtrl Attic Device
+After=network-online.target mosquitto.service postgresql.service dnsmasq.service nss-lookup.target
+Wants=mosquitto.service
+Requires=network-online.target postgresql.service dnsmasq.service nss-lookup.target
+
+[Service]
+Type=simple
+User=dzem
+Environment="XDG_RUNTIME_DIR=/run/user/1000"
+WorkingDirectory=/home/dzem/HOMECTRL/
+ExecStartPre=/bin/sh -c 'until getent hosts status.home; do sleep 1; done'
+ExecStart=/home/dzem/HOMECTRL/env/bin/python /home/dzem/HOMECTRL/launcher.py attic
+KillSignal=SIGINT
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/dzem/HOMECTRL/logs/attic.log
+StandardError=append:/home/dzem/HOMECTRL/logs/attic.log
+
+[Install]
+WantedBy=multi-user.target
