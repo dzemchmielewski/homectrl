@@ -1,10 +1,9 @@
 import logging
-
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
 
+import asyncio
 from machine import SPI, Pin
-from time import sleep_ms
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +14,7 @@ class EPD2in9V4:
     Resolution: 128x296
     """
 
-    def __init__(self, width: int, height: int, spi: SPI, cs_pin: Pin, dc_pin: Pin, rst_pin: Pin, busy_pin: Pin, pwr_pin: Pin = None):
+    def __init__(self, width: int, height: int, spi: SPI | None, cs_pin: Pin, dc_pin: Pin, rst_pin: Pin, busy_pin: Pin, pwr_pin: Pin | None = None):
         self.debug = True
         self.spi = spi
         self.cs_pin, self.dc_pin, self.rst_pin, self.busy_pin = cs_pin, dc_pin, rst_pin, busy_pin
@@ -25,7 +24,7 @@ class EPD2in9V4:
         logger.debug(f"Display size: {self.width} x {self.height}")
         logger.debug(f"PINS: CS={self.cs_pin}, DC={self.dc_pin}, RST={self.rst_pin}, BUSY={self.busy_pin}, PWR={self.pwr_pin}")
 
-    def command(self, command: bytes, data: bytes = None):
+    def command(self, command: bytes, data: bytes | None = None):
         self.dc_pin.value(0)
         self.cs_pin.value(0)
         self.spi.write(command)
@@ -45,21 +44,21 @@ class EPD2in9V4:
         self.spi.write(data)
         self.cs_pin.value(1)
 
-    def reset_hw(self):
+    async def reset_hw(self):
         logger.debug("Performing hardware reset...")
         self.rst_pin.value(1)
-        sleep_ms(200)
+        await asyncio.sleep_ms(200)
         self.rst_pin.value(0)
-        sleep_ms(5)
+        await asyncio.sleep_ms(5)
         self.rst_pin.value(1)
-        sleep_ms(200)
-        self.wait_until_ready()
+        await asyncio.sleep_ms(200)
+        await self.wait_until_ready()
         logger.debug("Hardware reset done")
 
-    def reset_sw(self):
+    async def reset_sw(self):
         # Software Reset
         self.command(b'\x12')
-        self.wait_until_ready()
+        await self.wait_until_ready()
         if self.debug:
             logger.debug("Software reset done")
 
@@ -67,33 +66,33 @@ class EPD2in9V4:
         # For this display: 0: idle, 1: busy (opposite of epd7in5v2)
         return self.busy_pin.value() == 1
 
-    def wait_until_ready(self, sleepms: int = None):
+    async def wait_until_ready(self, sleepms: int | None = None):
         if sleepms:
-            sleep_ms(sleepms)
+            await asyncio.sleep_ms(sleepms)
         self.send_command(0X71)
         if self.isbusy():
             logger.debug("Display busy, waiting...")
         while self.isbusy():
-            sleep_ms(200)
+            await asyncio.sleep_ms(200)
         logger.debug("Display ready")
 
-    def sleep(self):
+    async def sleep(self):
         logger.debug("Putting display to sleep...")
         self.send_command(0x10)
         self.send_data(0x01)
-        sleep_ms(2000)
+        await asyncio.sleep_ms(2000)
         logger.debug("Display sleep done")
 
-    def init(self):
+    async def init(self):
         logger.debug("Initializing display...")
 
         # Power on if power pin is provided
         if self.pwr_pin:
             self.pwr_pin.on()
-            sleep_ms(100)
+            await asyncio.sleep_ms(100)
 
-        self.reset_hw()   # pulse RST pin to hardware-reset all registers to defaults
-        self.reset_sw()   # send 0x12 SWRESET + wait — second full reset via SPI
+        await self.reset_hw()   # pulse RST pin to hardware-reset all registers to defaults
+        await self.reset_sw()   # send 0x12 SWRESET + wait — second full reset via SPI
 
         # ------------ Temperature sensor and LUT configuration ------------
         # Select the internal temperature sensor as the temperature source
@@ -105,7 +104,7 @@ class EPD2in9V4:
         self.send_command(0x22)
         self.send_data(0xB1)    # sequence flags: 0b10110001
         self.send_command(0x20) # activate the sequence
-        self.wait_until_ready()
+        await self.wait_until_ready()
 
         # Override the temperature register with 90°C to force the fast-refresh LUT
         # Higher temperature → shorter waveform → faster refresh (at some quality cost)
@@ -118,7 +117,7 @@ class EPD2in9V4:
         self.send_command(0x22)
         self.send_data(0x91)    # sequence flags: 0b10010001
         self.send_command(0x20) # activate the sequence
-        self.wait_until_ready()
+        await self.wait_until_ready()
         # ------------
 
         # Set gate driver count = display height − 1 (296 lines → 0x0127)
@@ -165,7 +164,7 @@ class EPD2in9V4:
         self.send_data(0x00)            # Y counter low  = 0
         self.send_data(0x00)            # Y counter high = 0
 
-        self.wait_until_ready()   # ensure all init commands are processed before first use
+        await self.wait_until_ready()   # ensure all init commands are processed before first use
         logger.debug("Initialization done")
 
     def deinit(self, deinit_spi: bool = True):
@@ -178,7 +177,7 @@ class EPD2in9V4:
             self.pwr_pin.off()
         logger.debug("Display deinited")
 
-    def display(self, black_buffer: bytes = None, red_buffer: bytes = None):
+    async def display(self, black_buffer: bytes | None = None, red_buffer: bytes | None = None):
         """
         Display image buffers on the e-paper screen.
 
@@ -201,9 +200,9 @@ class EPD2in9V4:
             # Invert red buffer data: 0x00 (red) becomes 0xFF, 0xFF (white) becomes 0x00
             self.data(bytes(0xFF - b for b in red_buffer))
 
-        self.refresh()
+        await self.refresh()
 
-    def clear(self):
+    async def clear(self):
         """Clear the display to all white."""
         logger.debug("Clearing display...")
 
@@ -219,16 +218,16 @@ class EPD2in9V4:
         for i in range(buffer_size):
             self.send_data(0x00)
 
-        self.refresh()
+        await self.refresh()
         logger.debug("Display cleared")
 
-    def refresh(self):
+    async def refresh(self):
         logger.debug("Refreshing display...")
         self.send_command(0x22) #Display Update Control
         # self.send_data(0xF7)
         self.send_data(0xC7) # skip temp/LUT
         self.send_command(0x20) #Activate Display Update Sequence
-        self.wait_until_ready()
+        await self.wait_until_ready()
         logger.debug("Display refresh done")
 
 
@@ -242,19 +241,19 @@ if __name__ == "__main__":
 
     # Display dimensions
     #w, h = 296, 128
-    w, h = 128, 296
+    w, h = 128, 2960
 
     epd = EPD2in9V4(w, h, spi, cs, dc, rst, busy)
     try:
-        epd.init()
-        # epd.clear()
+        asyncio.run(epd.init())
+        # asyncio.run(epd.clear())
 
         from display_coffee import CoffeeDisplay
         import framebuf
         coffee = CoffeeDisplay(h, w, framebuf.MONO_HLSB)
         coffee.testscreen()
 
-        epd.display(coffee.black.buffer, coffee.red.buffer)
-        epd.sleep()
+        asyncio.run(epd.display(coffee.black.buffer, coffee.red.buffer))
+        asyncio.run(epd.sleep())
     finally:
         epd.deinit()

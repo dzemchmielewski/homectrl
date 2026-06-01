@@ -495,6 +495,7 @@ class FontConverter:
 
     def run(self):
         args = self.args
+        args.charset = """ ¬!"#£$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]\\^_`abcdefghijklmnopqrstuvwxyz{|}~^?°ąćęłńóśżźĄĆĘŁŃÓŚŻŹΩαβ"""
         if not args.outfile[0].isalpha():
             quit("Font filenames must be valid Python variable names.")
 
