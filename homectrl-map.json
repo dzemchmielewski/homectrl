@@ -113,6 +113,14 @@
       "port": 8123,
       "debug": false,
       "webrepl_password": "${webrepl_password}"
+    },
+    "local": {
+      "host": "localhost",
+      "port": 8123
+    },
+    "attic": {
+      "host": "192.168.0.24",
+      "port": 8123
     }
   },
   "mqtt": {
