@@ -19,17 +19,17 @@ class GetMQTT:
                 'filename': 'astro.json'
             },
             'meteo': {
-                'topic': Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo"),
+                'topic': Topic.OnAir.format(Topic.OnAir.Facet.meteo, "current"),
                 'data': None,
                 'filename': 'meteo.json'
             },
             'history': {
-                'topic': Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteo/history"),
+                'topic': Topic.OnAir.format(Topic.OnAir.Facet.meteo, "past/hourly"),
                 'data': None,
                 'filename': 'history.json'
             },
             'meteofcst': {
-                'topic': Topic.OnAir.format(Topic.OnAir.Facet.activity, "meteofcst"),
+                'topic': Topic.OnAir.format(Topic.OnAir.Facet.meteo, "forecast/hourly"),
                 'data': None,
                 'filename': 'meteofcst.json'
             },
