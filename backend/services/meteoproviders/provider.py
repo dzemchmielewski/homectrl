@@ -17,7 +17,11 @@ class MeteoProvider:
 
     @staticmethod
     def K_to_C(K: float) -> float:
-        return round(K - 273.15, 1)
+        # actually should be:
+        # return round(K - 273.15, 1)
+        # but there is some mismatch between IMGW json and
+        # IMGW web application
+        return round(K - 273.2 + 0.1, 1)
 
     @staticmethod
     def C_to_K(C: float) -> float:

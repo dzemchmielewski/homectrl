@@ -138,5 +138,5 @@ class Configuration:
         return {
             'current': ['imgw', 'openmeteo', 'umk'],
             'past/hourly': ['umk'],
-            'forecast/hourly': ['icm'],
+            'forecast/hourly': ['imgw', 'icm'],
         }

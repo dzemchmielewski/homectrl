@@ -47,7 +47,8 @@ class ICMProvider(MeteoProvider):
             'precipitation': {
                 'average': [round(value, 1) for value in data['data']['pcpttl_aver']['data']],
                 'probability': [int(round(value, 0)) for value in data['data']['pcpttlprob_point']['data']],
-                'type': [],  # TODO
+                'rain': [],
+                'snow': [],
             },
         }
 
