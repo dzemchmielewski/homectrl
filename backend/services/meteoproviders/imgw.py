@@ -7,6 +7,156 @@ from backend.services.meteoproviders.provider import MeteoProvider
 
 logger = logging.getLogger("onair.imgw")
 
+iconmap = {
+    "n0z00d": "sun",
+    "n0z10d": "sun",
+    "n0z50d": "cloud-sun-rain",
+    "n0z60d": "cloud-sun-rain",
+    "n0z70d": "cloud-sun-snow",
+    "n0z80d": "cloud-sun-rain",
+    "n0z90d": "thunderstorm-sun",
+
+    "n1z00d": "sun",
+    "n1z10d": "sun",
+    "n1z50d": "cloud-sun-rain",
+    "n1z60d": "cloud-sun-rain",
+    "n1z70d": "cloud-sun-snow",
+    "n1z80d": "cloud-sun-rain",
+    "n1z90d": "thunderstorm-sun",
+
+    "n2z00d": "cloud-sun",
+    "n2z10d": "cloud-sun",
+    "n2z50d": "cloud-sun-rain",
+    "n2z60d": "cloud-sun-rain",
+    "n2z70d": "cloud-sun-snow",
+    "n2z80d": "cloud-sun-rain",
+    "n2z90d": "thunderstorm-sun",
+
+    "n3z00d": "cloud-sun",
+    "n3z10d": "cloud-sun",
+    "n3z50d": "cloud-sun-rain",
+    "n3z60d": "cloud-sun-rain",
+    "n3z70d": "cloud-sun-snow",
+    "n3z80d": "cloud-sun-rain",
+    "n3z90d": "thunderstorm-sun",
+    "n3z00d": "cloud-sun",
+
+    "n4z00d": "cloud-sun",
+    "n4z10d": "cloud-sun",
+    "n4z50d": "cloud-sun-rain",
+    "n4z60d": "cloud-sun-rain",
+    "n4z70d": "cloud-sun-snow",
+    "n4z80d": "cloud-sun-rain",
+    "n4z90d": "thunderstorm-sun",
+    "n4z00d": "cloud-sun",
+
+    "n5z00d": "cloud-sun",
+    "n5z10d": "cloud-sun",
+    "n5z50d": "cloud-sun-rain",
+    "n5z60d": "cloud-sun-rain",
+    "n5z70d": "cloud-sun-snow",
+    "n5z80d": "cloud-sun-rain",
+    "n5z90d": "cloud-snow",
+
+    "n6z00d": "cloud",
+    "n6z10d": "fog",
+    "n6z50d": "cloud-rain",
+    "n6z60d": "cloud-rain",
+    "n6z70d": "cloud-sleet",
+    "n6z80d": "cloud-rain",
+    "n6z90d": "cloud-snow",
+
+    "n7z00d": "cloud",
+    "n7z10d": "fog",
+    "n7z50d": "cloud-rain",
+    "n7z60d": "cloud-rain",
+    "n7z70d": "cloud-snow",
+    "n7z80d": "cloud-rain",
+    "n7z90d": "cloud-snow",
+
+    "n8z00d": "cloud",
+    "n8z10d": "fog",
+    "n8z50d": "cloud-rain",
+    "n8z60d": "cloud-rain",
+    "n8z70d": "cloud-snow",
+    "n8z80d": "cloud-rain",
+    "n8z90d": "cloud-snow",
+
+    "n0z00n": "moon",
+    "n0z10n": "moon",
+    "n0z50n": "cloud-moon-rain",
+    "n0z60n": "cloud-moon-rain",
+    "n0z70n": "cloud-moon-snow",
+    "n0z80n": "cloud-moon-rain",
+    "n0z90n": "thunderstorm-moon",
+
+    "n1z00n": "moon",
+    "n1z10n": "moon",
+    "n1z50n": "cloud-moon-rain",
+    "n1z60n": "cloud-moon-rain",
+    "n1z70n": "cloud-moon-snow",
+    "n1z80n": "cloud-moon-rain",
+    "n1z90n": "thunderstorm-moon",
+
+    "n2z00n": "cloud-moon",
+    "n2z10n": "cloud-moon",
+    "n2z50n": "cloud-moon-rain",
+    "n2z60n": "cloud-moon-rain",
+    "n2z70n": "cloud-moon-snow",
+    "n2z80n": "cloud-moon-rain",
+    "n2z90n": "thunderstorm-moon",
+
+    "n3z00n": "cloud-moon",
+    "n3z10n": "cloud-moon",
+    "n3z50n": "cloud-moon-rain",
+    "n3z60n": "cloud-moon-rain",
+    "n3z70n": "cloud-moon-snow",
+    "n3z80n": "cloud-moon-rain",
+    "n3z90n": "thunderstorm-moon",
+
+    "n4z00n": "cloud-moon",
+    "n4z10n": "cloud-moon",
+    "n4z50n": "cloud-moon-rain",
+    "n4z60n": "cloud-moon-rain",
+    "n4z70n": "cloud-moon-snow",
+    "n4z80n": "cloud-moon-rain",
+    "n4z90n": "thunderstorm-moon",
+
+    "n5z00n": "cloud-moon",
+    "n5z10n": "cloud-moon",
+    "n5z50n": "cloud-moon-rain",
+    "n5z60n": "cloud-moon-rain",
+    "n5z70n": "cloud-moon-snow",
+    "n5z80n": "cloud-moon-rain",
+    "n5z90n": "cloud-snow",
+
+    "n6z00n": "cloud",
+    "n6z10n": "fog",
+    "n6z50n": "cloud-rain",
+    "n6z60n": "cloud-rain",
+    "n6z70n": "cloud-sleet",
+    "n6z80n": "cloud-rain",
+    "n6z90n": "cloud-snow",
+
+    "n7z00n": "cloud",
+    "n7z10n": "fog",
+    "n7z50n": "cloud-rain",
+    "n7z60n": "cloud-rain",
+    "n7z70n": "cloud-snow",
+    "n7z80n": "cloud-rain",
+    "n7z90n": "cloud-snow",
+
+    "n8z00n": "cloud",
+    "n8z10n": "fog",
+    "n8z50n": "cloud-rain",
+    "n8z60n": "cloud-rain",
+    "n8z70n": "cloud-snow",
+    "n8z80n": "cloud-rain",
+    "n8z90n": "cloud-snow",
+    None: None
+}
+
+
 class IMGWProvider(MeteoProvider):
 
     def __init__(self, latitude: float, longitude: float, *args, **kwargs):
@@ -39,6 +189,8 @@ class IMGWProvider(MeteoProvider):
 
     async def current(self):
         cond = (await self.data())['data']['Data'][0]
+        icon = iconmap[
+            cond['Icon'] if 'Icon' in cond else (cond['Icon10'] if 'Icon10' in cond else None)]
         return {
             'temperature': self.K_to_C(float(cond['Temperature'])),
             'humidity': round(float(cond['Humidity']), 1),
@@ -58,6 +210,7 @@ class IMGWProvider(MeteoProvider):
                 }
             },
             'solar_radiation': float(cond['Irradiance_Radiation']),
+            'icon': icon,
             'date': datetime.datetime.fromisoformat(cond['Date']).astimezone(),
             'create_at': datetime.datetime.now(),
             'source': self.name,
@@ -82,6 +235,7 @@ class IMGWProvider(MeteoProvider):
                 'rain': [round(float(value['Rain']), 1) for value in data],
                 'snow': [round(float(value['Snow']), 1) for value in data],
             },
+            'icon': [iconmap[value['Icon']] for value in data],
         }
 
 if __name__ == "__main__":
