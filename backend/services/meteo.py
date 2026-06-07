@@ -88,11 +88,12 @@ class Meteo(OnAirService):
         scheduler = AsyncIOScheduler()
 
         every_five_min_trigger = CronTrigger.from_crontab("*/5 * * * *")  # every 5 minutes
-        scheduler.add_job(self.current, every_five_min_trigger)
-
+        every_ten_min_trigger = CronTrigger.from_crontab("*/10 * * * *")  # every 10 minutes
         every_hour_trigger = CronTrigger.from_crontab("4 * * * *")  # every hour at minute 4
+
+        scheduler.add_job(self.current, every_five_min_trigger)
         scheduler.add_job(self.past, every_hour_trigger)
-        scheduler.add_job(self.forecast, every_hour_trigger)
+        scheduler.add_job(self.forecast, every_ten_min_trigger)
 
         # run once at startup:
         scheduler.add_job(self.current)

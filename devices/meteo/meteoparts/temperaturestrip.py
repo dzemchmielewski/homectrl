@@ -8,14 +8,17 @@ from toolbox.framebufext import FrameBufferFont
 import logging
 logger = logging.getLogger(__name__)
 
-class TemperatureStrip(DayChartStrip):
+class TemperatureStrip:
+
+    def __init__(self, colors: Colors):
+        self.colors = colors
 
     def begin_draw(self, font: FrameBufferFont, max_y: float, min_y: float) -> Plot:
         plot = LinePlot(self.colors.map, font)
 
         # Round max_y and min_y to the nearest multiple of 5
-        plot.axis_y_max = self.round_up_to(max_y, 5)
-        plot.axis_y_min = self.round_down_to(min_y, 5)
+        plot.axis_y_max = DayChartStrip.round_up_to(max_y, 5)
+        plot.axis_y_min = DayChartStrip.round_down_to(min_y, 5)
 
         # vertical_ticks = abs(plot.axis_y_max) // 5 + abs(plot.axis_y_min) // 5
         vertical_ticks = abs(plot.axis_y_max - plot.axis_y_min) // 5
@@ -48,5 +51,24 @@ class TemperatureStrip(DayChartStrip):
         plot.grid_count_horiz = None
         return plot
 
+    def h48plot(self, font: FrameBufferFont, max_y: float, min_y: float, h_start: int, h_count: int) -> Plot:
+        plot = LinePlot(self.colors.map, font)
 
+        # Round max_y and min_y to the nearest multiple of 5
+        plot.axis_y_max = DayChartStrip.round_up_to(max_y, 5)
+        plot.axis_y_min = DayChartStrip.round_down_to(min_y, 5)
 
+        vertical_ticks = abs(plot.axis_y_max - plot.axis_y_min) // 5
+
+        plot.margins(bottom=15)
+        plot.ticks_count(bottom=h_count + 1, top=h_count + 1, left=vertical_ticks + 1)
+        plot.ticks_per_label(bottom=2, left=1)
+        plot.dot_size = 2
+        plot.signals_size = 4
+
+        plot.grid_dash(None, (3, 2))
+        plot.ticks_labels_list(
+            bottom = [str(i % 24) for i in range(h_start, h_start + h_count + 1, 2)],
+            left = [num for num in range(plot.axis_y_min, plot.axis_y_max + 1, 5)])
+        plot.colormap['grid'] = self.colors.DARK
+        return plot

@@ -8,11 +8,12 @@ logger = logging.getLogger(__name__)
 
 class DayChartStrip:
 
-    def __init__(self, astro: dict, colors: Colors):
+    def __init__(self, astro: dict, colors: Colors, provider):
         self.colors = colors
         # self.days_count = len(astro['astro'])
         self.days_count = 3
         self.start_day = min(astro['astro'], key=lambda i: i['day']['day_offset'])['day']['date']
+        self.provider = provider
 
     def debug(self, align: int, message: str):
         logger.debug(f"{' '*2*align}{message}")
@@ -73,19 +74,8 @@ class DayChartStrip:
         lt = time.localtime(time.mktime((y, m, d, 0, 0, 0, 0, 0)) + (hours * 60 * 60))
         return "%04d-%02d-%02dT%02d:00:00" % (lt[0], lt[1], lt[2], lt[3])
 
-    def begin_draw(self, font: FrameBufferFont, max_y: float) -> Plot:
-        raise NotImplementedError()
-
-    def end_past_draw(self, plot: Plot) -> Plot:
-        raise NotImplementedError()
-
-    def begin_frsct_draw(self, plot: Plot) -> Plot:
-        raise NotImplementedError()
-
-    def end_frsct_draw(self, plot: Plot) -> Plot:
-        raise NotImplementedError()
-
-    def range(self, list_of_list) -> tuple:
+    @staticmethod
+    def range(list_of_list) -> tuple:
         max_y, min_y = None, None
         for raw_ys in list_of_list:
             ys = [y for y in raw_ys if y is not None]
@@ -120,7 +110,7 @@ class DayChartStrip:
                         self.ceil(min(min_y, _min_y) if min_y is not None else _min_y))
         self.debug(logalign,"MAX/MIN RANGE VALUES: {}, {}".format(max_y, min_y))
 
-        plot = self.begin_draw(font, max_y, min_y)
+        plot = self.provider.begin_draw(font, max_y, min_y)
         self.debug(logalign,f"MAX/MIN VALUE: {plot.axis_y_max}, {plot.axis_y_min}")
 
         # PAST values:
@@ -134,12 +124,12 @@ class DayChartStrip:
             self.debug(logalign, f"PAST {i}, data: {ys}")
             plot.draw(FrameBufferOffset(fb, x, y, width, height), None, ys)
             x += width - 2
-            self.end_past_draw(plot)
+            self.provider.end_past_draw(plot)
         logalign -= 1
         self.debug(logalign, f"PAST completed.")
 
         # FRCST values:
-        self.begin_frsct_draw(plot)
+        self.provider.begin_frsct_draw(plot)
         # back to previous plot, to draw future values on it
         x -= width - 2
 
@@ -164,7 +154,7 @@ class DayChartStrip:
                 plot.signals(bottom=[], top=[])
             self.debug(logalign,f"FRCST SIGNALs: {plot.signals()}, colors: {plot.colormap}")
             plot.draw(FrameBufferOffset(fb, x, y, width, height), None, ys)
-            self.end_frsct_draw(plot, i == self.days_count - 2)
+            self.provider.end_frsct_draw(plot, i == self.days_count - 2)
             x = x + width - 2
         logalign -= 1
         self.debug(logalign, f"FRCST completed.")
