@@ -10,8 +10,11 @@ import framebuf
 import json
 import time  # don't trust intellij that suggest this module is not used. It is.
 from meteoparts.astropart import AstroPart
+from meteoparts.daychartstrip import DayChartStrip
 from meteoparts.temperaturestrip import TemperatureStrip
 from meteoparts.precipitationstrip import PrecipitationStrip
+from meteoparts.daylightstrip import DayLightStrip
+from meteoparts.h48chartstrip import H48ChartStrip
 from plot import *
 from toolbox.framebufext import FrameBufferExtension, FrameBufferFont, FrameBufferOffset, FM
 from colors import Colors
@@ -133,8 +136,11 @@ class MeteoDisplay:
     def direction(self, fb, x, y, direction: str, angle: int):
         return self._meteo_item(fb, x, y, "images/compass.fb", direction, FM.get.bold.font(26), 140, unit=str(angle) + "°")
 
-    def calendar(self, fb, _x, _y, _w, _h, date: str, weekday: str):
-        image = FrameBufferExtension.fromfile("images/weekday.fb")
+    def calendar(self, fb, _x, _y, _w, _h, date: str, weekday: str, icon: str):
+        if icon is not None:
+            image = FrameBufferExtension.fromfile(f"images/64x64/{icon}.fb")
+        else:
+            image = FrameBufferExtension.fromfile("images/weekday.fb")
         window = FrameBufferOffset(fb, _x, _y, _w, _h)
         window = self.frame(window)
         window.blit(image, 10, 19, self.colors.WHITE)
@@ -269,7 +275,7 @@ class MeteoDisplay:
         width -= 16
 
         charts = FrameBufferOffset(self.fb, x + d + off_x, y + d + off_y, width - 2*d - off_x - width_off, height - 2*d)
-        PrecipitationStrip(data['astro'], self.colors).draw(
+        DayChartStrip(data['astro'], self.colors, PrecipitationStrip(self.colors)).draw(
             charts,
             FM.get.bold.font(12),
             data['precipitation']['time'],
@@ -277,13 +283,51 @@ class MeteoDisplay:
             data['meteofcst']['time'],
             data['meteofcst']['precipitation']['average'])
 
-        TemperatureStrip(data['astro'], self.colors).draw(
+        DayChartStrip(data['astro'], self.colors, TemperatureStrip(self.colors)).draw(
             charts,
             FM.get.bold.font(12),
             data['temperature']['time'],
             data['temperature']['values'],
             data['meteofcst']['time'],
             data['meteofcst']['temperature']['air'])
+
+
+    def only_forecst(self, fb, x, y, width, height, data: dict):
+        d = MeteoDisplay.FRAME_THICKNESS + 2
+        off_x, off_y = 13, 4 # additional offset for scale, that has to be out of buffer frame
+        width_off = 8 # additional width cut from the right for scale labels
+        self.frame(FrameBufferOffset(fb, x, y, width, height), self.colors.BLACK, self.colors.WHITE)
+
+        fb.blit(FrameBufferExtension.fromfile('images/temperature-16.fb'), x+d, y + d + 48, self.colors.WHITE)
+        off_x, off_y = off_x + 16, off_y
+
+        fb.blit(FrameBufferExtension.fromfile('images/rain.fb'), width - d - 16, y + d + 48, self.colors.WHITE)
+        width -= 16
+
+        charts = FrameBufferOffset(self.fb, x + d + off_x, y + d + off_y, width - 2*d - off_x - width_off, height - 2*d)
+
+        H48ChartStrip(self.colors, DayLightStrip(self.colors)).draw(
+            charts,
+            FM.get.bold.font(12),
+            data['meteofcst']['time'],
+            [(i + 1) % 2 for i in [1]*4 + [0]*7 + [1]*17 + [0]*7 + [1]*13]
+        )
+
+        H48ChartStrip(self.colors, PrecipitationStrip(self.colors)).draw(
+            charts,
+            FM.get.bold.font(12),
+            data['meteofcst']['time'],
+            data['meteofcst']['precipitation']['average'],
+        )
+
+        H48ChartStrip(self.colors, TemperatureStrip(self.colors)).draw(
+            charts,
+            FM.get.bold.font(12),
+            data['meteofcst']['time'],
+            data['meteofcst']['temperature']['air'],
+        )
+
+
 
     def update(self, data: dict):
         self.fb.fill(self.colors.LIGHT)
@@ -323,7 +367,7 @@ class MeteoDisplay:
         window = self.fb.rectround(x, y, w, h, self.colors.BLACK, 10, True)
         x, y = inner_margin, inner_margin
         w, h = w - 2*inner_margin, ((h - 2*inner_margin) // 2) - inner_space // 2
-        _, y = self.calendar(window, x, y, w, h,thedate, data['astro']['datetime']['weekday'])
+        _, y = self.calendar(window, x, y, w, h,thedate, data['astro']['datetime']['weekday'], data['meteo']['icon'] if 'icon' in data['meteo'] else None)
         y += inner_space
         x, y = self.holiday(window, x, y, w, h, data['holidays']['holidays'])
 
@@ -333,7 +377,8 @@ class MeteoDisplay:
 
         # Temperature and precipitation history/forecast:
         x, y = x, 278
-        self.past_and_forecst(self.fb, x, y, w, h, data)
+        # self.past_and_forecst(self.fb, x, y, w, h, data)
+        self.only_forecst(self.fb, x, y, w, h, data)
 
         # Undervoltage warning (overlay on top):
         if data.get('undervoltage', False):

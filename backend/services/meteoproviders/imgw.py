@@ -1,3 +1,4 @@
+import json
 import logging
 import datetime
 import re
@@ -9,7 +10,7 @@ logger = logging.getLogger("onair.imgw")
 
 iconmap = {
     "n0z00d": "sun",
-    "n0z10d": "sun",
+    "n0z10d": "sun-fog",
     "n0z50d": "cloud-sun-rain",
     "n0z60d": "cloud-sun-rain",
     "n0z70d": "cloud-sun-snow",
@@ -17,7 +18,7 @@ iconmap = {
     "n0z90d": "thunderstorm-sun",
 
     "n1z00d": "sun",
-    "n1z10d": "sun",
+    "n1z10d": "sun-fog",
     "n1z50d": "cloud-sun-rain",
     "n1z60d": "cloud-sun-rain",
     "n1z70d": "cloud-sun-snow",
@@ -33,7 +34,7 @@ iconmap = {
     "n2z90d": "thunderstorm-sun",
 
     "n3z00d": "cloud-sun",
-    "n3z10d": "cloud-sun",
+    "n3z10d": "cloud-sun-fog",
     "n3z50d": "cloud-sun-rain",
     "n3z60d": "cloud-sun-rain",
     "n3z70d": "cloud-sun-snow",
@@ -42,7 +43,7 @@ iconmap = {
     "n3z00d": "cloud-sun",
 
     "n4z00d": "cloud-sun",
-    "n4z10d": "cloud-sun",
+    "n4z10d": "cloud-sun-fog",
     "n4z50d": "cloud-sun-rain",
     "n4z60d": "cloud-sun-rain",
     "n4z70d": "cloud-sun-snow",
@@ -51,7 +52,7 @@ iconmap = {
     "n4z00d": "cloud-sun",
 
     "n5z00d": "cloud-sun",
-    "n5z10d": "cloud-sun",
+    "n5z10d": "cloud-sun-fog",
     "n5z50d": "cloud-sun-rain",
     "n5z60d": "cloud-sun-rain",
     "n5z70d": "cloud-sun-snow",
@@ -83,7 +84,7 @@ iconmap = {
     "n8z90d": "cloud-snow",
 
     "n0z00n": "moon",
-    "n0z10n": "moon",
+    "n0z10n": "moon-fog",
     "n0z50n": "cloud-moon-rain",
     "n0z60n": "cloud-moon-rain",
     "n0z70n": "cloud-moon-snow",
@@ -91,15 +92,15 @@ iconmap = {
     "n0z90n": "thunderstorm-moon",
 
     "n1z00n": "moon",
-    "n1z10n": "moon",
+    "n1z10n": "moon-fog",
     "n1z50n": "cloud-moon-rain",
     "n1z60n": "cloud-moon-rain",
     "n1z70n": "cloud-moon-snow",
     "n1z80n": "cloud-moon-rain",
     "n1z90n": "thunderstorm-moon",
 
-    "n2z00n": "cloud-moon",
-    "n2z10n": "cloud-moon",
+    "n2z00n": "moon",
+    "n2z10n": "moon-fog",
     "n2z50n": "cloud-moon-rain",
     "n2z60n": "cloud-moon-rain",
     "n2z70n": "cloud-moon-snow",
@@ -107,7 +108,7 @@ iconmap = {
     "n2z90n": "thunderstorm-moon",
 
     "n3z00n": "cloud-moon",
-    "n3z10n": "cloud-moon",
+    "n3z10n": "cloud-moon-fog",
     "n3z50n": "cloud-moon-rain",
     "n3z60n": "cloud-moon-rain",
     "n3z70n": "cloud-moon-snow",
@@ -115,7 +116,7 @@ iconmap = {
     "n3z90n": "thunderstorm-moon",
 
     "n4z00n": "cloud-moon",
-    "n4z10n": "cloud-moon",
+    "n4z10n": "cloud-moon-fog",
     "n4z50n": "cloud-moon-rain",
     "n4z60n": "cloud-moon-rain",
     "n4z70n": "cloud-moon-snow",
@@ -123,7 +124,7 @@ iconmap = {
     "n4z90n": "thunderstorm-moon",
 
     "n5z00n": "cloud-moon",
-    "n5z10n": "cloud-moon",
+    "n5z10n": "cloud-moon-fog",
     "n5z50n": "cloud-moon-rain",
     "n5z60n": "cloud-moon-rain",
     "n5z70n": "cloud-moon-snow",
@@ -153,7 +154,6 @@ iconmap = {
     "n8z70n": "cloud-snow",
     "n8z80n": "cloud-rain",
     "n8z90n": "cloud-snow",
-    None: None
 }
 
 
@@ -219,6 +219,9 @@ class IMGWProvider(MeteoProvider):
     async def forecast(self) -> dict:
         data = (await self.data())['data']['Data']
         data = [i for i in data if i['Type'] == 'Type_Hour']
+        # if logger.level == logging.DEBUG:
+        #     with open("imgw.json", "w") as f:
+        #         json.dump(data, f, indent=2)
         return {
             'time': datetime.datetime.fromisoformat(data[0]['Date']).astimezone().strftime("%Y-%m-%dT%H:%M:%S"),
             'temperature': {
