@@ -238,6 +238,7 @@ class IMGWProvider(MeteoProvider):
                 'rain': [round(float(value['Rain']), 1) for value in data],
                 'snow': [round(float(value['Snow']), 1) for value in data],
             },
+            'irradiance_radiation': [round(float(value['Irradiance_Radiation']), 1) for value in data],
             'icon': [iconmap[value['Icon']] for value in data],
         }
 

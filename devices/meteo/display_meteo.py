@@ -1,3 +1,5 @@
+from meteoparts.iconstrip import IconsStrip
+
 if __name__ == "__main__":
     import sys
     sys.path.append('../../micropython')
@@ -306,12 +308,13 @@ class MeteoDisplay:
 
         charts = FrameBufferOffset(self.fb, x + d + off_x, y + d + off_y, width - 2*d - off_x - width_off, height - 2*d)
 
-        H48ChartStrip(self.colors, DayLightStrip(self.colors)).draw(
-            charts,
-            FM.get.bold.font(12),
-            data['meteofcst']['time'],
-            [(i + 1) % 2 for i in [1]*4 + [0]*7 + [1]*17 + [0]*7 + [1]*13]
-        )
+        if 'irradiance_radiation' in data['meteofcst']:
+            H48ChartStrip(self.colors, DayLightStrip(self.colors)).draw(
+                charts,
+                FM.get.bold.font(12),
+                data['meteofcst']['time'],
+                [0 if float(value) > 0 else 1 for value in data['meteofcst']['irradiance_radiation']]
+            )
 
         H48ChartStrip(self.colors, PrecipitationStrip(self.colors)).draw(
             charts,
@@ -327,6 +330,7 @@ class MeteoDisplay:
             data['meteofcst']['temperature']['air'],
         )
 
+        IconsStrip(self.colors).draw(charts, data['meteofcst']['icon'][0:H48ChartStrip.HOURS_COUNT])
 
 
     def update(self, data: dict):
