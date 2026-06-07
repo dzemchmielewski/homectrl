@@ -147,11 +147,11 @@ class StairsApplication(BoardApplication):
         return self.light.endpoint.value / 5
 
     def allow_light(self):
-        if self.CONF_USE_MQTT:
-            return self.darkness.value
-        else:
-            return self.isnight.value
-        #return True
+        # if self.CONF_USE_MQTT:
+        #     return self.darkness.value
+        # else:
+        #     return self.isnight.value
+        return True
 
     async def light_task(self):
         while not self.exit:
@@ -226,6 +226,14 @@ class StairsApplication(BoardApplication):
             if self.ap_switch.value != self.ap_switch.endpoint.value():
                 self.ap_switch.value = self.ap_switch.endpoint.value()
                 boot.setup_ap(self.ap_switch.value)
+                if self.ap_switch.value:
+                    import webrepl
+                    try:
+                        webrepl.start(password=Configuration.WEBREPL_PASSWORD)
+                        self.loaded['webrepl'] = True
+                        print("SUCCESS webrepl load")
+                    except Exception:
+                        pass
             await asyncio.sleep_ms(1_000)
 
     async def isnight_task(self):
