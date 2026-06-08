@@ -313,7 +313,7 @@ class MeteoDisplay:
                 charts,
                 FM.get.bold.font(12),
                 data['meteofcst']['time'],
-                [0 if float(value) > 0 else 1 for value in data['meteofcst']['irradiance_radiation']]
+                [0 if float(value) > 5 else 1 for value in data['meteofcst']['irradiance_radiation']]
             )
 
         H48ChartStrip(self.colors, PrecipitationStrip(self.colors)).draw(
@@ -330,7 +330,8 @@ class MeteoDisplay:
             data['meteofcst']['temperature']['air'],
         )
 
-        IconsStrip(self.colors).draw(charts, data['meteofcst']['icon'][0:H48ChartStrip.HOURS_COUNT])
+        if 'icon' in data['meteofcst']:
+            IconsStrip(self.colors).draw(charts, data['meteofcst']['icon'][0:H48ChartStrip.HOURS_COUNT])
 
 
     def update(self, data: dict):
@@ -374,7 +375,6 @@ class MeteoDisplay:
         _, y = self.calendar(window, x, y, w, h,thedate, data['astro']['datetime']['weekday'], data['meteo']['icon'] if 'icon' in data['meteo'] else None)
         y += inner_space
         x, y = self.holiday(window, x, y, w, h, data['holidays']['holidays'])
-
 
         x, y, w, h  = 2, 380, self.fb.width - 2 * 2, 98
         self.sunmoon(self.fb, x, y, w, h, data)

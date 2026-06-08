@@ -165,6 +165,11 @@ class IMGWProvider(MeteoProvider):
         self.longitude = longitude
         self.recent_data = None
 
+    def mapicon(self, value):
+        if value in iconmap:
+            return iconmap[value]
+        return None
+
     async def data(self):
         async with aiohttp.ClientSession() as session:
             async with session.get("https://meteo.imgw.pl/shared/web-components/serwisy-imgw/serwisy-imgw.js") as response:
@@ -189,8 +194,6 @@ class IMGWProvider(MeteoProvider):
 
     async def current(self):
         cond = (await self.data())['data']['Data'][0]
-        icon = iconmap[
-            cond['Icon'] if 'Icon' in cond else (cond['Icon10'] if 'Icon10' in cond else None)]
         return {
             'temperature': self.K_to_C(float(cond['Temperature'])),
             'humidity': round(float(cond['Humidity']), 1),
@@ -210,7 +213,7 @@ class IMGWProvider(MeteoProvider):
                 }
             },
             'solar_radiation': float(cond['Irradiance_Radiation']),
-            'icon': icon,
+            'icon': self.mapicon(cond['Icon'] if 'Icon' in cond else (cond['Icon10'] if 'Icon10' in cond else None)),
             'date': datetime.datetime.fromisoformat(cond['Date']).astimezone(),
             'create_at': datetime.datetime.now(),
             'source': self.name,
@@ -239,7 +242,7 @@ class IMGWProvider(MeteoProvider):
                 'snow': [round(float(value['Snow']), 1) for value in data],
             },
             'irradiance_radiation': [round(float(value['Irradiance_Radiation']), 1) for value in data],
-            'icon': [iconmap[value['Icon']] for value in data],
+            'icon': [self.mapicon(value['Icon']) for value in data],
         }
 
 if __name__ == "__main__":
