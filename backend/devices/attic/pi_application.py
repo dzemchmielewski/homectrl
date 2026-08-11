@@ -65,12 +65,15 @@ class PiApplication:
         self.use_mqtt = use_mqtt
         if self.use_mqtt:
             self.mqtt = None
-            self.topic_live, self.topic_state, self.topic_capabilities, topic_control = (
+            self.topic_live, self.topic_data, self.topic_state, self.topic_capabilities, topic_control = (
                 Topic.Device.format(name, Topic.Device.Facility.live),
                 Topic.Device.format(name, Topic.Device.Facility.state),
+                Topic.Device.format(name, Topic.Device.Facility.data),
                 Topic.Device.format(name, Topic.Device.Facility.capabilities),
                 Topic.Device.format(name, Topic.Device.Facility.control))
             self.mqtt_subscriptions = {topic_control: None}
+        else:
+            [self.topic_live, self.topic_data, self.topic_state, self.topic_capabilities] = [None] * 4
 
         self.control = {}
         self.capabilities = {'controls': []}

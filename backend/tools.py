@@ -391,14 +391,15 @@ class MQTTMonitor:
                 data = json_deserial(message)
                 if hasattr(data, 'get') and callable(getattr(data, 'get')) and data.get("radar"):
 
-                    self.logger.info("[RADAR][{}][{}][{}][{}][{}][MOV: {:03}cm, {:03}%][STA: {:03}cm, {:03}%][DST: {:03}cm] [{}]".format(
+                    self.logger.info("[RADAR][{}][{}][{}][{}][{}][MOV: {:03}cm, {:03}%][STA: {:03}cm, {:03}%][DST: {:03}cm] ".format(
                         msg.topic,
                         " ON" if data["presence"] else "OFF", self.target_state(data["radar"]["target_state"]),
-                        ("NIGHT" if data["darkness"] else " DAY ") if data.get("darkness") else " - ",
-                        "light  ON" if data["light"] else "light OFF",
+                        # ("NIGHT" if data["darkness"] else " DAY ") if data.get("darkness") else " - ",
+                        # "light  ON" if data["light"] else "light OFF",
+                        "-", "-",
                         data["radar"]["move"]["distance"], data["radar"]["move"]["energy"],
                         data["radar"]["static"]["distance"], data["radar"]["static"]["energy"],
-                        data["radar"]["distance"], data["presence_read_time"]))
+                        data["radar"]["distance"]))
         except BaseException as e:
             self.logger.error("ERROR! {}".format(e))
 

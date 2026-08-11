@@ -79,6 +79,7 @@ iconmap = {
     "n8z10d": "fog",
     "n8z50d": "cloud-rain",
     "n8z60d": "cloud-rain",
+    "n8z63d": "cloud-rain",
     "n8z70d": "cloud-snow",
     "n8z80d": "cloud-rain",
     "n8z90d": "cloud-snow",
@@ -151,6 +152,7 @@ iconmap = {
     "n8z10n": "fog",
     "n8z50n": "cloud-rain",
     "n8z60n": "cloud-rain",
+    "n8z63n": "cloud-rain",
     "n8z70n": "cloud-snow",
     "n8z80n": "cloud-rain",
     "n8z90n": "cloud-snow",
@@ -236,20 +238,20 @@ class IMGWProvider(MeteoProvider):
             'wind_speed': [float(value['Wind_Speed']) for value in data],
             'wind_direction': [int(value['Wind_Dir']) for value in data],
             'precipitation': {
-                'average': [round(float(value['Precipitation']), 1) for value in data],
+                'average': [round(float(value['Precipitation'] if 'Precipitation' in value else value['Precipitation10m']), 1) for value in data],
                 'probability': [],
-                'rain': [round(float(value['Rain']), 1) for value in data],
-                'snow': [round(float(value['Snow']), 1) for value in data],
+                'rain': [round(float(value['Rain'] if 'Rain' in value else value['Rain10m']), 1) for value in data],
+                'snow': [round(float(value['Snow'] if 'Snow' in value else value['Snow10m']), 1) for value in data],
             },
             'irradiance_radiation': [round(float(value['Irradiance_Radiation']), 1) for value in data],
-            'icon': [self.mapicon(value['Icon']) for value in data],
+            'icon': [self.mapicon(value['Icon'] if 'Icon' in value else value['Icon10']) for value in data],
         }
 
 if __name__ == "__main__":
     import asyncio
     from configuration import Configuration
 
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     logger.setLevel(logging.INFO)
 
     async def main():

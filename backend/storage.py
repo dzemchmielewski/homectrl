@@ -6,6 +6,9 @@ from io import BytesIO
 
 import peewee
 from peewee import Model, CharField, DateTimeField, DecimalField, BooleanField, IntegerField, TextField, ForeignKeyField, BlobField
+
+# Do not remove - it is used by other service as:
+# from storage import model_to_dict
 from playhouse.shortcuts import model_to_dict
 
 from configuration import Configuration
@@ -19,7 +22,7 @@ def on_start():
     with database:
         database.create_tables(entities())
     with database:
-        for name in [["kitchen", "Kitchen"], ["radio", "Radio"], ["pantry", "Pantry"], ["wardrobe", "Wardrobe"], ["dev", "Dev"], ["bathroom", "Bathroom"], ["socket", "Power Socket"], ['meteo', 'Meteo Display']]:
+        for name in [["radio", "Radio"], ["dev", "Dev"], ["socket", "Power Socket"], ['meteo', 'Meteo Display'], ['attic', 'Attic']]:
             try:
                 Name.get_or_create(value=name[0], description=name[1])
             except BaseException as e:
@@ -66,6 +69,7 @@ class BaseModel(Model):
 class Name(BaseModel):
     value = CharField(max_length=25, primary_key=True)
     description = TextField(null=True)
+    enabled = BooleanField(default=False)
 
     @classmethod
     def get_last(cls, name=None):
@@ -102,6 +106,15 @@ class Laundry(BaseModel):
                 })
             return result
 
+class Message(BaseModel):
+    issued = DateTimeField(null=True)
+    value = TextField()
+    create_at = DateTimeField()
+    type = CharField()
+
+    @classmethod
+    def get_laundry_message(cls):
+        return cls.select().where((cls.type == 'laundry') & (cls.issued.is_null())).limit(1).get_or_none()
 
 class HomeCtrlBaseModel(BaseModel):
     name = ForeignKeyField(Name, on_update='CASCADE')
@@ -242,15 +255,22 @@ class Radio(HomeCtrlBaseModel):
 class Radar(HomeCtrlBaseModel):
     presence = BooleanField()
     target_state = IntegerField()
-    # move_distance = IntegerField()
-    # move_energy = IntegerField()
-    # static_distance = IntegerField()
-    # static_energy = IntegerField()
     distance = IntegerField()
 
+    # Debug fields:
+    move_distance = IntegerField()
+    move_energy = IntegerField()
+    static_distance = IntegerField()
+    static_energy = IntegerField()
+
+    # Equals by id:
     def equals(self, other: Self) -> bool:
         return (other and type(other) is type(self)
-                and other.presence == self.presence and other.target_state == self.target_state and other.distance == self.distance)
+                and self.id == other.id)
+
+    # def equals(self, other: Self) -> bool:
+    #     return (other and type(other) is type(self)
+    #             and other.presence == self.presence and other.target_state == self.target_state and other.distance == self.distance)
 
     @classmethod
     def get_currents(cls):

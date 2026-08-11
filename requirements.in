@@ -42,7 +42,15 @@ numpy>=1.26
 matplotlib>=3.8
 pillow
 freetype-py
-pycairo
+# pycairo
 
 # GPIO
 gpiozero
+
+# I2C
+smbus2
+
+argparse
+argcomplete
+ping3
+human-readable

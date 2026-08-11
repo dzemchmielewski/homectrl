@@ -267,9 +267,6 @@ app.include_router(api.router)
 origins = [
     "http://localhost:3000",
     "http://localhost:8080",
-    "http://192.168.0.24:3000",
-    "http://192.168.0.24:80",
-    "http://192.168.0.24",
     "http://status.home.arpa:3000",
     "http://status.home.arpa:80",
     "http://status.home.arpa",
@@ -329,6 +326,6 @@ if __name__ == "__main__":
     #     bind_to = '192.168.0.24'
     # else:
     #     bind_to = 'localhost'
-    bind_to = '192.168.0.24'
+    bind_to = 'status.home'
 
     uvicorn.run("__main__:app", host=bind_to, port=8000, workers=1, log_config=UVICORN_LOG_CONFIG)

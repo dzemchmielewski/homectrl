@@ -14,7 +14,7 @@ parser.add_argument("service",  choices=services, help="Backend service to start
 argcomplete.autocomplete(parser)
 args = parser.parse_args()
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 for handler in logging.getLogger().handlers:
     handler.setFormatter(logging.Formatter("[%(asctime)s][%(levelname)s][%(name)s] %(message)s"))
 
@@ -43,7 +43,7 @@ elif system == "restapi":
     from backend.restapi import app, UVICORN_LOG_CONFIG
 
     if socket.gethostname() == 'pi':
-        bind_to = '192.168.0.24'
+        bind_to = 'status.home'
     else:
         bind_to = 'localhost'
 

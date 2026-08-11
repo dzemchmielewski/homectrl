@@ -38,6 +38,7 @@ class Devices(OnAirService):
 
                     for entry in self.data2entries(data):
                         status_current = self.status.get(type(entry))
+                        logger.debug(f"ENTRY: {entry}, current status: {status_current}")
                         if status_current is not None:
 
                             try :
@@ -82,7 +83,7 @@ class Devices(OnAirService):
                 #     print(line.strip())
 
     @staticmethod
-    def data2entries(data: dict) -> [storage.HomeCtrlValueBaseModel]:
+    def data2entries(data: dict) -> list:
         result = [storage.Live(name=data["name"], create_at=data["timestamp"], value=data.get("live") is None or data.get("live"))]
         for key, value in data.items():
             if key in ["temperature", "humidity", "darkness", "light", "presence", "pressure", "voltage", "error", "moisture", "doors", "bell", "lux"]:
@@ -92,8 +93,10 @@ class Devices(OnAirService):
             elif key == "radar" and value is not None:
                 result.append(storage.Radar(name=data["name"], create_at=data["timestamp"],
                                     presence=value["presence"], target_state=value["target_state"],
-                                    # move_distance=value["move"]["distance"], move_energy=value["move"]["energy"],
-                                    # static_distance=value["static"]["distance"], static_energy=value["static"]["energy"],
+                                    # Save for debug:
+                                    move_distance=value["move"]["distance"], move_energy=value["move"]["energy"],
+                                    static_distance=value["static"]["distance"], static_energy=value["static"]["energy"],
+                                    # ---
                                     distance=value["distance"]))
             elif key == "radio" and value is not None:
                 result.append(storage.Radio(name=data["name"], create_at=data["timestamp"],

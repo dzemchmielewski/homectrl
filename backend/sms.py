@@ -1,9 +1,10 @@
 import datetime
 from urllib import parse, request, error
 from configuration import Configuration
+from backend.storage import Message
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("sms")
 
 class SMS:
 
@@ -36,9 +37,19 @@ class SMS:
 
     def laundry(self):
         logger.info("Sending laundry SMS...")
-        msg = "Pranie trzeba ogarnąć. Godzina: {} ref: http://status.home/".format(datetime.datetime.now().strftime("%H:%M"))
-        result = self._smsplanet_post("sms", {"from": self.sender, "to": self.recipients, "msg": msg})
-        logger.info("Sending laundry SMS: {}".format(result))
+        msg = Message.get_laundry_message()
+        if msg is not None:
+            text = msg.value
+            logger.info("Sending laundry SMS: {}".format(text))
+            result = self._smsplanet_post("sms", {"from": self.sender, "to": self.recipients, "msg": text})
+            logger.info("Sending laundry SMS result: {}".format(result))
+            msg.issued = datetime.datetime.now()
+            msg.save()
+
+        else:
+            logger.fatal("No laundry message available")
+            result = None
+
         return result
 
     def balance(self):
