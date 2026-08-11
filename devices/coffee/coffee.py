@@ -32,16 +32,16 @@ from max17043 import MAX17043
 from shaker import Shaker, GRINDING, IDLE
 from hcsr04 import HCSR04
 
-IDLE_SLEEP_TIMEOUT = const(90) # sec
+IDLE_SLEEP_TIMEOUT = const(10) # sec
 
 LID_OPENED = const(0x1)
 LID_CLOSED = const(0x0)
 
 MSG_DEFAULT = const("bedziem mielu?")
 MSG_LID_OPENED = const("włajaż włajaż")
-MSG_GRINDING = "mielu mielu"
-MSG_GRINDING_COMPLETE = "zmełłem"
-MSG_COFFEE_PANIC = "panika !!!"
+MSG_GRINDING = const("mielu mielu")
+MSG_GRINDING_COMPLETE = const("zmełłem")
+MSG_COFFEE_PANIC = const("panika !!!")
 
 LEVEL_MEASURE_SAMPLES = 11 # odd number to easy find the median
 #LEVEL_MEASURE_CALIBRATION = 2.4
@@ -104,7 +104,7 @@ class CoffeeApplication(BoardApplication):
         self.shaker = Shaker(Pin(32, Pin.IN), Pin(26, Pin.OUT), self.shaker_event)
         self.redbtn = Button("redbtn", Pin(35, Pin.IN, Pin.PULL_DOWN), self.click_event, self.long_click_event)
         self.tasks = [
-            LedPulses(Pin(33, Pin.OUT), [5, 995], initial=False),
+            LedPulses(Pin(33, Pin.OUT), [5, 1995], initial=False),
             self.shaker,
             self.redbtn,
         ]
@@ -120,7 +120,7 @@ class CoffeeApplication(BoardApplication):
                          Pin(13, Pin.IN)) #BUSY
         self.view = CoffeeView(296, 128, framebuf.MONO_HLSB)
         self.display = Facility("display", Pin(25, Pin.OUT), False)
-        self.lid = Facility("lid", Pin(18, Pin.IN), None)
+        self.lid = Facility("lid", Pin(18, Pin.IN), LID_CLOSED)
         self.level = HCSR04(trigger=Pin(5, Pin.OUT), echo_pin=Pin(17, Pin.IN))
         self.battery = Facility("battery", MAX17043(SoftI2C(scl=Pin(12), sda=Pin(14))),
                                 to_dict=lambda x : {'battery': {'value': x.value[0], 'voltage': x.value[1]}} if x.value is not None else {})
@@ -158,12 +158,14 @@ class CoffeeApplication(BoardApplication):
         if self.lid.value == LID_CLOSED:
             if state == GRINDING:
                 self.dataset('message', MSG_GRINDING, False)
+                ## self.display.value = True
             elif state == IDLE:
-                self.dataset('message', MSG_GRINDING_COMPLETE, False)
+                ## self.dataset('message', MSG_GRINDING_COMPLETE, False)
+                self.dataset('message')
                 self.dataset('coffee')
+                self.display.value = True
             else:
                 return
-            self.display.value = True
         else:
             # no action when lid is opened
             pass
@@ -217,7 +219,7 @@ class CoffeeApplication(BoardApplication):
         while not self.exit:
             if self.display.value:
                 logger.debug("DISPLAY TASK init")
-                self.display.endpoint.on()
+                ### self.display.endpoint.on()
                 await self.wait_until_ready()
                 logger.debug("DISPLAY TASK start")
 
@@ -231,12 +233,7 @@ class CoffeeApplication(BoardApplication):
                     await self.epd.sleep()
                 finally:
                     self.epd.deinit()
-                    self.display.endpoint.off()
-
-                # self.display.endpoint.on()
-                # self.display.value = False
-                # await asyncio.sleep(2)
-                # self.display.endpoint.off()
+                    ### self.display.endpoint.off()
 
                 logger.debug(f"DISPLAY TASK end (next value: {self.display.value})")
             await asyncio.sleep_ms(100)
@@ -250,12 +247,14 @@ class CoffeeApplication(BoardApplication):
                 self.lid.value = current
                 if current == LID_OPENED:
                     self.dataset('message', MSG_LID_OPENED, True)
+                    # self.display.value = True
                 else:
                     # wait a little, to make sure the level sensor is already on place.
                     await asyncio.sleep_ms(200)
-                    self.dataset('message', MSG_DEFAULT)
+                    # self.dataset('message', MSG_DEFAULT)
+                    self.dataset('message')
                     self.dataset('coffee')
-                self.display.value = True
+                    self.display.value = True
             await asyncio.sleep_ms(100)
 
     async def gosleep_task(self):

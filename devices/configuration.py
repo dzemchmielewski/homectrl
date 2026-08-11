@@ -6,7 +6,7 @@ class Configuration:
     MQTT_USERNAME = None
     MQTT_PASSWORD = None
 
-    MQTT_SERVER = "192.168.0.24"
+    MQTT_SERVER = "status.home"
     TOPIC_HOMECTRL = "homectrl"
     TOPIC_HOMECTRL_ONAIR = TOPIC_HOMECTRL + "/onair"
     TOPIC_HOMECTRL_ONAIR_ACTIVITY = TOPIC_HOMECTRL_ONAIR + "/activity"

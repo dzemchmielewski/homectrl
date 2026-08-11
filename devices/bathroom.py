@@ -7,7 +7,7 @@ from pzem import PZEM
 from board.board_application import BoardApplication
 from board.board_shared import Utils as util
 from configuration import Configuration
-from toolbox.bmp_aht import BMP_AHT
+# from toolbox.bmp_aht import BMP_AHT
 
 logging.basicConfig(level=logging.INFO)
 for handler in logging.getLogger().handlers:
@@ -19,7 +19,7 @@ class BathroomApplication(BoardApplication):
         BoardApplication.__init__(self, 'bathroom')
         (_, self.topic_data, _, _, _) = Configuration.topics(self.name)
 
-        self.conditions_reader = BMP_AHT.from_pins(8, 9)
+        # self.conditions_reader = BMP_AHT.from_pins(8, 9)
         self.read_conditions = None
         self.conditions = (None, None, None)
 
@@ -37,10 +37,10 @@ class BathroomApplication(BoardApplication):
 
     def read(self, to_json = True):
         result = {
-            "read_conditions": self.read_conditions,
-            "temperature": self.conditions[0],
-            "pressure": self.conditions[1],
-            "humidity": self.conditions[2],
+            # "read_conditions": self.read_conditions,
+            # "temperature": self.conditions[0],
+            # "pressure": self.conditions[1],
+            # "humidity": self.conditions[2],
             "electricity_summary": self.electricity_summary,
             "electricity": self.electricity,
             "read_electricity": self.read_electricity
@@ -52,9 +52,11 @@ class BathroomApplication(BoardApplication):
             self.pzem.read()
             readings = {
                 "voltage": self.pzem.getVoltage(),
-                "current": round(self.pzem.getCurrent(), 3),
+                # Current need to be greater then 0.07A - washing machine takes some small
+                # power what is messing reading history
+                "current": round(self.pzem.getCurrent(), 3) if self.pzem.getCurrent() > 0.07 else 0,
                 # Active Power need to be greater than 0.4 - washing machine takes some small
-                # power periodically what is messing reading history
+                # power what is messing reading history
                 "active_power": round(self.pzem.getActivePower(), 1) if self.pzem.getActivePower() > 0.4 else 0,
                 "active_energy": self.pzem.getActiveEnergy(),
                 "power_factor": round(self.pzem.getPowerFactor(), 2) if self.pzem.getActivePower() > 0.4 else 0
@@ -70,22 +72,22 @@ class BathroomApplication(BoardApplication):
             await asyncio.sleep(2)
 
 
-    async def conditions_task(self):
-        while not self.exit:
-            readings = (self.conditions_reader.temperature, self.conditions_reader.pressure, self.conditions_reader.humidity)
-            self.read_conditions = util.time_str()
-            if readings != self.conditions:
-                self.conditions = readings
-                await self.publish(self.topic_data, self.read(False), True)
-            await asyncio.sleep(60)
+    # async def conditions_task(self):
+    #     while not self.exit:
+    #         readings = (self.conditions_reader.temperature, self.conditions_reader.pressure, self.conditions_reader.humidity)
+    #         self.read_conditions = util.time_str()
+    #         if readings != self.conditions:
+    #             self.conditions = readings
+    #             await self.publish(self.topic_data, self.read(False), True)
+    #         await asyncio.sleep(60)
 
     async def start(self):
         await super().start()
         self._electricity_task = asyncio.create_task(self.electricity_task())
-        self._conditions_task = asyncio.create_task(self.conditions_task())
+        # self._conditions_task = asyncio.create_task(self.conditions_task())
 
     def deinit(self):
         super().deinit()
         self._electricity_task.cancel()
-        self._conditions_task.cancel()
+        # self._conditions_task.cancel()
 

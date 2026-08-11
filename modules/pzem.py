@@ -344,6 +344,21 @@ class PZEM:
                 self.Current = (
                     frame[5] << 8 | frame[6] | frame[7] << 24 | frame[8] << 16
                 ) / 1000
+
+                # This weird line is caused by the following issue in
+                # Micropython float32 representation:
+                #
+                # >>> v=0.064
+                # >>> v
+                # 0.06400001
+                # >>> v == 0.064
+                # True
+                #
+                # it makes impossible to round this value with 3 digits precision
+                # Let's make 0.063 to solve this. The difference is too small
+                # to fight with that in another way.
+                self.Current = 0.063 if self.Current == 0.064 else self.Current
+
                 self.ActivePower = (
                     frame[9] << 8 | frame[10] | frame[11] << 24 | frame[12] << 16
                 ) / 10

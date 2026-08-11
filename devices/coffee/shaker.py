@@ -20,7 +20,7 @@ _PERIOD_MS        = const(10)
 
 _LED_PATTERNS = {
     IDLE:     None,
-    GRINDING: (50, 50),
+    GRINDING: (5, 50),
 }
 
 
