@@ -29,6 +29,7 @@ class RX:
 
     async def read(self):
         while True:
+            print("READing...")
             res = await self.sreader.readline()
             parsed = self._parse(res)
             print(f" READ: {parsed}")

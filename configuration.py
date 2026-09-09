@@ -2,7 +2,7 @@ import os
 import json
 import re
 from enum import Enum
-from common.communication import SocketCommunication
+# from common.communication import SocketCommunication
 
 
 secret_key_regexp = re.compile(r"\$\{(.+)\}")
@@ -100,10 +100,10 @@ class Configuration:
             return Configuration.MAP[Configuration.COLLECTOR]
         raise NameError("No server with id {} found".format(server_id))
 
-    @staticmethod
-    def get_communication(server_id, name="socket"):
-        config = Configuration.get_config(server_id)
-        return SocketCommunication(name, config["host"], config["port"], is_server=False, read_timeout=30, debug=config["debug"])
+    # @staticmethod
+    # def get_communication(server_id, name="socket"):
+    #     config = Configuration.get_config(server_id)
+    #     return SocketCommunication(name, config["host"], config["port"], is_server=False, read_timeout=30, debug=config["debug"])
 
     @staticmethod
     def get_database_config():

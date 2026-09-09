@@ -7,7 +7,7 @@ import asyncio
 import logging
 import time
 
-services = ["onair", "restapi", "attic", "charts", "devel", "devel-mqtt"]
+services = ["onair", "restapi", "attic", "uroom", "charts", "devel", "devel-mqtt"]
 
 parser = argparse.ArgumentParser(description="HomeCtrl service launcher", add_help=True)
 parser.add_argument("service",  choices=services, help="Backend service to start")
@@ -59,6 +59,9 @@ elif system == "charts":
 elif system == "attic":
     from backend.devices.attic.attic import AtticApplication
     AtticApplication().run()
+elif system == "uroom":
+    from backend.devices.uroom.uroom import URoomApplication
+    URoomApplication().run()
 
 elif system == "devel":
     # put your devel code here

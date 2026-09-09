@@ -6,9 +6,9 @@ class PinIO:
     IN = const('in')
     OUT = const('out')
 
-    def __init__(self,  pin: int, set_initial: int | bool = None, pull: int = -1):
+    def __init__(self,  pin: int, set_initial=None, pull: int = None):
         self.pin_number = pin
-        self. pull = pull
+        self.pull = pull
         self.pin = None
         self.state = None
         self.last_value = None
@@ -17,14 +17,20 @@ class PinIO:
 
     def get(self):
         if not self.state or self.state != PinIO.IN:
-            self.pin = Pin(self.pin_number, Pin.IN, self.pull)
+            if self.pull is not None:
+                self.pin = Pin(self.pin_number, Pin.IN, self.pull)
+            else:
+                self.pin = Pin(self.pin_number, Pin.IN)
             self.state = PinIO.IN
         self.last_value = self.pin.value()
         return self.last_value
 
     def set(self, signal: int | bool):
         if not self.state or self.state != PinIO.OUT:
-            self.pin = Pin(self.pin_number, Pin.OUT, self.pull)
+            if self.pull is not None:
+                self.pin = Pin(self.pin_number, Pin.OUT, self.pull)
+            else:
+                self.pin = Pin(self.pin_number, Pin.OUT)
             self.state = PinIO.OUT
         self.last_value = int(signal) if isinstance(signal, bool) else signal
         self.pin.value(self.last_value)

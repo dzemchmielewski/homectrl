@@ -67,8 +67,8 @@ class PiApplication:
             self.mqtt = None
             self.topic_live, self.topic_data, self.topic_state, self.topic_capabilities, topic_control = (
                 Topic.Device.format(name, Topic.Device.Facility.live),
-                Topic.Device.format(name, Topic.Device.Facility.state),
                 Topic.Device.format(name, Topic.Device.Facility.data),
+                Topic.Device.format(name, Topic.Device.Facility.state),
                 Topic.Device.format(name, Topic.Device.Facility.capabilities),
                 Topic.Device.format(name, Topic.Device.Facility.control))
             self.mqtt_subscriptions = {topic_control: None}
@@ -126,6 +126,7 @@ class PiApplication:
         await self._stop_event.wait()
 
         logger.debug("ASYNC exit")
+        self.deinit()
         if self.use_mqtt:
             logger.debug("mqtt exit")
             await self.publish(self.topic_live, {'live': False}, retain=True)
@@ -143,8 +144,8 @@ class PiApplication:
 
     def deinit(self):
         self.ws_server.shutdown()
-        if self.use_mqtt:
-            self._mqtt_messages_task.cancel()
+        # if self.use_mqtt:
+        #     self._mqtt_messages_task.cancel()
 
     def run(self):
         try:

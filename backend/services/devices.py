@@ -38,7 +38,7 @@ class Devices(OnAirService):
 
                     for entry in self.data2entries(data):
                         status_current = self.status.get(type(entry))
-                        logger.debug(f"ENTRY: {entry}, current status: {status_current}")
+                        logger.debug(f"ENTRY TYPE: {type(entry)}, current status: {status_current}")
                         if status_current is not None:
 
                             try :
@@ -107,8 +107,13 @@ class Devices(OnAirService):
                                           voltage=value.get('voltage'), current=value.get('current'), active_power=value.get('active_power'),
                                           active_energy=value.get('active_energy'), power_factor=value.get('power_factor')))
             elif key == "battery"and value is not None:
-                    result.append(storage.Battery(name=data["name"], create_at=data["timestamp"],
-                                          value=value.get('value'), voltage=value.get('voltage')))
+                result.append(storage.Battery(name=data["name"], create_at=data["timestamp"],
+                                              value=value.get('value'), voltage=value.get('voltage')))
+            elif key == "ceilinglight" and value is not None and isinstance(value, dict):
+                result.extend([storage.CeilingLight(create_at=data["timestamp"],
+                                                    room=room, value=status) for (room, status) in value.items()])
+
+                pass
         return result
 
     def process_entry(self, entry: storage.HomeCtrlBaseModel, db_save=True):

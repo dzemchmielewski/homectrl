@@ -6,7 +6,7 @@ from collections import deque
 import human_readable as hr
 
 from backend.sms import SMS
-from backend.storage import Laundry, model_to_dict, device_entities
+from backend.storage import Laundry, model_to_dict
 from backend.tools import json_serial, json_deserial
 from configuration import Topic
 
@@ -23,7 +23,7 @@ class LaundryOnAir(OnAirService):
         self.sms = SMS()
         self.active_laundry = None
         self.laundry = None
-        self.active_power_queue = deque((), 2)
+        self.active_power_queue = deque((), 1)
         self.floating_start_time = None
         self.start_parameters = None
 
@@ -37,7 +37,7 @@ class LaundryOnAir(OnAirService):
 
     def threshold_crossed(self):
         l = list(self.active_power_queue)
-        return (sum(l)/len(l)) >= 3
+        return (sum(l)/len(l)) >= 2
 
     def on_message(self, client, userdata, msg):
         msg_dec = msg.payload.decode()
@@ -85,15 +85,16 @@ class LaundryOnAir(OnAirService):
                 self.sms.laundry()
 
     def publish(self):
-        output = model_to_dict(self.laundry)
-        output["name"] = "laundry"
-        output["is_active"] = self.laundry.is_active()
-        if not self.laundry.is_active():
-            output["duration"] = hr.precise_delta(self.laundry.end_at - self.laundry.start_at, formatting=".0f")
-            output["energy"] = (self.laundry.end_energy - self.laundry.start_energy) / 1000
+        if self.laundry.id is not None:
+            output = model_to_dict(self.laundry)
+            output["name"] = "laundry"
+            output["is_active"] = self.laundry.is_active()
+            if not self.laundry.is_active():
+                output["duration"] = hr.precise_delta(self.laundry.end_at - self.laundry.start_at, formatting=".0f")
+                output["energy"] = (self.laundry.end_energy - self.laundry.start_energy) / 1000
 
-        message = json_serial(output)
-        logger.info("PUBLISH {} -> {}".format(self.OUTPUT_TOPIC, message))
-        self.mqtt.publish(self.OUTPUT_TOPIC, message, retain=True)
+            message = json_serial(output)
+            logger.info("PUBLISH {} -> {}".format(self.OUTPUT_TOPIC, message))
+            self.mqtt.publish(self.OUTPUT_TOPIC, message, retain=True)
 
 

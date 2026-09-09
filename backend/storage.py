@@ -116,6 +116,15 @@ class Message(BaseModel):
     def get_laundry_message(cls):
         return cls.select().where((cls.type == 'laundry') & (cls.issued.is_null())).limit(1).get_or_none()
 
+class CeilingLight(BaseModel):
+    create_at = DateTimeField()
+    room = TextField()
+    value = BooleanField()
+
+    @property
+    def name(self):
+        return
+
 class HomeCtrlBaseModel(BaseModel):
     name = ForeignKeyField(Name, on_update='CASCADE')
     create_at = DateTimeField()

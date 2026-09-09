@@ -62,6 +62,7 @@ class AtticApplication(PiApplication):
         except Exception as e:
             logger.fatal(f"LD2410 radar error while loading: {e}")
             self.radar = None
+        self.radar = None
 
         try:
             sensor = BMP_AHT.from_bus(1)
@@ -143,10 +144,10 @@ class AtticApplication(PiApplication):
                 else:
                     await self.publish(self.topic_state, self.read(False), retain=True)
 
-                # Temporary monitoring of values when presence is on:
-                while self.presence.endpoint.value == 1:
-                    logger.info(self.radar.get_radar_data())
-                    await asyncio.sleep(1)
+                # # Temporary monitoring of values when presence is on:
+                # while self.presence.endpoint.value == 1:
+                #     logger.info(self.radar.get_radar_data())
+                #     await asyncio.sleep(1)
 
 
     async def conditions_task(self):
