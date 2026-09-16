@@ -18,7 +18,7 @@
       "debug": false,
       "webrepl_password": "${webrepl_password}"
     },
-    "pantry": {
+    "desk": {
       "host": "192.168.0.122",
       "port": 8123,
       "debug": false,
@@ -48,7 +48,7 @@
       "debug": false,
       "webrepl_password": "${webrepl_password}"
     },
-    "desk": {
+    "desk-v1": {
       "host": "192.168.0.127",
       "port": 8123,
       "debug": false,
@@ -139,8 +139,15 @@
     "username": "${mqtt_username}",
     "password": "${mqtt_password}"
   },
-  "database": {
+  "database_v1": {
     "db": "homectrl",
+    "username": "${db_username}",
+    "password": "${db_password}",
+    "host": "status.home",
+    "port": 5432
+  },
+  "database": {
+    "db": "homectrl_v2",
     "username": "${db_username}",
     "password": "${db_password}",
     "host": "status.home",

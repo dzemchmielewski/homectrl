@@ -1,11 +1,9 @@
 import datetime
 from enum import Enum
-from typing import Any, Type, Self
-
-from io import BytesIO
+from typing import Any, Self
 
 import peewee
-from peewee import Model, CharField, DateTimeField, DecimalField, BooleanField, IntegerField, TextField, ForeignKeyField, BlobField
+from peewee import Model, CharField, DateTimeField, DecimalField, BooleanField, IntegerField, TextField
 
 # Do not remove - it is used by other service as:
 # from storage import model_to_dict
@@ -21,13 +19,6 @@ database = peewee.PostgresqlDatabase(db["db"], user=db["username"], password=db[
 def on_start():
     with database:
         database.create_tables(entities())
-    with database:
-        for name in [["radio", "Radio"], ["dev", "Dev"], ["socket", "Power Socket"], ['meteo', 'Meteo Display'], ['attic', 'Attic']]:
-            try:
-                Name.get_or_create(value=name[0], description=name[1])
-            except BaseException as e:
-                print("Exc: {}".format(e))
-                pass
 
 
 class EnumField(CharField):
@@ -66,16 +57,6 @@ class BaseModel(Model):
         database = database
 
 
-class Name(BaseModel):
-    value = CharField(max_length=25, primary_key=True)
-    description = TextField(null=True)
-    enabled = BooleanField(default=False)
-
-    @classmethod
-    def get_last(cls, name=None):
-        return None
-
-
 class Laundry(BaseModel):
     start_at = DateTimeField()
     end_at = DateTimeField(null=True)
@@ -90,7 +71,7 @@ class Laundry(BaseModel):
         return self.start_energy is not None and self.end_at is None
 
     @classmethod
-    def report(cls) -> dict:
+    def report(cls) -> list[dict]:
         with database as db:
             curs = db.execute_sql(f"""
                         select to_char({Laundry.end_at.name}, 'YYYY-MM') as month, count(*), sum({Laundry.end_energy.name} - {Laundry.start_energy.name}) as energy
@@ -116,21 +97,12 @@ class Message(BaseModel):
     def get_laundry_message(cls):
         return cls.select().where((cls.type == 'laundry') & (cls.issued.is_null())).limit(1).get_or_none()
 
-class CeilingLight(BaseModel):
-    create_at = DateTimeField()
-    room = TextField()
-    value = BooleanField()
-
-    @property
-    def name(self):
-        return
-
 class HomeCtrlBaseModel(BaseModel):
-    name = ForeignKeyField(Name, on_update='CASCADE')
+    name = TextField()
     create_at = DateTimeField()
 
-    def save_new_value(self) -> Self:
-        previous = self.get_last(self.name.value)
+    def save_new_value(self) -> Self | None:
+        previous = self.get_last(self.name)
         if not self.equals(previous):
             return self.save(force_insert=True)
         return None
@@ -143,7 +115,7 @@ class HomeCtrlBaseModel(BaseModel):
             return cls.select().where(cls.name == name).order_by(cls.create_at.desc()).limit(1).get_or_none()
 
     @classmethod
-    def get_lasts(cls, name: str, from_date: datetime.datetime = None, to_date: datetime.datetime = None):
+    def get_lasts(cls, name: str, from_date: datetime.datetime | None = None, to_date: datetime.datetime | None = None):
         return (cls.select()
                 .where(cls.name == name, from_date is None or cls.create_at >= from_date, to_date is None or cls.create_at <= to_date)
                 .order_by(cls.create_at.asc()))
@@ -155,8 +127,8 @@ class HomeCtrlValueBaseModel(HomeCtrlBaseModel):
     def get_currents(cls):
         with database:
             subq = (
-                cls.select(peewee.fn.row_number().over(partition_by=cls.name_id, order_by=[cls.create_at.desc()]).alias("row_num"), cls))
-            query = (peewee.Select(columns=[subq.c.id, subq.c.create_at, subq.c.name_id, subq.c.value])
+                cls.select(peewee.fn.row_number().over(partition_by=cls.name, order_by=[cls.create_at.desc()]).alias("row_num"), cls))
+            query = (peewee.Select(columns=[subq.c.id, subq.c.create_at, subq.c.name, subq.c.value])
                      .from_(subq)
                      .where(subq.c.row_num == 1)
                      .bind(database))
@@ -206,7 +178,7 @@ class Error(HomeCtrlValueBaseModel):
         return (other and type(other) is type(self) and
                 self.value == other.value
                 and self.create_at == other.create_at
-                and self.name.value == other.name.value)
+                and self.name == other.name)
 
 
 class Live(HomeCtrlValueBaseModel):
@@ -219,14 +191,14 @@ class Battery(HomeCtrlBaseModel):
     def equals(self, other: Self) -> bool:
         return (other and type(other) is type(self)
                 and self.value == other.value
-                and self.name.value == other.name.value)
+                and self.name == other.name)
 
     @classmethod
     def get_currents(cls):
         with database:
             subq = (
-                cls.select(peewee.fn.row_number().over(partition_by=cls.name_id, order_by=[cls.create_at.desc()]).alias("row_num"), cls))
-            query = (peewee.Select(columns=[subq.c.id, subq.c.create_at, subq.c.name_id,
+                cls.select(peewee.fn.row_number().over(partition_by=cls.name, order_by=[cls.create_at.desc()]).alias("row_num"), cls))
+            query = (peewee.Select(columns=[subq.c.id, subq.c.create_at, subq.c.name,
                                             subq.c.value, subq.c.voltage])
                      .from_(subq)
                      .where(subq.c.row_num == 1)
@@ -251,8 +223,8 @@ class Radio(HomeCtrlBaseModel):
     def get_currents(cls):
         with database:
             subq = (
-                cls.select(peewee.fn.row_number().over(partition_by=cls.name_id, order_by=[cls.create_at.desc()]).alias("row_num"), cls))
-            query = (peewee.Select(columns=[subq.c.id, subq.c.create_at, subq.c.name_id,
+                cls.select(peewee.fn.row_number().over(partition_by=cls.name, order_by=[cls.create_at.desc()]).alias("row_num"), cls))
+            query = (peewee.Select(columns=[subq.c.id, subq.c.create_at, subq.c.name,
                                             subq.c.station_name, subq.c.station_code, subq.c.volume,
                                             subq.c.muted, subq.c.playinfo])
                      .from_(subq)
@@ -285,8 +257,8 @@ class Radar(HomeCtrlBaseModel):
     def get_currents(cls):
         with database:
             subq = (
-                cls.select(peewee.fn.row_number().over(partition_by=cls.name_id, order_by=[cls.create_at.desc()]).alias("row_num"), cls))
-            query = (peewee.Select(columns=[subq.c.id, subq.c.create_at, subq.c.name_id,
+                cls.select(peewee.fn.row_number().over(partition_by=cls.name, order_by=[cls.create_at.desc()]).alias("row_num"), cls))
+            query = (peewee.Select(columns=[subq.c.id, subq.c.create_at, subq.c.name,
                                             subq.c.presence, subq.c.target_state, subq.c.distance])
                      .from_(subq)
                      .where(subq.c.row_num == 1)
@@ -310,8 +282,8 @@ class Electricity(HomeCtrlBaseModel):
     def get_currents(cls):
         with database:
             subq = (
-                cls.select(peewee.fn.row_number().over(partition_by=cls.name_id, order_by=[cls.create_at.desc()]).alias("row_num"), cls))
-            query = (peewee.Select(columns=[subq.c.id, subq.c.create_at, subq.c.name_id,
+                cls.select(peewee.fn.row_number().over(partition_by=cls.name, order_by=[cls.create_at.desc()]).alias("row_num"), cls))
+            query = (peewee.Select(columns=[subq.c.id, subq.c.create_at, subq.c.name,
                                             subq.c.voltage, subq.c.current, subq.c.active_power,
                                             subq.c.active_energy, subq.c.power_factor])
                      .from_(subq)
@@ -320,37 +292,37 @@ class Electricity(HomeCtrlBaseModel):
             return list(map(lambda r: cls(**r), query))
 
 
-class ChartPeriod(Enum):
-    hours24 = 'hours24'
-    days7 = 'days7'
-    month1 = 'month1'
-
-class ChartStatus(Enum):
-    pending = 'pending'
-    ready = 'ready'
-
-class Chart(BaseModel):
-    name = ForeignKeyField(Name, on_update='CASCADE')
-    model = TextField()
-    period = EnumField(ChartPeriod, max_length=8)
-    status = EnumField(ChartStatus, max_length=8)
-    create_at = DateTimeField()
-    type = TextField()
-    data = BlobField()
-
-    @classmethod
-    def get_last(cls, model: Any, period: ChartPeriod, name: str):
-        if not isinstance(model, str):
-            model = model.__name__
-        return (Chart
-                .select()
-                .where(Chart.model == model, Chart.period == period, Chart.name == name)
-                .get_or_none())
-
-    def getvalue(self):
-        result = BytesIO()
-        result.write(self.data)
-        return result.getvalue()
+# class ChartPeriod(Enum):
+#     hours24 = 'hours24'
+#     days7 = 'days7'
+#     month1 = 'month1'
+#
+# class ChartStatus(Enum):
+#     pending = 'pending'
+#     ready = 'ready'
+#
+# class Chart(BaseModel):
+#     name = ForeignKeyField(Name, on_update='CASCADE')
+#     model = TextField()
+#     period = EnumField(ChartPeriod, max_length=8)
+#     status = EnumField(ChartStatus, max_length=8)
+#     create_at = DateTimeField()
+#     type = TextField()
+#     data = BlobField()
+#
+#     @classmethod
+#     def get_last(cls, model: Any, period: ChartPeriod, name: str):
+#         if not isinstance(model, str):
+#             model = model.__name__
+#         return (Chart
+#                 .select()
+#                 .where(Chart.model == model, Chart.period == period, Chart.name == name)
+#                 .get_or_none())
+#
+#     def getvalue(self):
+#         result = BytesIO()
+#         result.write(self.data)
+#         return result.getvalue()
 
 
 # def save(data: dict):
@@ -400,11 +372,11 @@ def subclasses(cls):
     return result
 
 
-def device_entities() -> [Type[HomeCtrlBaseModel]]:
+def device_entities() -> list[HomeCtrlBaseModel]:
     return subclasses(HomeCtrlBaseModel)
 
 
-def entities():
+def entities() -> list[BaseModel]:
     return subclasses(BaseModel)
 
 

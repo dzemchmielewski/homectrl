@@ -41,15 +41,10 @@ class Devices(OnAirService):
                         logger.debug(f"ENTRY TYPE: {type(entry)}, current status: {status_current}")
                         if status_current is not None:
 
-                            try :
-                                the_name = entry.name.value
-                            except Exception:
-                                the_name = None
-
-                            if the_name:
-                                current = status_current.get(the_name)
+                            if entry.name:
+                                current = status_current.get(entry.name)
                                 if not entry.equals(current):
-                                    logger.debug("SWITCH {} for {}".format(type(entry), entry.name.value))
+                                    logger.debug("SWITCH {} for {}".format(type(entry), entry.name))
                                     self.process_entry(entry)
 
                     # Some additional data, passed OnAir, but not saved in the database:
@@ -110,15 +105,13 @@ class Devices(OnAirService):
                 result.append(storage.Battery(name=data["name"], create_at=data["timestamp"],
                                               value=value.get('value'), voltage=value.get('voltage')))
             elif key == "ceilinglight" and value is not None and isinstance(value, dict):
-                result.extend([storage.CeilingLight(create_at=data["timestamp"],
-                                                    room=room, value=status) for (room, status) in value.items()])
-
-                pass
+                result.extend([storage.Light(create_at=data["timestamp"],
+                                                    name=room, value=status) for (room, status) in value.items()])
         return result
 
     def process_entry(self, entry: storage.HomeCtrlBaseModel, db_save=True):
-        self.status[type(entry)][entry.name.value] = entry
-        subject = Topic.OnAir.format(type(entry).__name__.lower(), entry.name.value)
+        self.status[type(entry)][entry.name] = entry
+        subject = Topic.OnAir.format(type(entry).__name__.lower(), entry.name)
         logger.debug("PUBLISH {} -> {}".format(subject, storage.model_to_dict(entry)))
         if db_save:
             entry.save_new_value()
