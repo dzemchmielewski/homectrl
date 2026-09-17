@@ -40,6 +40,7 @@ class OnAirService:
     def __init__(self):
         self.exit = False
         self.mqtt: MQTTClient = None
+        self.loop = None
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
         pass

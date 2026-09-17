@@ -1,3 +1,4 @@
+import asyncio
 import traceback
 import logging
 import datetime
@@ -22,6 +23,7 @@ class Devices(OnAirService):
         super().__init__()
         self.start_at = datetime.datetime.now()
         self.status = {}
+        self.pending_off = {}  # device_name -> asyncio.Task
 
     def on_message(self, client, userdata, msg):
         if Topic.Device.is_topic(msg.topic):
@@ -37,15 +39,19 @@ class Devices(OnAirService):
                     data["timestamp"] = datetime.datetime.now()
 
                     for entry in self.data2entries(data):
-                        status_current = self.status.get(type(entry))
-                        logger.debug(f"ENTRY TYPE: {type(entry)}, current status: {status_current}")
-                        if status_current is not None:
+                        # process Live differently:
+                        if isinstance(entry, storage.Live):
+                            self.process_live_entry(entry)
+                        else:
+                            status_current = self.status.get(type(entry))
+                            logger.debug(f"ENTRY TYPE: {type(entry)}, current status: {status_current}")
+                            if status_current is not None:
 
-                            if entry.name:
-                                current = status_current.get(entry.name)
-                                if not entry.equals(current):
-                                    logger.debug("SWITCH {} for {}".format(type(entry), entry.name))
-                                    self.process_entry(entry)
+                                if entry.name:
+                                    current = status_current.get(entry.name)
+                                    if not entry.equals(current):
+                                        logger.debug("SWITCH {} for {}".format(type(entry), entry.name))
+                                        self.process_entry(entry)
 
                     # Some additional data, passed OnAir, but not saved in the database:
                     for key, value in data.items():
@@ -119,6 +125,44 @@ class Devices(OnAirService):
             subject,
             json_serial(storage.model_to_dict(entry)),
             retain=True)
+
+    def process_live_entry(self, entry: storage.HomeCtrlBaseModel, db_save=True):
+        # logger.info(f"LIVE MSG for {entry.name}: {entry.value}")
+        # if live = True
+        if entry.value:
+            # cancel any pending OFF when device reports it is live
+            task = self.pending_off.pop(entry.name, None)
+            # logger.info(f"LIVE for {entry.name} task: {task}")
+            if task:
+                # logger.info(f"LIVE for {entry.name} task cancel")
+                task.cancel()
+
+        # if live = False
+        else:
+            # schedule delayed OFF
+            if entry.name not in self.pending_off:
+                self.pending_off[entry.name] = asyncio.run_coroutine_threadsafe(self._delayed_off(entry), self.loop)
+                # logger.info(f"LIVE for {entry.name} new task: {self.pending_off[entry.name]}")
+                return  # don't process immediately - just return so far
+            else:
+                # the second time live = False entry -
+                # - remove the delay and process it normally
+                # logger.info(f"LIVE for {entry.name} pop")
+                self.pending_off.pop(entry.name, None)
+
+        status_current = self.status.get(storage.Live)
+        if status_current is not None:
+            if entry.name:
+                current = status_current.get(entry.name)
+                if not entry.equals(current):
+                    logger.debug("SWITCH {} for {}".format(type(entry), entry.name))
+                    self.process_entry(entry)
+
+    async def _delayed_off(self, entry: storage.Live, delay: int = 15):
+        """Delay OFF handling to avoid false LWT triggers."""
+        await asyncio.sleep(delay)
+        logger.info(f"Confirming OFF for {entry.name} after {delay}s delay")
+        self.process_live_entry(entry)
 
     def on_connect(self, client, userdata, flags, reason_code, properties):
         logger.info(f"Connected with result code: {reason_code}, flags: {flags}, userdata: {userdata}")

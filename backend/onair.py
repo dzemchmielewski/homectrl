@@ -80,6 +80,7 @@ class OnAir:
 
         for service in self.services:
             service.mqtt = self.mqtt
+            service.loop = self.loop
 
         thread = threading.Thread(target=self.mqtt.loop_forever, daemon=True)
         thread.start()

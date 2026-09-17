@@ -15,6 +15,7 @@ argcomplete.autocomplete(parser)
 args = parser.parse_args()
 
 logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.DEBUG)
 for handler in logging.getLogger().handlers:
     handler.setFormatter(logging.Formatter("[%(asctime)s][%(levelname)s][%(name)s] %(message)s"))
 

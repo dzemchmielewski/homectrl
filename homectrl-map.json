@@ -150,7 +150,7 @@
     "db": "homectrl_v2",
     "username": "${db_username}",
     "password": "${db_password}",
-    "host": "status.home",
+    "host": "192.168.0.26",
     "port": 5432
   },
   "_database": {
