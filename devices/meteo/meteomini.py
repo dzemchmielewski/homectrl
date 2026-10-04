@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 for handler in logging.getLogger().handlers:
     handler.setFormatter(logging.Formatter("[%(asctime)s][%(levelname)s][%(name)s] %(message)s"))
 
@@ -125,6 +125,7 @@ class MeteoMiniApplication(BoardApplication):
             if self.battery.value[0] > 100:
                 self.battery.value[0] = 100
             self.display.value['battery'] = self.battery.value[0]
+            self.display.value['undervoltage'] = self.battery.endpoint.undervoltage
             self.display.value = self.display.value  # trigger update
             self.log.info(f"Battery: {self.battery.value[0]}%, {self.battery.value[1]:.2f}V")
             if last_mqtt is None or (time.time_ms() - last_mqtt) > 60 * 5 * 1_000:
@@ -133,6 +134,10 @@ class MeteoMiniApplication(BoardApplication):
             await asyncio.sleep(60)  # every 1 minute
 
     async def go_sleep(self):
+        if self.display.value.get('undervoltage', False):
+            self.log.info(f"Going to indefinite sleep due to undervoltage.")
+            deepsleep()
+
         if self.SLEEP_TIME_SEC:
             seconds_to_next = self.SLEEP_TIME_SEC
         else:

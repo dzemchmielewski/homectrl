@@ -32,7 +32,8 @@ class MeteoMiniDisplay:
         self.foreground = self.background ^ 1
 
         # set default font, so we don't have to specify it for each font:
-        FM.liberation.sans.bold.normal.directory = "fonts/"
+        FM.liberation.sans.bold.normal.directory = "."
+        # FM.liberation.sans.bold.normal.directory = "fonts"
 
         self.fonts_middle =  FM.get.serif.font(52)
         self.font_topbottom = FM.get.sans.font(18)
@@ -50,17 +51,29 @@ class MeteoMiniDisplay:
         x, y = self.fb.textf(f"{temperature_str}", x, y, font, key=self.background, palette=self.palette, x_spacing=x_spacing)
 
         # Degree symbol
-        x, y = x + font.get_char('.')[2], y - font.height + round(font.height * (2/10))
+        x, y = x + font.get_char('.')[2] - 10, y - font.height + round(font.height * (2/10))
         self.fb.ellipse(x, y, 6, 6, self.foreground, True)
         self.fb.ellipse(x, y, 3, 3, self.background, True)
 
-        # "C" symbol
-        x, y = x + 7, y - 10
-        x, y = self.fb.textf("C", x, y, font, key=self.background, palette=self.palette)
+        # # "C" symbol
+        # x, y = x + 7, y - 10
+        # x, y = self.fb.textf("C", x, y, font, key=self.background, palette=self.palette)
         return x, y
 
+    def _undervoltage(self):
+        font = self.fonts_middle
+        x_spacing = 1
+        str = ["NO", "BATTERY!"]
+        for i, s in enumerate(str):
+            size_x, size_y = font.size(s, x_spacing=x_spacing)
+            x, y = self.fb.width // 2 - (size_x // 2), self.fb.height // 3 - (size_y // 2) + (i * (self.fb.height // 3))
+            self.fb.textf(s, x, y + (i * 2), font, key=self.background, palette=self.palette, x_spacing=x_spacing)
 
     def update(self, data: dict):
+        if data.get('undervoltage', False):
+            self._undervoltage()
+            return
+
         meteo_data = data['meteo']
         astro_data = data['astro']
         battery = data['battery']
@@ -87,9 +100,18 @@ class MeteoMiniDisplay:
         x,y = self.font_topbottom.size(wind)
         self.fb.textf(wind, self.fb.width - x - 10, self.fb.height - (self.font_topbottom.height + 8), self.font_topbottom, key=self.background)
 
+        # self.fb.textf(str(battery) + "%",
+        #                      self.fb.width - 30, self.fb.height - 45,
+        #                      self.font_hour, key=self.background, palette=self.palette)
+
         self.fb.textf(str(battery) + "%",
-                             self.fb.width - 30, self.fb.height - 45,
-                             self.font_hour, key=self.background, palette=self.palette)
+                      self.fb.width - 140, 8+4,
+                      self.font_hour, key=self.background, palette=self.palette)
+
+        icon = meteo_data['icon'] if 'icon' in meteo_data else None
+        if icon:
+            image = FrameBufferExtension.fromfile(f"images/64x64/{icon}.fb").invert()
+            self.fb.blit(image, 170, 28, self.background)
 
         #debug lines:
         # self.fb.line(0, 0, self.fb.width - 1, self.fb.height - 1, self.foreground)
@@ -103,10 +125,12 @@ if __name__ == "__main__":
     import sys, time
     meteo = MeteoMiniDisplay(248, 122, framebuf.MONO_HLSB)
     temperature = round(time.localtime()[4] + (time.localtime()[5]/100), 1)
+    icon = "cloud-sun-snow"
     data = {
-        'meteo': json.loads('{"temperature": -' + str(temperature)+ ', "humidity": 93.0, "pressure": {"real": 1018.5, "sea_level": 1024.7}, "precipitation": 0.0, "wind": {"speed": 0.7, "direction": 100, "direction_desc": "E", "max": {"speed": 1.6, "direction": 158, "direction_desc": "S"}}, "solar_radiation": 0.0, "date": "2025-11-05T02:24:18+01:00", "create_at": "2025-11-05T02:25:01.775631"}'),
+        'meteo': json.loads('{"temperature": -' + str(temperature)+ ', "humidity": 93.0, "icon":"' + icon + '", "pressure": {"real": 1018.5, "sea_level": 1024.7}, "precipitation": 0.0, "wind": {"speed": 0.7, "direction": 100, "direction_desc": "E", "max": {"speed": 1.6, "direction": 158, "direction_desc": "S"}}, "solar_radiation": 0.0, "date": "2025-11-05T02:24:18+01:00", "create_at": "2025-11-05T02:25:01.775631"}'),
         'astro': json.loads('{"name": "astro", "astro": [{"date": "2025-11-03", "weekday": "Monday", "sun": {"event": [{"type": "rise", "time": "06:47:17"}, {"type": "set", "time": "16:10:14"}]}, "moon": {"event": [{"type": "rise", "time": "15:00:46"}, {"type": "set", "time": "03:38:23"}], "phase": 0.43}}, {"date": "2025-11-04", "weekday": "Tuesday", "sun": {"event": [{"type": "rise", "time": "06:49:10"}, {"type": "set", "time": "16:08:24"}]}, "moon": {"event": [{"type": "rise", "time": "15:13:59"}, {"type": "set", "time": "05:10:44"}], "phase": 0.46}}, {"date": "2025-11-05", "weekday": "Wednesday", "sun": {"event": [{"type": "rise", "time": "06:51:03"}, {"type": "set", "time": "16:06:35"}]}, "moon": {"event": [{"type": "rise", "time": "15:31:33"}, {"type": "set", "time": "06:47:53"}], "phase": 0.5}}, {"date": "2025-11-06", "weekday": "Thursday", "sun": {"event": [{"type": "rise", "time": "06:52:56"}, {"type": "set", "time": "16:04:47"}]}, "moon": {"event": [{"type": "rise", "time": "15:56:57"}, {"type": "set", "time": "08:27:59"}], "phase": 0.53}}, {"date": "2025-11-07", "weekday": "Friday", "sun": {"event": [{"type": "rise", "time": "06:54:48"}, {"type": "set", "time": "16:03:02"}]}, "moon": {"event": [{"type": "rise", "time": "16:36:16"}, {"type": "set", "time": "10:03:41"}], "phase": 0.56}}, {"date": "2025-11-08", "weekday": "Saturday", "sun": {"event": [{"type": "rise", "time": "06:56:41"}, {"type": "set", "time": "16:01:18"}]}, "moon": {"event": [{"type": "rise", "time": "17:36:15"}, {"type": "set", "time": "11:22:53"}], "phase": 0.6}}, {"date": "2025-11-09", "weekday": "Sunday", "sun": {"event": [{"type": "rise", "time": "06:58:33"}, {"type": "set", "time": "15:59:37"}]}, "moon": {"event": [{"type": "rise", "time": "18:54:22"}, {"type": "set", "time": "12:17:38"}], "phase": 0.63}}], "datetime": {"date": "2025-11-04", "time": "23:07:03.481179", "weekday": "Tuesday"}}'),
         'battery': 93,
+        'undervoltage': False,
     }
     print(data)
     meteo.update(data)
