@@ -1,6 +1,7 @@
 #!/usr/bin/env -S bash -c '"$(dirname $(readlink $0 || echo $0))/../env/bin/python" "$0" "$@"'
 
 import logging
+
 if __name__ == '__main__':
     #logging.basicConfig(level=logging.DEBUG)
     logging.basicConfig(level=logging.INFO)
@@ -25,10 +26,9 @@ logger = logging.getLogger("uroom")
 # RESET (enable) -> GPIO 22
 
 LIGHT_MAP = [
-    ['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7'],
-    ['jroom', 'bathroom', 'backyard', 'bedroom', 'kitchen', 'B5', 'froom1', 'froom2']
+    ['shed', 'hall', 'attic', 'droom', 'backyard', 'klamp', 'A6', 'A7'],
+    ['jroom', 'bathroom', 'lroom', 'bedroom', 'kitchen', 'uroom', 'froom1', 'froom2']
 ]
-# B2 - pull up issue
 
 class URoomApplication(PiApplication):
 
@@ -53,7 +53,8 @@ class URoomApplication(PiApplication):
     async def light_change_task(self):
         while not self.exit:
             await self.light_change.event.wait()
-            value = self.mcp.endpoint.read_capture()
+            value = self.mcp.endpoint.read_output(clear_capture=True)
+
             if value != self.light_change.value:
                 logger.debug(f"processing the change: {self.light_change.value.__repr__()} => {value.__repr__()}")
                 xor = Values(

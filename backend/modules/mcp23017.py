@@ -147,7 +147,9 @@ class MCP23017:
         data = self.i2c.read_block_data(self.address, register, 2)
         return Values(data[0], data[1])
 
-    def read_output(self):
+    def read_output(self, clear_capture: bool = True):
+        if clear_capture:
+            self.i2c.read_block_data(self.address, OutputRegister.INTCAP, 2)
         data = self.i2c.read_block_data(self.address, OutputRegister.GPIO, 2)
         return Values(data[0], data[1])
 
