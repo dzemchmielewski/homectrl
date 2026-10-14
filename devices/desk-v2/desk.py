@@ -19,7 +19,8 @@ CURRENT_ALERT_MA = [
     2, # 5V
     2, # 12V
 ]
-
+# ADDR = 0x44
+ADDR = 0x46
 
 class DeskApplication(BoardApplication):
     def __init__(self):
@@ -28,9 +29,9 @@ class DeskApplication(BoardApplication):
         i2c = SoftI2C(scl=Pin(4), sda=Pin(3), freq=400_000)
 
         self.ina = [
-            INA226(i2c, addr=0x44 + 0), # 3.3V
-            INA226(i2c, addr=0x44 + 2), # 5V
-            INA226(i2c, addr=0x44 + 1), # 12V
+                INA226(i2c, addr=70), # 3.3V
+            INA226(i2c, addr=80), # 5V
+            INA226(i2c, addr=81), # 12V
         ]
         for i in range(3):
             self.ina[i].calibrate(
