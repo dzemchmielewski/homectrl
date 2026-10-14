@@ -11,6 +11,8 @@ import Electricity from "./components/Electricity";
 import Laundry from "./components/Laundry";
 import Controls from "./components/Controls";
 import FrontDoors from "./components/FrontDoors";
+import CeilingLights from "./components/CeilingLights";
+import KitchenLamp from "./components/KitchenLamp";
 
 
 function App() {
@@ -28,7 +30,7 @@ function App() {
             <ol className="breadcrumb">
                 <li className="breadcrumb-item active">
                     <img src="/icon-fullsize-white.png" alt="HomeCtrl" style={{height: '40px', verticalAlign: 'top', marginRight: '8px'}} />
-                    <h3 style={{display: 'inline'}}>DZEM HomeCtrl</h3>
+                    <h3 style={{display: 'inline'}}>HomeCtrl</h3>
                 </li>
             </ol>
 
@@ -37,20 +39,23 @@ function App() {
                 <div className="container-fluid">
                     <div className="row">
                         <div className="col-md-9">
-                            <DeviceList facet="devices"/>
-                            <EntryBoolean facet="presence" label="Presence" setChartData={setChartData} chartRef={chartRef}/>
-                            <EntryBoolean facet="light" label="Lights" setChartData={setChartData} chartRef={chartRef}/>
-                            <FrontDoors facet="frontdoors" setChartData={setChartData} chartRef={chartRef}/>
-                            <EntryBoolean facet="darkness" label="Darkness" setChartData={setChartData} chartRef={chartRef}/>
-                            <EntryDecimal facet="temperature" label="Temperature" unit="°C" setChartData={setChartData} chartRef={chartRef}/>
-                            <EntryDecimal facet="humidity" label="Humidity" unit="%" setChartData={setChartData} chartRef={chartRef}/>
-                            <EntryDecimal facet="pressure" label="Pressure" unit={"hPa"} setChartData={setChartData} chartRef={chartRef}/>
-                            <Electricity facet="electricity"/>
-                            <EntryDecimal facet="moisture" label="Moisture" unit="%" setChartData={setChartData} chartRef={chartRef}/>
-                            <Laundry facet="laundry"/>
-                            <Radio facet="radio"/>
-                            <Controls facet="controls"/>
-                            <Chart facet="chart" chartData={chartData} ref={chartRef}/>
+                            <CeilingLights facet="ceiling_lights" label="Ceiling Lights"/>
+                            <KitchenLamp facet="kitchen_lamp"/>
+                            {/*<EntryBoolean facet="light" label="Lights"/>*/}
+                            {/*<DeviceList facet="devices"/>*/}
+                            {/*<EntryBoolean facet="presence" label="Presence" setChartData={setChartData} chartRef={chartRef}/>*/}
+                            {/*<EntryBoolean facet="light" label="Lights" setChartData={setChartData} chartRef={chartRef}/>*/}
+                            {/*<FrontDoors facet="frontdoors" setChartData={setChartData} chartRef={chartRef}/>*/}
+                            {/*<EntryBoolean facet="darkness" label="Darkness" setChartData={setChartData} chartRef={chartRef}/>*/}
+                            {/*<EntryDecimal facet="temperature" label="Temperature" unit="°C" setChartData={setChartData} chartRef={chartRef}/>*/}
+                            {/*<EntryDecimal facet="humidity" label="Humidity" unit="%" setChartData={setChartData} chartRef={chartRef}/>*/}
+                            {/*<EntryDecimal facet="pressure" label="Pressure" unit={"hPa"} setChartData={setChartData} chartRef={chartRef}/>*/}
+                            {/*<Electricity facet="electricity"/>*/}
+                            {/*<EntryDecimal facet="moisture" label="Moisture" unit="%" setChartData={setChartData} chartRef={chartRef}/>*/}
+                            {/*<Laundry facet="laundry"/>*/}
+                            {/*<Radio facet="radio"/>*/}
+                            {/*<Controls facet="controls"/>*/}
+                            {/*<Chart facet="chart" chartData={chartData} ref={chartRef}/>*/}
                         </div>
                     </div>
                 </div>

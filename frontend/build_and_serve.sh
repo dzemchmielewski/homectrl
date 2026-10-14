@@ -1,5 +1,6 @@
 #!/bin/bash
 
-BIN_DIR=/home/dzem/.nvm/versions/node/v23.6.1/bin
-
-${BIN_DIR}/npm run build && ${BIN_DIR}/serve -p 80 build
+#SERVE=/home/dzem/.nvm/versions/node/v23.6.1/bin/serve
+#SERVE=node_modules/serve/bin/serve.js
+#npm run build && ${SERVE} -p 80 build
+npm run build && npm run serve -p 80 build
