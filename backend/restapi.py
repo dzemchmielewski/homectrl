@@ -9,13 +9,12 @@ from starlette.responses import JSONResponse
 from starlette.websockets import WebSocketState, WebSocketDisconnect
 from websockets.exceptions import ConnectionClosed
 from classy_fastapi import Routable, get, websocket, post
-from fastapi import FastAPI, WebSocket, status, HTTPException
+from fastapi import FastAPI, WebSocket, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
 from contextlib import asynccontextmanager
 from dateutil.relativedelta import relativedelta
 
-from backend.storage import Chart, ChartPeriod, Laundry
+from backend.storage import Laundry
 from configuration import Topic
 from backend.tools import json_serial, json_deserial, MQTTClient
 
@@ -80,7 +79,7 @@ class ConnectionManager:
     def prepare_response(self, facet: str):
         return json_serial({"status": "OK", "result": list(self.onair[facet].values())})
 
-    async def connect(self, ws: WebSocket, facet: str = None) -> str:
+    async def connect(self, ws: WebSocket, facet: str) -> str:
         await ws.accept()
         id = str(uuid.uuid4())
         logger.debug("Client #{} connected".format(id))
@@ -90,11 +89,11 @@ class ConnectionManager:
         await ws.send_text(self.prepare_response(facet))
         return id
 
-    async def disconnect(self, id, facet: str = None) -> None:
+    async def disconnect(self, id, facet: str) -> None:
         logger.debug("Client #{} removed from manager".format(id))
         del self.connections[facet][id]
 
-    async def send_message(self, message, facet: str = None) -> None:
+    async def send_message(self, message, facet: str) -> None:
         if self.connections.get(facet):
             for id, ws in self.connections[facet].items():
                 try:
@@ -184,12 +183,12 @@ class HomeCtrlAPI(Routable):
     async def activity(self, ws: WebSocket):
         await self.ws_facet(ws, "activity")
 
-    @get("/chart/{period}/{facet}/{device}")
-    async def get_basic_chart(self, period: str, facet: str, device: str):
-        cache = Chart.get_last(facet[0].upper() + facet[1:], ChartPeriod.from_str(period), device)
-        if not cache:
-            return Response(status_code=status.HTTP_404_NOT_FOUND)
-        return Response(content=cache.getvalue(), media_type="image/png", status_code=status.HTTP_200_OK)
+    # @get("/chart/{period}/{facet}/{device}")
+    # async def get_basic_chart(self, period: str, facet: str, device: str):
+    #     cache = Chart.get_last(facet[0].upper() + facet[1:], ChartPeriod.from_str(period), device)
+    #     if not cache:
+    #         return Response(status_code=status.HTTP_404_NOT_FOUND)
+    #     return Response(content=cache.getvalue(), media_type="image/png", status_code=status.HTTP_200_OK)
 
     @get("/dump", response_class=PrettyJSONResponse)
     async def dump(self):
@@ -275,11 +274,11 @@ origins = [
     "http://status.home",
 ]
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    CORSMiddleware, # type: ignore[arg-type]
+    allow_origins=origins, # type: ignore[arg-type]
+    allow_credentials=True, # type: ignore[arg-type]
+    allow_methods=["*"], # type: ignore[arg-type]
+    allow_headers=["*"], # type: ignore[arg-type]
 )
 
 
@@ -320,7 +319,6 @@ UVICORN_LOG_CONFIG: dict[str, Any] = {
 if __name__ == "__main__":
 
     import uvicorn
-    import socket
 
     # if socket.gethostname() == 'pi':
     #     bind_to = '192.168.0.24'
